@@ -1,0 +1,276 @@
+.select-professional-container {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 30px;
+  text-align: center;
+}
+
+.select-professional-container h2 {
+  font-size: 2rem;
+  font-weight: bold;
+  margin-bottom: 20px;
+}
+
+.professional-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+
+@media (max-width: 768px) {
+  .professional-grid {
+    grid-template-columns: repeat(2, 1fr);
+    max-height: calc((160px + 20px) * 2); /* 2 rows */
+    overflow-y: auto;
+  }
+}
+
+@media (max-width: 480px) {
+  .professional-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+
+.professional-card {
+  border: 1px solid #eee;
+  border-radius: 12px;
+  padding: 20px 10px;
+  text-align: center;
+  cursor: pointer;
+  transition: 0.2s ease-in-out;
+  position: relative;
+  background: #fff;
+}
+
+.professional-card.selected {
+  border: 2px solid #050506;
+}
+
+.icon-circle,
+.letter-circle,
+.image-circle {
+  width: 60px;
+  height: 60px;
+  margin: 0 auto 10px;
+  border-radius: 50%;
+  background-color: #f4f4ff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 1.25rem;
+  color: #333;
+  position: relative;
+  overflow: hidden;
+}
+
+.image-circle img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.rating-badge {
+  position: absolute;
+  bottom: -5px;
+  right: -5px;
+  background: #fff;
+  color: #000;
+  font-size: 0.7rem;
+  padding: 2px 6px;
+  border-radius: 999px;
+  border: 1px solid #ccc;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  font-weight: bold;
+}
+
+.rating-badge .star {
+  color: gold;
+  font-size: 0.8rem;
+}
+
+.name-text {
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.subtitle-text {
+  font-size: 0.75rem;
+  color: gray;
+}
+
+/* Multi-Service Professional Selection */
+.service-professional-section {
+  margin-bottom: 2rem;
+  padding: 1.5rem;
+  background: #f8f9fa;
+  border-radius: 12px;
+  border: 1px solid #e9ecef;
+}
+
+.service-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid #01050a;
+}
+
+.service-header h3 {
+  margin: 0;
+  color: #00060c;
+  font-size: 1.2rem;
+  font-weight: 600;
+  flex: 1;
+}
+
+.service-duration {
+  background: #e3f2fd;
+  color: #0f1010;
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.service-price {
+  background: #e8f5e8;
+  color: #2e7d32;
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.service-divider {
+  margin: 2rem 0;
+  border: none;
+  height: 1px;
+  background: linear-gradient(to right, transparent, #dee2e6, transparent);
+}
+
+.selection-summary {
+  margin-top: 2rem;
+  padding: 1.5rem;
+  background: white;
+  border-radius: 8px;
+  border: 2px solid #151515;
+}
+
+.selection-summary h4 {
+  margin: 0 0 1rem 0;
+  color: #141415;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.summary-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.summary-item:last-child {
+  border-bottom: none;
+}
+
+.service-name {
+  font-weight: 500;
+  color: #495057;
+}
+
+.professional-name {
+  font-weight: 600;
+  color: #0f0f0f;
+}
+
+.professional-name:empty::before {
+  content: 'No professional selected';
+  color: #dc3545;
+  font-style: italic;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .service-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+  
+  .service-header h3 {
+    font-size: 1.1rem;
+  }
+  
+  .summary-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+}
+/* --------- */
+
+
+/* Hide the service bottom bar by default (desktop and tablet) */
+.service-bottom-bar {
+  display: none;
+}
+
+/* Show the service bottom bar only on mobile screens */
+@media (max-width: 600px) {
+  .service-bottom-bar {
+    display: flex;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: white;
+    border-top: 1px solid #eee;
+    padding: 15px 20px;
+    align-items: center;
+    justify-content: space-between;
+    gap: 15px;
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+    z-index: 1000;
+  }
+
+  .service-bottom-bar span {
+    font-size: 0.9rem;
+    color: #666;
+    font-weight: 500;
+  }
+
+  .service-bottom-bar .btn-continue {
+    background: #050506;
+    color: white;
+    border: none;
+    padding: 12px 20px;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+  }
+
+  .service-bottom-bar .btn-continue:hover:not(.disabled) {
+    background: #333;
+  }
+
+  .service-bottom-bar .btn-continue.disabled {
+    background: #ccc;
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
+
+  /* Add bottom padding to container to prevent content overlap */
+  .select-professional-container {
+    padding-bottom: 80px;
+  }
+}

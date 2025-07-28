@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: allora-spa-frontend
+    env: node
+    buildCommand: npm install && npm run build
+    startCommand: npm run preview
+    plan: free
+    healthCheckPath: /
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: VITE_API_BASE_URL
+        value: https://spabackend-0tko.onrender.com/api/v1
+      - key: VITE_STRIPE_PUBLISHABLE_KEY
+        value: pk_test_51RpSYD5FOF6KgbFpVgzOspHQuZYVwLuawvNXCAI60gDNuyEFdfvwd9UnhHMqal5RfWh3N4WPv5uzLn3GEFiRTm1D00rpI5BXPQ

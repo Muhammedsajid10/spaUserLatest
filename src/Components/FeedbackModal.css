@@ -1,0 +1,56 @@
+.feedback-booking-info {
+  background: #f8f9fa;
+  padding: 15px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+.feedback-booking-info h6 {
+  color: #495057;
+  margin-bottom: 10px;
+}
+
+.feedback-booking-info p {
+  margin-bottom: 5px;
+  font-size: 14px;
+}
+
+.rating-sections {
+  margin: 20px 0;
+}
+
+.rating-group {
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.rating-group:last-child {
+  border-bottom: none;
+}
+
+.rating-group h6 {
+  margin-bottom: 10px;
+  color: #495057;
+  font-weight: 500;
+}
+
+/* Dark theme support for feedback modal */
+.modal.show .modal-dialog .modal-content {
+  background-color: var(--bs-body-bg);
+  color: var(--bs-body-color);
+}
+
+.modal .feedback-booking-info {
+  background: rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.modal .rating-group {
+  border-bottom-color: rgba(255, 255, 255, 0.1);
+}
+
+.modal .rating-group h6,
+.modal .feedback-booking-info h6 {
+  color: var(--bs-body-color);
+}

@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 80" style="overflow: visible;">
+  <!-- Hummingbird -->
+  <g transform="translate(5, 10)">
+    <!-- Main body -->
+    <path d="M25 35 Q22 32 18 35 Q17 37 20 40 Q25 42 28 40 Q31 37 28 35 Z" fill="#1a1a1a"/>
+    
+    <!-- Upper wing (teal/green) -->
+    <path d="M20 35 Q12 27 6 22 Q0 17 8 12 Q16 10 28 17 Q40 25 37 32 Q35 35 20 35" fill="#20b2aa"/>
+    
+    <!-- Lower wing (pink/magenta) -->
+    <path d="M22 37 Q14 29 8 24 Q2 19 10 14 Q18 12 30 19 Q42 27 39 34 Q37 37 22 37" fill="#e91e63"/>
+    
+    <!-- Yellow accent on wing -->
+    <path d="M14 27 Q8 22 6 20 Q5 17 8 16 Q14 15 20 20 Q23 25 20 27 Z" fill="#ffd700"/>
+    
+    <!-- Beak -->
+    <path d="M15 35 Q10 34 6 35 Q10 36 15 35" fill="#1a1a1a"/>
+    
+    <!-- Eye -->
+    <circle cx="17" cy="33" r="1.5" fill="#e91e63"/>
+    <circle cx="17" cy="33" r="0.8" fill="white"/>
+    
+    <!-- Long tail feathers -->
+    <path d="M28 40 Q35 45 40 55 Q45 65 40 62 Q33 55 28 40" fill="#ffd700"/>
+    <path d="M30 42 Q37 47 42 57 Q47 67 42 64 Q35 57 30 42" fill="#20b2aa"/>
+    
+    <!-- Body outline -->
+    <path d="M18 35 Q22 32 25 35 Q28 37 25 40 Q22 42 18 40 Q15 37 18 35" fill="none" stroke="#1a1a1a" stroke-width="1"/>
+  </g>
+  
+  <!-- Text -->
+  <g transform="translate(70, 0)">
+    <!-- ALLORA text -->
+    <text x="0" y="35" font-family="serif" font-size="28" font-weight="bold" fill="#1a1a1a">ALLORA</text>
+    
+    <!-- Spa text -->
+    <text x="140" y="35" font-family="serif" font-size="18" font-weight="normal" fill="#1a1a1a">Spa</text>
+    
+    <!-- Tagline -->
+    <text x="0" y="52" font-family="serif" font-size="10" fill="#666">Nature Breeze of Relaxation</text>
+  </g>
+</svg>
