@@ -1,11 +1,21 @@
 services:
   - type: web
     name: allora-spa-frontend
-    env: node
+    env: static
     buildCommand: npm install && npm run build
-    startCommand: npm run preview
+    staticPublishPath: ./dist
     plan: free
-    healthCheckPath: /
+    headers:
+      - path: /*
+        name: X-Frame-Options
+        value: DENY
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
     envVars:
       - key: NODE_ENV
         value: production

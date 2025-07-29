@@ -4,6 +4,7 @@ import "bootstrap/dist/css/bootstrap.min.css";
 import { Modal, Button } from "react-bootstrap";
 import { servicesAPI, apiUtils, bookingFlow } from "../services/api";
 import { useNavigate } from "react-router-dom";
+import Swal from 'sweetalert2';
 
 function Services() {
   const [services, setServices] = useState({});
@@ -129,34 +130,74 @@ function Services() {
     setSelectedOption(null);
   };
 
+  // const handleAddToBooking = () => {
+  //   if (selectedService && selectedOption) {
+  //     // Calculate the price based on selected option
+  //     let finalPrice = selectedService.effectivePrice;
+  //     if (selectedOption === "couple") {
+  //       finalPrice = selectedService.effectivePrice * 2;
+  //     }
+
+  //     const serviceForBooking = {
+  //       _id: selectedService._id,
+  //       name: selectedService.title,
+  //       duration: selectedService.duration,
+  //       price: finalPrice,
+  //       description: selectedService.desc,
+  //       category: selectedService.category,
+  //       option: selectedOption, // Store the selected option for reference
+  //     };
+
+  //     bookingFlow.addService(serviceForBooking);
+  //     handleCloseModal();
+
+  //     const newCount = bookingFlow.selectedServices.length;
+  //     alert(
+  //       `Service added to booking! You now have ${newCount} service${newCount > 1 ? "s" : ""
+  //       } selected. You can add more services or click Continue in the sidebar to proceed.`
+  //     );
+  //   }
+  // };
+
+
+
+
   const handleAddToBooking = () => {
-    if (selectedService && selectedOption) {
-      // Calculate the price based on selected option
-      let finalPrice = selectedService.effectivePrice;
-      if (selectedOption === "couple") {
-        finalPrice = selectedService.effectivePrice * 2;
-      }
-
-      const serviceForBooking = {
-        _id: selectedService._id,
-        name: selectedService.title,
-        duration: selectedService.duration,
-        price: finalPrice,
-        description: selectedService.desc,
-        category: selectedService.category,
-        option: selectedOption, // Store the selected option for reference
-      };
-
-      bookingFlow.addService(serviceForBooking);
-      handleCloseModal();
-
-      const newCount = bookingFlow.selectedServices.length;
-      alert(
-        `Service added to booking! You now have ${newCount} service${newCount > 1 ? "s" : ""
-        } selected. You can add more services or click Continue in the sidebar to proceed.`
-      );
+  if (selectedService && selectedOption) {
+    // Calculate the price based on selected option
+    let finalPrice = selectedService.effectivePrice;
+    if (selectedOption === "couple") {
+      finalPrice = selectedService.effectivePrice * 2;
     }
-  };
+
+    const serviceForBooking = {
+      _id: selectedService._id,
+      name: selectedService.title,
+      duration: selectedService.duration,
+      price: finalPrice,
+      description: selectedService.desc,
+      category: selectedService.category,
+      option: selectedOption,
+    };
+
+    bookingFlow.addService(serviceForBooking);
+    handleCloseModal();
+
+    const newCount = bookingFlow.selectedServices.length;
+
+    Swal.fire({
+      title: 'Service Added!',
+      text: `Service added to booking! You now have ${newCount} service${newCount > 1 ? "s" : ""} selected.`,
+      icon: 'success',
+      timer: 3000,
+      showConfirmButton: false,
+      toast: true,
+      position: 'top-right',
+      timerProgressBar: true
+    });
+  }
+};
+
 
   useEffect(() => {
     const loadSelectedServicesCount = () => {
@@ -417,7 +458,12 @@ function ServiceBottomBar({ currentStep = 1, navigate }) {
         if (canContinue()) {
           navigate("/professionals");
         } else {
-          alert("Please select at least one service.");
+          Swal.fire({
+            title: 'Service Required',
+            text: 'Please select at least one service.',
+            icon: 'warning',
+            confirmButtonText: 'OK'
+          });
         }
         break;
       case 2:
@@ -427,7 +473,12 @@ function ServiceBottomBar({ currentStep = 1, navigate }) {
         navigate("/payment");
         break;
       case 4:
-        alert("Complete payment logic here.");
+        Swal.fire({
+          title: 'Complete Booking',
+          text: 'Complete payment logic here.',
+          icon: 'info',
+          confirmButtonText: 'OK'
+        });
         break;
       default:
         break;

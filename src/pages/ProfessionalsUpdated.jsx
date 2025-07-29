@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import "./ProfessionalSelection.css";
 import { FaStar } from "react-icons/fa";
 import { bookingsAPI, apiUtils, bookingFlow } from "../services/api";
@@ -11,21 +11,31 @@ const SelectProfessional = () => {
   const [error, setError] = useState(null);
   const [selectedServices, setSelectedServices] = useState([]);
   const [currentStep, setCurrentStep] = useState(2); // Step 2 for professional selection
+  const previousServicesRef = useRef([]);
 
   const navigate = useNavigate();
 
   // Load selected services from booking flow
   useEffect(() => {
     const loadSelectedServices = () => {
-      bookingFlow.load();
-      setSelectedServices(bookingFlow.selectedServices || []);
+      const savedData = bookingFlow.load();
+      const newServices = savedData.selectedServices || [];
+      setSelectedServices(newServices);
+      previousServicesRef.current = newServices;
     };
 
     loadSelectedServices();
 
-    // Listen for changes in booking flow
+    // Listen for changes in booking flow - only reload if services actually change
     const handleBookingFlowChange = () => {
-      loadSelectedServices();
+      const currentServices = bookingFlow.selectedServices || [];
+      const servicesChanged = JSON.stringify(currentServices) !== JSON.stringify(previousServicesRef.current);
+      
+      if (servicesChanged) {
+        console.log('Services changed, reloading professionals...');
+        setSelectedServices(currentServices);
+        previousServicesRef.current = currentServices;
+      }
     };
 
     window.addEventListener("bookingFlowChange", handleBookingFlowChange);
@@ -218,24 +228,21 @@ const SelectProfessional = () => {
 
         // Assign this professional to all selected services
         bookingFlow.selectedServices.forEach((service) => {
-          bookingFlow.selectedProfessionals[service._id] = professionalData;
+          bookingFlow.addProfessional(service._id, professionalData);
         });
       } else {
         // Assign this professional to all selected services
         bookingFlow.selectedServices.forEach((service) => {
-          bookingFlow.selectedProfessionals[service._id] =
-            professional.employee;
+          bookingFlow.addProfessional(service._id, professional.employee);
         });
       }
     } else {
       // For "any professional", assign to all services
       const anyProfessional = { id: "any", name: "Any professional" };
       bookingFlow.selectedServices.forEach((service) => {
-        bookingFlow.selectedProfessionals[service._id] = anyProfessional;
+        bookingFlow.addProfessional(service._id, anyProfessional);
       });
     }
-
-    bookingFlow.save();
 
     console.log("Professional selected:", professional);
     console.log(

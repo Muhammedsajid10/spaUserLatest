@@ -62,6 +62,17 @@ const FeedbackModal = ({ show, onHide, booking, onSubmitFeedback }) => {
       return;
     }
 
+    // Additional validation for required fields
+    if (!feedback.visitFrequency) {
+      setError('Please select your visit frequency');
+      return;
+    }
+
+    if (feedback.wouldReturnAsCustomer === undefined || feedback.wouldReturnAsCustomer === null) {
+      setError('Please indicate if you would return as a customer');
+      return;
+    }
+
     setLoading(true);
     setError('');
 
@@ -80,8 +91,20 @@ const FeedbackModal = ({ show, onHide, booking, onSubmitFeedback }) => {
           ...(feedback.ratings.ambiance > 0 && { ambiance: feedback.ratings.ambiance })
         },
         comment: feedback.comments.positive + (feedback.comments.improvement ? ` | Improvements: ${feedback.comments.improvement}` : ''),
-        wouldRecommend: feedback.wouldRecommend
+        wouldRecommend: feedback.wouldRecommend,
+        // Try both field names to ensure compatibility
+        returnPreference: String(feedback.wouldReturnAsCustomer === true ? 'yes' : 'no'),
+        wouldReturnAsCustomer: feedback.wouldReturnAsCustomer,
+        visitFrequency: String(feedback.visitFrequency || 'first-time'),
+        discoveryMethod: String(feedback.discoveryMethod || 'search-engine'),
+        suggestions: String(feedback.suggestions || '')
       };
+
+      console.log('Feedback data being sent:', JSON.stringify(feedbackData, null, 2));
+      console.log('Return preference value:', feedbackData.returnPreference);
+      console.log('Visit frequency value:', feedbackData.visitFrequency);
+      console.log('wouldReturnAsCustomer original value:', feedback.wouldReturnAsCustomer);
+      console.log('wouldReturnAsCustomer type:', typeof feedback.wouldReturnAsCustomer);
 
       await onSubmitFeedback(feedbackData);
 

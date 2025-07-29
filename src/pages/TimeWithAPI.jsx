@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import "./Time.css";
 import Professionals from "./ProfessionalsUpdated";
 import { bookingsAPI, apiUtils, bookingFlow } from "../services/api";
+import Swal from 'sweetalert2';
 
 const Time = () => {
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -55,15 +56,20 @@ const Time = () => {
     
     loadBookingData();
     
-    // Listen for changes in booking flow
+    // Listen for changes in booking flow, but debounce to prevent too many calls
+    let debounceTimer;
     const handleBookingFlowChange = () => {
-      console.log('TimeWithAPI - Booking flow change detected, reloading data...');
-      loadBookingData();
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        console.log('TimeWithAPI - Booking flow change detected, reloading data...');
+        loadBookingData();
+      }, 500); // Wait 500ms before reloading
     };
     
     window.addEventListener('bookingFlowChange', handleBookingFlowChange);
     
     return () => {
+      clearTimeout(debounceTimer);
       window.removeEventListener('bookingFlowChange', handleBookingFlowChange);
     };
   }, []);
@@ -91,6 +97,9 @@ const Time = () => {
 
   // Fetch available time slots when professional, service, or date changes
   useEffect(() => {
+    let isMounted = true;
+    let requestTimeout;
+    
     const fetchTimeSlots = async () => {
       if (!selectedService || !selectedProfessional || !selectedDate) {
         setAvailableTimeSlots([]);
@@ -106,56 +115,63 @@ const Time = () => {
       console.log('Is sample professional:', professionalId && professionalId.startsWith('sample'));
       
       if (professionalId === 'any' || (professionalId && professionalId.startsWith('sample'))) {
-        console.log('Sample professional or "any" selected, showing fallback time slots');
+        console.log('Sample professional or "any" selected, showing demo time slots');
         showFallbackTimeSlots();
         return;
       }
 
-      setLoading(true);
-      setError(null);
-
-      try {
-        const formattedDate = apiUtils.formatDate(selectedDate);
-        console.log('Fetching time slots for:', {
-          professionalId: professionalId,
-          serviceId: selectedService._id,
-          date: formattedDate
-        });
+      // Add a small delay to prevent rapid API calls
+      requestTimeout = setTimeout(async () => {
+        if (!isMounted) return;
         
-        const response = await bookingsAPI.getAvailableTimeSlots(
-          professionalId,
-          selectedService._id,
-          formattedDate
-        );
+        setLoading(true);
+        setError(null);
 
-        console.log('Time slots API response:', response);
+        try {
+          const formattedDate = apiUtils.formatDate(selectedDate);
+          console.log('Fetching time slots for:', {
+            professionalId: professionalId,
+            serviceId: selectedService._id,
+            date: formattedDate
+          });
+          
+          const response = await bookingsAPI.getAvailableTimeSlots(
+            professionalId,
+            selectedService._id,
+            formattedDate
+          );
 
-        if (response.success && response.data && response.data.timeSlots && response.data.timeSlots.length > 0) {
-          // Transform time slots to readable format
-          const transformedSlots = response.data.timeSlots.map((slot, index) => ({
-            id: index,
-            time: apiUtils.parseTimeSlot(slot),
-            startTime: slot.startTime,
-            endTime: slot.endTime,
-            available: slot.available
-          }));
+          if (!isMounted) return;
 
-          setAvailableTimeSlots(transformedSlots);
-        } else {
-          // No time slots found, show fallback data
-          console.log('No time slots found in API response, showing fallback data');
-          showFallbackTimeSlots();
+          console.log('Time slots API response:', response);
+
+          if (response.success && response.data && response.data.timeSlots && response.data.timeSlots.length > 0) {
+            // Transform time slots to readable format
+            const transformedSlots = response.data.timeSlots.map((slot, index) => ({
+              id: index,
+              time: apiUtils.parseTimeSlot(slot),
+              startTime: slot.startTime,
+              endTime: slot.endTime,
+              available: slot.available
+            }));
+
+            setAvailableTimeSlots(transformedSlots);
+          } else {
+            // No time slots found
+            console.log('No time slots found in API response');
+            setAvailableTimeSlots([]);
+          }
+        } catch (err) {
+          if (!isMounted) return;
+          
+          console.error('Error fetching time slots:', err);
+          setError(err.message);
+        } finally {
+          if (isMounted) {
+            setLoading(false);
+          }
         }
-      } catch (err) {
-        console.error('Error fetching time slots:', err);
-        setError(err.message);
-        
-        // Show fallback data on error
-        console.log('Error occurred, showing fallback time slots');
-        showFallbackTimeSlots();
-      } finally {
-        setLoading(false);
-      }
+      }, 300); // 300ms delay to debounce rapid calls
     };
 
     // Function to show fallback time slots for testing
@@ -177,6 +193,11 @@ const Time = () => {
     };
 
     fetchTimeSlots();
+    
+    return () => {
+      isMounted = false;
+      clearTimeout(requestTimeout);
+    };
   }, [selectedService, selectedProfessional, selectedDate]);
 
   const handleProfessionalSelect = (professional) => {
@@ -202,7 +223,7 @@ const Time = () => {
   const handleTimeSelect = (timeSlot) => {
     setSelectedTime(timeSlot);
     
-    // Save selected time to booking flow
+    // Save selected time to booking flow without triggering unnecessary events
     const timeData = {
       date: selectedDate,
       time: timeSlot,
@@ -210,8 +231,17 @@ const Time = () => {
       service: selectedService
     };
     
+    // Update booking flow silently to avoid triggering events
     bookingFlow.selectedTimeSlot = timeData;
-    bookingFlow.save();
+    
+    // Save to localStorage directly without triggering events
+    localStorage.setItem('bookingFlow', JSON.stringify({
+      selectedServices: bookingFlow.selectedServices,
+      selectedProfessionals: bookingFlow.selectedProfessionals,
+      selectedDate: bookingFlow.selectedDate,
+      selectedTimeSlot: bookingFlow.selectedTimeSlot,
+      bookingConfirmation: bookingFlow.bookingConfirmation
+    }));
     
     console.log('Time selected:', timeData);
   };
@@ -467,7 +497,12 @@ function ServiceBottomBar({ currentStep = 3, navigate }) {
         if (canContinue()) {
           navigate("/professionals");
         } else {
-          alert("Please select at least one service.");
+          Swal.fire({
+            title: 'Service Required',
+            text: 'Please select at least one service.',
+            icon: 'warning',
+            confirmButtonText: 'OK'
+          });
         }
         break;
       case 2:
@@ -477,7 +512,12 @@ function ServiceBottomBar({ currentStep = 3, navigate }) {
         navigate("/payment");
         break;
       case 4:
-        alert("Complete payment logic here.");
+        Swal.fire({
+          title: 'Complete Booking',
+          text: 'Complete payment logic here.',
+          icon: 'info',
+          confirmButtonText: 'OK'
+        });
         break;
       default:
         break;
