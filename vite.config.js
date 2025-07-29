@@ -21,6 +21,12 @@ export default defineConfig({
     host: '0.0.0.0', // Allow all external connections
     strictPort: false,
     cors: true,
+    allowedHosts: [
+      'localhost',
+      '127.0.0.1',
+      'usersidespa.onrender.com',
+      '.onrender.com'
+    ],
     hmr: {
       host: 'localhost'
     },
@@ -42,6 +48,11 @@ export default defineConfig({
         },
       },
     },
+  },
+  preview: {
+    port: process.env.PORT || 3000,
+    host: '0.0.0.0',
+    strictPort: false
   },
   define: {
     global: 'globalThis',
