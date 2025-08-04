@@ -6,8 +6,8 @@
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "dev-local": "vite",
-    "build": "npm install --legacy-peer-deps && vite build",
-    "build-only": "vite build",
+    "build": "vite build",
+    "build-with-deps": "npm install --legacy-peer-deps && vite build",
     "start": "node server.js",
     "lint": "eslint .",
     "preview": "vite preview"
