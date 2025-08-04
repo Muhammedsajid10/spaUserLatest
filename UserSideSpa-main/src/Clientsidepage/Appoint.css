@@ -1,0 +1,403 @@
+/* Appoint.css - Updated with new class names */
+
+/* Container and Layout */
+.schedule-main-wrapper {
+  min-height: 100vh;
+  background-color: #f9fafb;
+  padding: 1rem;
+}
+
+.schedule-content-container {
+  max-width: 1280px;
+  margin: 0 auto;
+}
+
+/* Header Section */
+.page-header-section {
+  margin-bottom: 2rem;
+}
+
+.header-flex-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.title-description-block {
+  flex: 1;
+}
+
+.page-primary-title {
+  font-size: 1.875rem;
+  font-weight: bold;
+  color: #111827;
+  margin: 0 0 0.25rem 0;
+}
+
+.page-description-text {
+  color: #6b7280;
+  margin: 0;
+}
+
+.export-controls-wrapper {
+  position: relative;
+}
+
+.export-trigger-button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background-color: white;
+  border: 1px solid #d1d5db;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.export-trigger-button:hover {
+  background-color: #f9fafb;
+}
+
+.export-dropdown-menu {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  margin-top: 0.5rem;
+  width: 12rem;
+  background-color: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  z-index: 10;
+}
+
+.dropdown-menu-inner {
+  padding: 0.25rem 0;
+}
+
+.dropdown-menu-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 0.5rem 1rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.dropdown-menu-item:hover {
+  background-color: #f9fafb;
+}
+
+/* Filters Section */
+.filter-controls-section {
+  margin-bottom: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+.search-input-wrapper {
+  position: relative;
+  flex: 1;
+  max-width: 28rem;
+  width: 100%;
+}
+
+.search-field-icon {
+  position: absolute;
+  left: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #9ca3af;
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.search-text-input {
+  width: 100%;
+  padding: 0.5rem 1rem 0.5rem 2.5rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.5rem;
+  outline: none;
+  transition: all 0.2s;
+}
+
+.search-text-input:focus {
+  ring: 2px;
+  ring-color: #3b82f6;
+  border-color: #3b82f6;
+}
+
+.filter-button-group {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.filter-select-wrapper {
+  position: relative;
+}
+
+.filter-control-button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background-color: white;
+  border: 1px solid #d1d5db;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  white-space: nowrap;
+}
+
+.filter-control-button:hover {
+  background-color: #f9fafb;
+}
+
+.button-icon {
+  width: 1rem;
+  height: 1rem;
+}
+
+/* Table Container */
+.data-table-container {
+  background-color: white;
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+  border: 1px solid #e5e7eb;
+  overflow: hidden;
+}
+
+.table-scroll-wrapper {
+  overflow-x: auto;
+}
+
+.schedule-data-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.data-table-head {
+  background-color: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.column-header-cell {
+  text-align: left;
+  padding: 0.75rem 1rem;
+  font-weight: 500;
+  color: #374151;
+  border: none;
+  background: none;
+}
+
+.column-header-cell.clickable-header {
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.column-header-cell.clickable-header:hover {
+  background-color: #f3f4f6;
+}
+
+.column-header-content {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.data-table-body {
+  background-color: white;
+}
+
+.data-row-item {
+  border-bottom: 1px solid #e5e7eb;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.data-row-item:hover {
+  background-color: #f9fafb;
+}
+
+.data-cell-content {
+  padding: 1rem;
+  color: #111827;
+}
+
+.secondary-text {
+  color: #6b7280;
+}
+
+.emphasized-text {
+  font-weight: 500;
+}
+
+.reference-link-text {
+  color: #2563eb;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.reference-link-text:hover {
+  text-decoration: underline;
+}
+
+/* Status Badges */
+.status-indicator-badge {
+  padding: 0.25rem 0.5rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.status-indicator-badge.new {
+  color: #2563eb;
+  background-color: #dbeafe;
+}
+
+.status-indicator-badge.completed {
+  color: #059669;
+  background-color: #d1fae5;
+}
+
+/* Mobile Cards */
+.mobile-card-layout {
+  display: none;
+}
+
+.card-list-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.schedule-card-item {
+  background-color: white;
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+  border: 1px solid #e5e7eb;
+  padding: 1rem;
+}
+
+.card-top-section {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 0.75rem;
+}
+
+.card-reference-number {
+  color: #2563eb;
+  font-weight: 500;
+  font-size: 1.125rem;
+}
+
+.card-details-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.card-info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.info-label-text {
+  color: #6b7280;
+}
+
+.info-value-text {
+  color: #111827;
+}
+
+/* Empty State */
+.no-results-state {
+  text-align: center;
+  padding: 3rem 0;
+}
+
+.no-results-message {
+  color: #6b7280;
+  font-size: 1.125rem;
+  margin: 0;
+}
+
+/* Responsive Design */
+@media (min-width: 640px) {
+  .schedule-main-wrapper {
+    padding: 1.5rem;
+  }
+  
+  .header-flex-container {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+  
+  .filter-controls-section {
+    flex-direction: row;
+    align-items: center;
+  }
+}
+
+@media (min-width: 768px) {
+  .schedule-main-wrapper {
+    padding: 2rem;
+  }
+}
+
+@media (max-width: 1023px) {
+  .data-table-container {
+    display: none;
+  }
+  
+  .mobile-card-layout {
+    display: block;
+    margin-top: 1.5rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .mobile-card-layout {
+    display: none;
+  }
+}
+
+/* Focus States for Accessibility */
+.export-trigger-button:focus,
+.filter-control-button:focus,
+.search-text-input:focus {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+.column-header-cell.clickable-header:focus {
+  outline: 2px solid #3b82f6;
+  outline-offset: -2px;
+}
+
+/* Animation for Dropdown Menus */
+.export-dropdown-menu {
+  animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Proxy Test</title>
+</head>
+<body>
+    <h1>Proxy Connection Test</h1>
+    <button onclick="testProxy()">Test Proxy</button>
+    <div id="result"></div>
+
+    <script>
+        async function testProxy() {
+            const result = document.getElementById('result');
+            result.innerHTML = 'Testing...';
+            
+            try {
+                // Test relative URL (should use proxy)
+                const response = await fetch('/api/v1/payments/gateways');
+                const data = await response.json();
+                
+                result.innerHTML = `
+                    <h2>✅ Proxy Working!</h2>
+                    <p><strong>Status:</strong> ${response.status}</p>
+                    <p><strong>URL Used:</strong> /api/v1/payments/gateways</p>
+                    <p><strong>Response:</strong></p>
+                    <pre>${JSON.stringify(data, null, 2)}</pre>
+                `;
+            } catch (error) {
+                result.innerHTML = `
+                    <h2>❌ Proxy Failed</h2>
+                    <p><strong>Error:</strong> ${error.message}</p>
+                    <p>The frontend might not be using the proxy correctly.</p>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>
