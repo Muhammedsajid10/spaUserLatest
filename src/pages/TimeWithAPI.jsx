@@ -13,6 +13,8 @@ const Time = () => {
   const [selectedProfessional, setSelectedProfessional] = useState(null);
   const [availableTimeSlots, setAvailableTimeSlots] = useState([]);
   const [loading, setLoading] = useState(false);
+    const [loadingTimeSlots, setLoadingTimeSlots] = useState(false); 
+  
   const [error, setError] = useState(null);
   const [selectedService, setSelectedService] = useState(null);
   const [selectedServices, setSelectedServices] = useState([]);
@@ -31,8 +33,11 @@ const Time = () => {
         setSelectedServices(data.selectedServices);
         setSelectedService(data.selectedServices[0]);
         console.log('TimeWithAPI - Setting selected services:', data.selectedServices);
+
       } else {
         console.log('TimeWithAPI - No services found in booking flow');
+        
+
         setSelectedServices([]);
       }
       
@@ -94,8 +99,11 @@ const Time = () => {
     const fetchTimeSlots = async () => {
       if (!selectedService || !selectedProfessional || !selectedDate) {
         setAvailableTimeSlots([]);
+        setLoadingTimeSlots(false); 
+
         return;
       }
+        setLoadingTimeSlots(true); 
 
       // Don't fetch if "Any professional" is selected or if it's a sample professional
       console.log('Checking professional:', selectedProfessional);
@@ -198,7 +206,11 @@ const Time = () => {
     }
     bookingFlow.save();
   };
-
+  const professionalName = selectedProfessional?.id === 'any'
+    ? 'Any professional'
+    : (selectedProfessional?.user?.firstName && selectedProfessional?.user?.lastName
+      ? `${selectedProfessional.user.firstName} ${selectedProfessional.user.lastName}`
+      : selectedProfessional?.name || 'Select Professional');
   const handleTimeSelect = (timeSlot) => {
     setSelectedTime(timeSlot);
     
@@ -238,7 +250,7 @@ const Time = () => {
             <span>{selectedProfessional?.name?.charAt(0) || 'S'}</span>
           </div>
           <span className="username">
-            {selectedProfessional?.name || 'Select Professional'}
+            {professionalName || 'Select Professional'}
           </span>
           <ChevronLeft className="dropdown-icon" />
         </div>
@@ -349,17 +361,18 @@ const Time = () => {
       {/* Time Slots */}
       <div className="time-slots">
         <div className="time-slots-wrapper">
-        {loading ? (
-          <div className="loading-container">
-            <div className="loading-spinner"></div>
-            <p>Loading times...</p>
-          </div>
-        ) : error ? (
-          <div className="error-container">
-            <p>Error loading time slots: {error}</p>
-            <button onClick={() => window.location.reload()}>Try Again</button>
-          </div>
-        ) : !selectedService || !selectedProfessional ? (
+       {loadingTimeSlots ? (
+                <div className="time-slots-grid">
+                  {Array.from({ length: 8 }).map((_, i) => ( 
+                    <Skeleton key={i} className="time-slot-skeleton" height={50} width="100%" />
+                  ))}
+                </div>
+              ) : timeSlotsError ? (
+                <div className="info-container error-state">
+                  <p className="error-message">Error loading time slots: {timeSlotsError}</p>
+                  <button onClick={() => window.location.reload()} className="retry-button">Try Again</button>
+                </div>
+              ) : !selectedService || !selectedProfessional ? (
           <div className="info-container">
             <p>Please select services and professional first</p>
             <p style={{ fontSize: '12px', color: '#666', marginTop: '10px' }}>

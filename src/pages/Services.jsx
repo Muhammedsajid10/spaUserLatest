@@ -6,6 +6,7 @@ import { servicesAPI, apiUtils, bookingFlow } from "../services/api";
 import { useNavigate } from "react-router-dom";
 import Swal from 'sweetalert2';
 
+// ServiceItem and ServiceList components remain the same
 const ServiceItem = ({ item, category, idx, isExpanded, toggleReadMore, handleServiceClick }) => {
   const isOpen = isExpanded(category, idx);
   const shortDesc = item.desc.length > 100 ? item.desc.slice(0, 100) + "..." : item.desc;
@@ -93,10 +94,6 @@ function Services() {
   const navigate = useNavigate();
 
   const [isScrolled, setIsScrolled] = useState(false);
-  
-  // NEW: Refs and state to dynamically measure header height
-  const headerRef = useRef(null);
-  const [headerHeight, setHeaderHeight] = useState(0);
 
   const fetchServices = async () => {
     try {
@@ -263,14 +260,7 @@ function Services() {
       window.removeEventListener('scroll', handleScroll);
     };
   }, []);
-  
-  // NEW: Effect to measure header height
-  useEffect(() => {
-    if (headerRef.current) {
-      const height = headerRef.current.getBoundingClientRect().height;
-      setHeaderHeight(height);
-    }
-  }, [isScrolled, services]); // Recalculate on scroll state change and data load
+
 
   if (loading) {
     return (
@@ -297,7 +287,7 @@ function Services() {
 
   return (
     <div className="services-page-wrapper">
-      <div ref={headerRef} className={`sticky-header-container ${isScrolled ? 'scrolled' : ''}`}>
+      <div className={`sticky-header-container ${isScrolled ? 'scrolled' : ''}`}>
         <div className="content-container">
           <div className="svc-header">
             <h2 className={`svc-heading ${isScrolled ? 'scrolled' : ''}`}>Services</h2>
@@ -315,9 +305,8 @@ function Services() {
           </nav>
         </div>
       </div>
-      
-      {/* NEW: Use inline style to dynamically set padding-top */}
-      <div className="main-content-wrapper" style={{ paddingTop: `${headerHeight}px` }}>
+
+      <div className={`main-content-wrapper ${isScrolled ? 'scrolled' : ''}`}>
         <div className="content-container svc-container">
           <ServiceList
             services={services}
@@ -404,6 +393,67 @@ function Services() {
   );
 }
 
-// ServiceBottomBar and other components remain the same
+function ServiceBottomBar({ currentStep = 1, navigate }) {
+  const [selectedServices, setSelectedServices] = React.useState([]);
+  React.useEffect(() => {
+    bookingFlow.load();
+    setSelectedServices(bookingFlow.selectedServices || []);
+    const handler = () => {
+      bookingFlow.load();
+      setSelectedServices(bookingFlow.selectedServices || []);
+    };
+    window.addEventListener("bookingFlowChange", handler);
+    return () => window.removeEventListener("bookingFlowChange", handler);
+  }, []);
+  const totalDuration = selectedServices.reduce((sum, svc) => sum + (svc.duration || 0), 0);
+  const totalRate = selectedServices.reduce((sum, svc) => sum + (svc.price || 0), 0);
+  const canContinue = () => selectedServices.length > 0;
+  const handleContinue = () => {
+    switch (currentStep) {
+      case 1:
+        if (canContinue()) {
+          navigate("/professionals");
+        } else {
+          Swal.fire({
+            title: 'Service Required',
+            text: 'Please select at least one service.',
+            icon: 'warning',
+            confirmButtonText: 'OK'
+          });
+        }
+        break;
+      case 2:
+        navigate("/time");
+        break;
+      case 3:
+        navigate("/payment");
+        break;
+      case 4:
+        Swal.fire({
+          title: 'Complete Booking',
+          text: 'Complete payment logic here.',
+          icon: 'info',
+          confirmButtonText: 'OK'
+        });
+        break;
+      default:
+        break;
+    }
+  };
+  return (
+    <div className="service-bottom-bar">
+      <span>{totalDuration} min</span>
+      <span>{selectedServices.length} services</span>
+      <span>AED {totalRate}</span>
+      <button
+        className={`btn-continue ${!canContinue() ? "disabled" : ""}`}
+        onClick={handleContinue}
+        disabled={!canContinue()}
+      >
+        {currentStep === 4 ? "Complete Booking" : "Continue"}
+      </button>
+    </div>
+  );
+}
 
 export default Services;
