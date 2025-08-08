@@ -90,10 +90,9 @@ const Appoint = () => {
               <p className="page-description-text">View, filter and export appointments booked by your clients.</p>
             </div>
             <div className="export-controls-wrapper">
-              <button 
-                onClick={() => setShowExportMenu(!showExportMenu)}
-                className="export-trigger-button"
-              >
+              <button  
+               onClick={() => setShowExportMenu(!showExportMenu)}
+                className="export-trigger-button">
                 Export
                 <ChevronDown className="button-icon" />
               </button>
@@ -105,7 +104,7 @@ const Appoint = () => {
                     <button className="dropdown-menu-item">Export as Excel</button>
                   </div>
                 </div>
-              )}
+               )}
             </div>
           </div>
         </div>

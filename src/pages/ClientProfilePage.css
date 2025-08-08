@@ -1,242 +1,276 @@
-/* ClientProfilePage.css */
+/* --- Global Styles & Variables --- */
+:root {
+    --spa-primary-color: #007bff; /* A professional, corporate blue */
+    --spa-accent-color: #17a2b8; /* A light blue accent */
+    --bg-light: #f8f9fa; /* A soft off-white background */
+    --text-color-dark: #212529;
+    --text-color-muted: #6c757d;
+    --card-bg: #ffffff;
+    --border-color: #e0e0e0;
+    --shadow-subtle: 0 2px 10px rgba(0, 0, 0, 0.05);
+    --shadow-card-hover: 0 8px 25px rgba(0, 0, 0, 0.1);
+    --card-hover-transform: translateY(0px); /* Removed hover transform */
+    --transition-speed: 0.3s;
+}
 
-/* Base styles for the client profile page wrapper */
+body {
+    margin: 0;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background-color: var(--bg-light);
+    color: var(--text-color-dark);
+}
+
+/* === Layout === */
 .client-profile-wrapper {
-  padding: 20px;
-  background-color: #f4f7f6;
-  min-height: 100vh;
-  transition: background-color 0.3s;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    padding: 20px;
 }
 
-.client-profile-wrapper.dark {
-  background-color: #1a1a1a;
-  color: #f4f7f6;
-}
-
-/* Container for the client profile, including sidebar and content */
 .client-profile-container {
-  display: flex;
-  gap: 20px;
-  max-width: 1400px;
-  margin: 0 auto;
+    display: flex;
+    gap: 20px;
+    max-width: 1400px;
+    margin: 0 auto;
+    width: 100%;
 }
 
-/* Feedback display styles */
-.feedback-display {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-}
-
-.feedback-display .star-rating {
-  margin-bottom: 2px;
-}
-
-.feedback-display .text-muted {
-  font-size: 12px;
-}
-
-/* Sidebar styles */
+/* === Sidebar === */
 .client-profile-sidebar {
-  width: 250px;
-  flex-shrink: 0;
-  background: #fff;
-  border-radius: 10px;
-  padding: 20px;
-  height: fit-content;
-  position: sticky;
-  top: 20px;
-  transition: transform 0.3s ease, box-shadow 0.3s ease, background-color 0.3s;
+    width: 280px;
+    flex-shrink: 0;
+    background: var(--card-bg);
+    border-radius: 12px;
+    padding: 20px;
+    position: sticky;
+    top: 20px;
+    height: fit-content;
+    box-shadow: var(--shadow-subtle);
+    transition: transform var(--transition-speed), box-shadow var(--transition-speed);
 }
 
-.client-profile-sidebar.dark {
-  background: #2c2c2c;
-  color: #f4f7f6;
-}
-
-/* Header styles within the sidebar */
 .sidebar-header {
-  text-align: center;
-  margin-bottom: 30px;
+    text-align: center;
+    margin-bottom: 30px;
 }
 
 .sidebar-header h3 {
-  font-weight: 700;
-  color: #333;
-  transition: color 0.3s;
+    font-weight: 700;
+    color: var(--spa-primary-color);
+    font-size: 1.5rem;
 }
 
-.sidebar-header.dark h3 {
-  color: #fff;
-}
-
-/* Navigation link styles within the sidebar */
 .sidebar-nav .sidebar-link {
-  display: flex;
-  align-items: center;
-  padding: 15px;
-  margin: 5px 0;
-  border-radius: 8px;
-  color: #555;
-  text-decoration: none;
-  font-weight: 500;
-  transition: background-color 0.3s, color 0.3s;
-  border: none;
-  width: 100%;
-  background: transparent;
-  text-align: left;
-  font-size: 1rem;
-  cursor: pointer;
-}
-
-.sidebar-nav.dark .sidebar-link {
-  color: #ccc;
-}
-
-.sidebar-nav .sidebar-link:hover {
-  background-color: #eef2ff;
-  color: #4f46e5;
-}
-
-.sidebar-nav.dark .sidebar-link:hover {
-  background-color: #3a3a3a;
-  color: #c7d2fe;
+    display: flex;
+    align-items: center;
+    padding: 15px 20px;
+    margin: 5px 0;
+    border-radius: 8px;
+    color: var(--text-color-dark);
+    font-weight: 500;
+    transition: all var(--transition-speed);
+    border: none;
+    width: 100%;
+    background: transparent;
+    text-align: left;
+    font-size: 1rem;
+    cursor: pointer;
 }
 
 .sidebar-nav .sidebar-link.active {
-  background-color: #4f46e5;
-  color: #fff;
-  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.2);
+    background: linear-gradient(90deg, var(--spa-primary-color), var(--spa-accent-color));
+    color: white;
+    box-shadow: 0 4px 12px rgba(0, 123, 255, 0.2);
 }
 
-.sidebar-nav.dark .sidebar-link.active {
-  background-color: #c7d2fe;
-  color: #1e1b4b;
+.sidebar-nav .sidebar-link.active .icon {
+    color: white;
 }
 
-/* Icon styles within the sidebar links */
 .sidebar-link .icon {
-  margin-right: 15px;
-  font-size: 1.2rem;
+    margin-right: 15px;
+    font-size: 1.2rem;
+    color: var(--text-color-muted);
+    transition: color var(--transition-speed);
 }
 
-/* Footer styles within the sidebar */
-.sidebar-footer {
-  margin-top: 30px;
-  text-align: center;
-}
-
-/* Main content area styles */
+/* === Main Content === */
 .client-profile-content {
-  flex-grow: 1;
-  width: 100%;
-}
-
-.client-profile-content .card {
-  background: #fff;
-  border-radius: 10px;
-  padding: 25px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-  margin-bottom: 20px;
-  animation: fadeIn 0.5s ease-in-out;
-  transition: background-color 0.3s, box-shadow 0.3s;
-}
-
-.client-profile-content.dark .card {
-  color: white;
-  background: #2c2c2c;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
-}
-
-/* Fade-in animation for content */
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-/* Sidebar toggle button for mobile */
-.sidebar-toggle-btn {
-  display: none;
-  position: fixed;
-  top: 20px;
-  left: 20px;
-  z-index: 1001;
-  background: #fff;
-  border: none;
-  border-radius: 50%;
-  width: 50px;
-  height: 50px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-  cursor: pointer;
-  font-size: 24px;
-  line-height: 50px;
-  text-align: center;
-  transition: background-color 0.3s, color 0.3s;
-}
-
-.dark .sidebar-toggle-btn {
-    background: #2c2c2c;
-    color: #fff;
-}
-
-/* Responsive styles */
-@media (max-width: 992px) {
-  .client-profile-sidebar {
-    position: fixed;
-    left: 0;
-    top: 0;
-    height: 100%;
-    z-index: 1000;
-    transform: translateX(-100%);
-    border-radius: 0;
-  }
-
-  .client-profile-sidebar.open {
-    transform: translateX(0);
-    box-shadow: 0 0 30px rgba(0, 0, 0, 0.1);
-  }
-
-  .sidebar-toggle-btn {
-    display: block;
-  }
-
-  .sidebar-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
     width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.4);
-    z-index: 999;
-    display: none;
-  }
+}
 
-  .sidebar-overlay.open {
-    display: block;
-  }
+.content-card {
+    background: var(--card-bg);
+    border-radius: 12px;
+    padding: 25px;
+    box-shadow: var(--shadow-subtle);
+    transition: all var(--transition-speed);
+}
+
+.card-title {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin-bottom: 20px;
+    color: var(--text-color-dark);
+}
+
+/* === Table Styles === */
+.modern-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.modern-table thead th {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-color-muted);
+    text-transform: uppercase;
+    background: #f8f9fa;
+    padding: 15px;
+    border-bottom: 2px solid var(--border-color);
+    text-align: left;
+}
+
+.modern-table tbody td {
+    padding: 15px;
+    border-bottom: 1px solid var(--border-color);
+    text-align: left;
+    color: var(--text-color-dark);
+}
+
+.modern-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+/* === Status and Rating === */
+.booking-status, .invoice-status {
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: white;
+    text-transform: capitalize;
+}
+
+.status-success { background-color: #28a745; }
+.status-warning { background-color: #ffc107; }
+
+.invoice-status.paid { background-color: #28a745; }
+.invoice-status.pending { background-color: #ffc107; }
+
+.feedback-display {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+}
+
+.rate-btn {
+    background: var(--spa-primary-color);
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    transition: background-color var(--transition-speed);
+}
+
+/* === Responsive Design === */
+@media (max-width: 992px) {
+    .client-profile-container {
+        flex-direction: column;
+        gap: 15px;
+    }
+    
+    .client-profile-sidebar {
+        position: fixed;
+        left: -300px;
+        top: 0;
+        bottom: 0;
+        z-index: 1000;
+        transform: translateX(0);
+        height: 100%;
+        overflow-y: auto;
+        box-shadow: 0 0 30px rgba(0, 0, 0, 0.1);
+        border-radius: 0;
+        width: 280px;
+        transition: transform var(--transition-speed) ease-in-out;
+    }
+    
+    .client-profile-sidebar.open {
+        transform: translateX(300px);
+    }
+    
+    .sidebar-toggle-btn {
+        display: block;
+        position: fixed;
+        top: 20px;
+        left: 20px;
+        z-index: 1001;
+        background: var(--spa-primary-color);
+        color: white;
+        border: none;
+        border-radius: 50%;
+        width: 50px;
+        height: 50px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        cursor: pointer;
+        font-size: 24px;
+        line-height: 50px;
+        text-align: center;
+        transition: all var(--transition-speed);
+    }
+
+    .sidebar-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.4);
+        z-index: 999;
+        display: none;
+        backdrop-filter: blur(5px);
+    }
+    
+    .sidebar-overlay.open {
+        display: block;
+    }
+    
+    .client-profile-content {
+        padding-top: 60px;
+    }
 }
 
 @media (max-width: 768px) {
-    .sidebar-toggle-btn {
-        top: 15px;
-        left: 15px;
-    }
     .client-profile-wrapper {
         padding: 15px;
     }
+    .modern-table thead th, .modern-table tbody td {
+        padding: 12px;
+    }
 }
 
-/* Table responsiveness */
-.table-responsive {
-    display: block;
-    width: 100%;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
+@media (max-width: 480px) {
+    .client-profile-wrapper {
+        padding: 10px;
+    }
+    .content-card {
+        padding: 15px;
+    }
+    .card-title {
+        font-size: 1.25rem;
+    }
+    .modern-table thead th {
+        font-size: 0.8rem;
+    }
+    .modern-table tbody td {
+        font-size: 0.9rem;
+    }
 }

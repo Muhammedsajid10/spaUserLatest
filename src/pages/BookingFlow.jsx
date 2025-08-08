@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { bookingFlow, apiUtils } from '../services/api';
-import '../Layout.css'; // Assuming this CSS file exists
-import { HeaderTitleProvider, useHeaderTitle } from '../Service/HeaderTitleContext'; // Assuming this context exists
-import { useAuth } from '../Service/Context'; // Assuming this context exists
-import alloraLogo from '../assets/allora-logo-header.svg'; // Assuming logo asset exists
-import Swal from 'sweetalert2'; // Assuming SweetAlert2 is installed
+import '../Layout.css';
+import { HeaderTitleProvider, useHeaderTitle } from '../Service/HeaderTitleContext';
+import { useAuth } from '../Service/Context';
+import alloraLogo from '../assets/alloraLogo.jpg';
+import Swal from 'sweetalert2';
 
 // ProfileIcon component - No changes
 const ProfileIcon = () => (
@@ -83,11 +83,10 @@ const LayoutWithBooking = ({ children }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [currentStep, setCurrentStep] = useState(1);
-  const [selectedService, setSelectedService] = useState(null); // Managed here
-  const [selectedProfessional, setSelectedProfessional] = useState(null); // Managed here
-  const [summaryKey, setSummaryKey] = useState(0); // To force re-render of summary
+  const [selectedService, setSelectedService] = useState(null);
+  const [selectedProfessional, setSelectedProfessional] = useState(null);
+  const [summaryKey, setSummaryKey] = useState(0);
 
-  // Define the booking flow steps
   const steps = [
     { number: 1, label: 'Service', path: '/' },
     { number: 2, label: 'Professional', path: '/professionals' },
@@ -95,38 +94,23 @@ const LayoutWithBooking = ({ children }) => {
     { number: 4, label: 'Payment', path: '/payment' }
   ];
 
-  // Determine current step based on location
   useEffect(() => {
     const currentPath = location.pathname;
     const stepIndex = steps.findIndex(step => step.path === currentPath);
     setCurrentStep(stepIndex >= 0 ? stepIndex + 1 : 1);
   }, [location.pathname, steps]); 
 
-  // Load selected booking data from booking flow and update local states
   useEffect(() => {
     const loadBookingData = () => {
-      console.log('Layout: Loading booking data...');
-      bookingFlow.load(); // Load data into bookingFlow object
-      console.log('Layout: Booking flow data after load:', bookingFlow);
+      bookingFlow.load();
 
-      // Update selectedService state
-      if (bookingFlow.selectedServices && bookingFlow.selectedServices.length > 0) {
-        setSelectedService(bookingFlow.selectedServices[0]);
-        console.log('Layout: selectedService set to:', bookingFlow.selectedServices[0].name);
-      } else {
-        setSelectedService(null);
-        console.log('Layout: No services found, selectedService set to null.');
-      }
-
-      // Update selectedProfessional state from bookingFlow for the *first* service
-      const currentFirstService = bookingFlow.selectedServices?.[0]; // Use optional chaining
+      const currentFirstService = bookingFlow.selectedServices?.[0];
       if (currentFirstService) {
-        const professionalForService = bookingFlow.selectedProfessionals?.[currentFirstService._id]; // Use optional chaining
+        setSelectedService(currentFirstService);
+        const professionalForService = bookingFlow.selectedProfessionals?.[currentFirstService._id];
         if (professionalForService) {
           setSelectedProfessional(professionalForService);
-          console.log('Layout: selectedProfessional set to:', professionalForService.name);
         } else {
-          // If no specific professional is chosen for the current service, default to "Any professional"
           const anyPro = {
             id: "any",
             name: "Any professional",
@@ -135,31 +119,24 @@ const LayoutWithBooking = ({ children }) => {
             isAvailable: true,
           };
           setSelectedProfessional(anyPro);
-          // Also set it in bookingFlow to ensure consistency for future steps
           bookingFlow.addProfessional(currentFirstService._id, anyPro);
           bookingFlow.save();
-          console.log('Layout: No specific professional for service, defaulted to "Any professional".');
         }
       } else {
-        setSelectedProfessional(null); // No service selected, so no professional context
-        console.log('Layout: No services, selectedProfessional set to null.');
+        setSelectedService(null);
+        setSelectedProfessional(null);
       }
 
-      // Force re-render of the booking summary to reflect latest changes
       setSummaryKey(k => k + 1);
     };
     
-    // Initial load when component mounts
     loadBookingData();
     
-    // Event listeners for booking flow changes (e.g., from child components)
     const handleStorageChange = () => {
-      console.log('Layout: Storage changed, reloading booking data...');
       loadBookingData();
     };
     
     const handleBookingFlowChange = () => {
-      console.log('Layout: Booking flow change event received, reloading data...');
       loadBookingData();
     };
     
@@ -173,23 +150,53 @@ const LayoutWithBooking = ({ children }) => {
   }, []); 
 
   const handleContinue = () => {
-    // Before navigating, check if canContinue logic allows
-    if (!canContinue()) {
-        // canContinue() already handles the alert/Swal messages.
-        return; 
-    }
-
+    bookingFlow.load();
+    
     switch (currentStep) {
-      case 1: // Service selection
+      case 1:
+        if (bookingFlow.selectedServices?.length === 0) {
+          Swal.fire({
+            title: 'Service Required',
+            text: 'Please select at least one service first.',
+            icon: 'warning',
+            confirmButtonText: 'OK',
+            timer: 3000,
+            showConfirmButton: true
+          });
+          return;
+        }
         navigate('/professionals');
         break;
-      case 2: // Professional selection
+      case 2:
+        const firstServiceId = bookingFlow.selectedServices?.[0]?._id;
+        if (!firstServiceId || !bookingFlow.selectedProfessionals?.[firstServiceId]) {
+          Swal.fire({
+            title: 'Professional Required',
+            text: 'Please select a professional for your service.',
+            icon: 'warning',
+            confirmButtonText: 'OK',
+            timer: 3000,
+            showConfirmButton: true
+          });
+          return;
+        }
         navigate('/time');
         break;
-      case 3: // Time selection
+      case 3:
+        if (!bookingFlow.selectedTimeSlot) {
+          Swal.fire({
+            title: 'Time Slot Required',
+            text: 'Please select an available time slot.',
+            icon: 'warning',
+            confirmButtonText: 'OK',
+            timer: 3000,
+            showConfirmButton: true
+          });
+          return;
+        }
         navigate('/payment');
         break;
-      case 4: // Payment
+      case 4:
         Swal.fire({
           title: 'Payment Step',
           text: 'Payment step - implement payment logic',
@@ -207,15 +214,15 @@ const LayoutWithBooking = ({ children }) => {
   const handleBack = () => {
     switch (currentStep) {
       case 1: 
-        navigate('/'); // Go to home if this is the first step
-        break;
-      case 2: // Professional selection
         navigate('/');
         break;
-      case 3: // Time selection
+      case 2: 
+        navigate('/');
+        break;
+      case 3: 
         navigate('/professionals');
         break;
-      case 4: // Payment
+      case 4: 
         navigate('/time');
         break;
       default:
@@ -224,63 +231,17 @@ const LayoutWithBooking = ({ children }) => {
   };
 
   const canContinue = () => {
-    // Always load the latest state from bookingFlow before checking
-    bookingFlow.load(); 
-
+    bookingFlow.load();
     switch (currentStep) {
-      case 1: // Service selection
-        if (!bookingFlow.selectedServices || bookingFlow.selectedServices.length === 0) {
-          Swal.fire({
-            title: 'Service Required',
-            text: 'Please select at least one service first.',
-            icon: 'warning',
-            confirmButtonText: 'OK',
-            timer: 3000,
-            showConfirmButton: true
-          });
-          return false;
-        }
+      case 1:
+        return bookingFlow.selectedServices?.length > 0;
+      case 2:
+        const firstServiceId = bookingFlow.selectedServices?.[0]?._id;
+        return firstServiceId && bookingFlow.selectedProfessionals?.[firstServiceId];
+      case 3:
+        return !!bookingFlow.selectedTimeSlot;
+      case 4:
         return true;
-      case 2: // Professional selection
-        if (!bookingFlow.selectedServices || bookingFlow.selectedServices.length === 0) {
-          Swal.fire({
-            title: 'Service Required',
-            text: 'Please select a service first.',
-            icon: 'warning',
-            confirmButtonText: 'OK',
-            timer: 3000,
-            showConfirmButton: true
-          });
-          return false;
-        }
-        const firstServiceId = bookingFlow.selectedServices[0]?._id;
-        if (!firstServiceId || !bookingFlow.selectedProfessionals || !bookingFlow.selectedProfessionals[firstServiceId]) {
-          Swal.fire({
-            title: 'Professional Required',
-            text: 'Please select a professional for your service.',
-            icon: 'warning',
-            confirmButtonText: 'OK',
-            timer: 3000,
-            showConfirmButton: true
-          });
-          return false;
-        }
-        return true;
-      case 3: // Time selection
-        if (!bookingFlow.selectedTimeSlot) {
-          Swal.fire({
-            title: 'Time Slot Required',
-            text: 'Please select an available time slot.',
-            icon: 'warning',
-            confirmButtonText: 'OK',
-            timer: 3000,
-            showConfirmButton: true
-          });
-          return false;
-        }
-        return true;
-      case 4: // Payment - always allow
-        return true; 
       default:
         return false;
     }
@@ -296,29 +257,23 @@ const LayoutWithBooking = ({ children }) => {
         <GlobalHeader />
         <div className="layout-with-booking">
           <div className="main-content">
-            <div className="page-header" /> 
-            {/* Using React.Children.map to pass props to dynamically rendered children */}
-            {/* This assumes your main routing structure is wrapping <Routes> with <LayoutWithBooking> */}
+            <div className="page-header" />
             {React.Children.map(children, child => {
               if (React.isValidElement(child)) {
-                // Check child component name to pass specific props
-                // Ensure the component names match your imports/exports (e.g., 'Time' or 'SelectProfessional')
-                if (child.type && child.type.name === 'Time') { // Check for Time component by name
-                    console.log('Layout: Cloning Time component with props:', { selectedService, selectedProfessional });
+                if (child.type && child.type.name === 'Time') {
                     return React.cloneElement(child, {
-                        selectedService: selectedService, // Pass service from Layout's state
-                        selectedProfessional: selectedProfessional, // Pass professional from Layout's state
+                        selectedService: selectedService,
+                        selectedProfessional: selectedProfessional,
                     });
                 }
-                if (child.type && child.type.name === 'SelectProfessional') { // Check for Professional component by name
-                    console.log('Layout: Cloning SelectProfessional component');
+                if (child.type && child.type.name === 'SelectProfessional') {
                     return React.cloneElement(child, {
                          selectedDate: bookingFlow.load().selectedDate ? new Date(bookingFlow.load().selectedDate) : new Date(),
                          selectedServices: bookingFlow.selectedServices || [],
                     });
                 }
               }
-              return child; 
+              return child;
             })}
           </div>
           <div className="booking-sidebar">
@@ -360,20 +315,18 @@ const LayoutWithBooking = ({ children }) => {
                               }
                             </span>
                           </div>
-                          {/* Display selected professional here */}
                           {bookingFlow.selectedProfessionals && bookingFlow.selectedProfessionals[service._id] && (
                             <div className="detail-item">
                               <span className="label">Professional:</span>
                               <span className="value">
                                 {bookingFlow.selectedProfessionals[service._id].name}
                                 {bookingFlow.selectedProfessionals[service._id].id !== 'any' &&
-                                 (bookingFlow.selectedProfessionals[service._id].subtitle || bookingFlow.selectedProfessionals[service._id].position) && (
-                                    <span> ({bookingFlow.selectedProfessionals[service._id].subtitle || bookingFlow.selectedProfessionals[service._id].position})</span>
-                                )}
+                                  (bookingFlow.selectedProfessionals[service._id].subtitle || bookingFlow.selectedProfessionals[service._id].position) && (
+                                    <span> {bookingFlow.selectedProfessionals[service._id].user.firstName+" "+bookingFlow.selectedProfessionals[service._id].user.lastName}</span>
+                                  )}
                               </span>
                             </div>
                           )}
-                           {/* Display selected date and time */}
                           {bookingFlow.selectedDate && bookingFlow.selectedTimeSlot && (
                             <div className="detail-item">
                               <span className="label">Date & Time:</span>

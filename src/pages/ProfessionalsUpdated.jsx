@@ -120,10 +120,28 @@ const SelectProfessional = () => {
   }, [selectedServices]);
 
   const handleProfessionalSelect = (professional) => {
-    setSelectedId(professional.id);
+    if (professional.id === "any") {
+      const availableProfessionals = professionals.filter(pro => pro.id !== "any");
+      if (availableProfessionals.length > 0) {
+        const randomIndex = Math.floor(Math.random() * availableProfessionals.length);
+        const randomProfessional = availableProfessionals[randomIndex];
+        setSelectedId(randomProfessional.id);
 
-    if (professional.id !== "any") {
-      if (professional.id.startsWith("sample")) { // Keep this if you still have sample IDs from any source
+        bookingFlow.selectedServices.forEach((service) => {
+          bookingFlow.addProfessional(service._id, randomProfessional.employee);
+        });
+      } else {
+        // No professionals available, even randomly. Keep "Any" selected
+        setSelectedId("any");
+        const anyProfessional = { id: "any", name: "Any professional" };
+        bookingFlow.selectedServices.forEach((service) => {
+          bookingFlow.addProfessional(service._id, anyProfessional);
+        });
+      }
+    } else {
+      setSelectedId(professional.id);
+
+      if (professional.id.startsWith("sample")) {
         const professionalData = {
           id: professional.id,
           _id: professional.id,
@@ -140,11 +158,6 @@ const SelectProfessional = () => {
           bookingFlow.addProfessional(service._id, professional.employee);
         });
       }
-    } else {
-      const anyProfessional = { id: "any", name: "Any professional" };
-      bookingFlow.selectedServices.forEach((service) => {
-        bookingFlow.addProfessional(service._id, anyProfessional);
-      });
     }
 
     console.log("Professional selected:", professional);
@@ -153,8 +166,6 @@ const SelectProfessional = () => {
       bookingFlow.selectedProfessionals
     );
   };
-
-  // --- Render based on state: Loading, Error, No Services, or Content ---
 
   if (loading) {
     const numberOfSkeletons = 6; 
@@ -239,7 +250,6 @@ const SelectProfessional = () => {
         ))}
       </div>
 
-      {/* Render ServiceBottomBar ONCE. Its visibility is controlled by CSS media queries. */}
       {selectedServices.length > 0 && (
         <ServiceBottomBar currentStep={currentStep} navigate={navigate} />
       )}
@@ -272,12 +282,10 @@ function ServiceBottomBar({ currentStep = 2, navigate }) {
   );
 
   const canContinue = () => {
-    // This canContinue logic should match the one in LayoutWithBooking.jsx for step 2
     bookingFlow.load(); // Ensure latest data
     if (!bookingFlow.selectedServices || bookingFlow.selectedServices.length === 0) {
         return false;
     }
-    // Check if a professional is selected for the *first* service
     const firstServiceId = bookingFlow.selectedServices[0]?._id;
     return !!(firstServiceId && bookingFlow.selectedProfessionals && bookingFlow.selectedProfessionals[firstServiceId]);
   };
@@ -286,7 +294,7 @@ function ServiceBottomBar({ currentStep = 2, navigate }) {
     if (canContinue()) {
         navigate("/time");
     } else {
-        alert("Please select a professional."); // Using alert here, consider Swal if appropriate
+        alert("Please select a professional.");
     }
   };
 
@@ -300,7 +308,7 @@ function ServiceBottomBar({ currentStep = 2, navigate }) {
         onClick={handleContinue}
         disabled={!canContinue()}
       >
-        Continue 
+        Continue
       </button>
     </div>
   );

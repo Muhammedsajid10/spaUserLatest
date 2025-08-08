@@ -42,11 +42,11 @@
 .main-content {
   flex-grow: 1;
   height: 100vh;
-  overflow-y: auto;
+  overflow-y:initial;
   padding: 50px;
   background: #ffffff;
   box-sizing: border-box;
-  
+  z-index: 1000;
   /* Hide scrollbar for webkit browsers */
   scrollbar-width: none; /* Firefox */
   -ms-overflow-style: none; /* IE and Edge */
@@ -314,7 +314,11 @@
   flex: 1;
   padding: 2.5rem;
   overflow-y: auto;
-  
+  /* position: fixed; */
+  /* max-width: 900px; */
+  /* width: 707px; */
+      /* position: fixed;
+width: 1040px;   */
   /* Hide scrollbar for webkit browsers */
   scrollbar-width: none; /* Firefox */
   -ms-overflow-style: none; /* IE and Edge */
@@ -331,7 +335,7 @@
   right: 22px;
   top: 19px;
   width: 550px;
-  height: 100vh;
+  /* height: 100vh; */
   background: white;
   color: #111;
   border-left: 1px solid #e9ecef;
@@ -426,7 +430,7 @@
   padding: 1rem;
   border: 1px solid #333;
   position: relative;
-  height: 207px;
+  height: 267px;
   
 }
 
@@ -651,7 +655,7 @@
 
 .sidebar-bottom-fixed {
   flex-shrink: 0;
-  position: sticky;
+  /* position: sticky; */
   bottom: 0;
   left: 0;
   background: white;

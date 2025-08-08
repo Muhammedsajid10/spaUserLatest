@@ -37,8 +37,8 @@ import VerifyEmailPage from './pages/VerifyEmailPage';
 import BookingFlow from "./pages/BookingFlow";
 import SelectProfessional from "./pages/ProfessionalsUpdated";
 import TimeWithAPI from "./pages/TimeWithAPI";
-import LayoutWithBooking from "./LayoutWithBooking";
-
+// import LayoutWithBooking from "./LayoutWithBooking";
+import LayoutWithBooking from "./pages/BookingFlow";
 // Import Stripe payment components
 import StripePayment from "./pages/StripePayment";
 import PaymentSuccess from "./pages/PaymentSuccess";
