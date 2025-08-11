@@ -17,7 +17,7 @@ body {
 .svc-header-wrapper {
       position: fixed;
     top: 72px;
-    left: 92px;
+    left: 40px;
     right: 0px;
     z-index: 1000;
     background: #fff;
