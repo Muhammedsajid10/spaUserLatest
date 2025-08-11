@@ -1,0 +1,85 @@
+/* Centering the whole card vertically and horizontally */
+.carddd-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+   
+}
+
+/* Card styling */
+.carddd {
+    width: 100%;
+    max-width: 550px;
+    padding: 30px;
+    border-radius: 12px;
+    background: #ffffff;
+    /* box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1); */
+    font-family: 'Segoe UI', sans-serif;
+    text-align: center;
+}
+
+/* Title styles */
+.carddd-title {
+    font-size: 32px;
+    margin-bottom: 10px;
+    font-weight: 500;
+    text-align: center;
+}
+
+.cardsub-title {
+    font-size: 20px;
+    color: #555;
+    margin-top: 30px;
+}
+
+/* Input container */
+.empty-container {
+    margin: 20px 0;
+}
+
+/* Enhanced input box with multiline-looking dashed border */
+.input-box {
+    width: 80%;
+    height: 50px; /* increased height */
+    padding: 10px;
+    font-size: 16px;
+    border-radius: 6px;
+    border: 3px double #888;
+    background-color: #fafafa;
+    outline: none;
+    font-family: 'Segoe UI', sans-serif;
+}
+
+/* Rainbow button with flowing animation */
+.rainbow-button {
+    padding: 15px 30px;
+    font-size: 16px;
+    font-weight: bold;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    background: linear-gradient(270deg, 
+        red, orange, yellow, green, blue, indigo, violet, red);
+    background-size: 600% 600%;
+    animation: rainbowFlow 6s linear infinite;
+    cursor: pointer;
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
+    transition: transform 0.2s;
+}
+
+.rainbow-button:hover {
+    transform: scale(1.05);
+}
+
+/* Animation keyframes */
+@keyframes rainbowFlow {
+    0% {
+        background-position: 0% 50%;
+    }
+    100% {
+        background-position: 100% 50%;
+    }
+}
+
+
