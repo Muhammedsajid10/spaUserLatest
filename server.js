@@ -16,11 +16,7 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 
-// Start the server
-app.listen(port, () => {
-  console.log(`Server is running on port ${port}`);
-});
-
+// Start the server (single listen)
 app.listen(port, '0.0.0.0', () => {
-  console.log(`Server is running on port ${port}`);
+  console.log(`Frontend server listening on port ${port}`);
 });
