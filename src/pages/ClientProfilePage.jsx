@@ -9,6 +9,13 @@ import { FaBars, FaTimes } from 'react-icons/fa';
 import { FaCalendarAlt, FaCreditCard, FaRegStar, FaUser } from "react-icons/fa";
 
 export default function ClientProfilePage() {
+    // Track window width for responsive UI
+    const [windowWidth, setWindowWidth] = useState(window.innerWidth);
+    useEffect(() => {
+        const handleResize = () => setWindowWidth(window.innerWidth);
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
     const [profile, setProfile] = useState({});
     const [editMode, setEditMode] = useState(false);
     const [editProfile, setEditProfile] = useState({});
@@ -446,10 +453,22 @@ export default function ClientProfilePage() {
 
     return (
         <div className="client-profile-wrapper">
-            {/* <button className={`sidebar-toggle-btn`} onClick={() => setSidebarOpen(!sidebarOpen)}>
-                {sidebarOpen ? <FaTimes /> : <FaBars />}
-            </button> */}
-            <div className="sidebar-overlay" onClick={() => setSidebarOpen(false)} />
+            {/* Mobile menu bar toggle button: only show on mobile (<= 992px) */}
+            {windowWidth <= 992 && (
+                <button
+                    className="sidebar-toggle-btn"
+                    onClick={() => setSidebarOpen(!sidebarOpen)}
+                >
+                    {sidebarOpen ? <FaTimes /> : <FaBars />}
+                </button>
+            )}
+            {windowWidth <= 992 && (
+                <div
+                    className={`sidebar-overlay${sidebarOpen ? ' active' : ''}`}
+                    style={{ display: sidebarOpen ? 'block' : 'none' }}
+                    onClick={() => setSidebarOpen(false)}
+                />
+            )}
             <div className="client-profile-container">
                 <aside className={`client-profile-sidebar ${sidebarOpen ? 'open' : ''}`}>
                     <div className="sidebar-header">

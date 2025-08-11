@@ -410,6 +410,26 @@ const Time = () => {
             )}
           </div>
         </div>
+
+        {/* Fixed bottom bar for mobile: summary + continue */}
+        <div className="bottom-bar time-bottom-bar">
+          <div className="bar-summary">
+            <span>{bookingFlow.getTotalDuration()} min</span>
+            <span>{(bookingFlow.selectedServices?.length || 0)} services</span>
+            <span>AED {bookingFlow.getTotalPrice()}</span>
+          </div>
+          <button
+            className="continue-btn"
+            disabled={!selectedTime}
+            onClick={() => {
+              if (selectedTime) {
+                navigate('/payment');
+              }
+            }}
+          >
+            Continue
+          </button>
+        </div>
         
       </div>
     );
