@@ -10,44 +10,47 @@ body {
 .services-page-wrapper {
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
+  /* min-height: 100vh; */
+  /* height: 500px; */
 }
 
-/* === Header Wrapper - Desktop Fixed by Default === */
+/* === Header Wrapper (responsive, sticky inside main flow) === */
 .svc-header-wrapper {
-      position: fixed;
-    top: 72px;
-    left: 40px;
-    right: 0px;
-    z-index: 1000;
-    background: #fff;
-    border-bottom: 1px solid #e0e0e0;
-    max-width: 963px;
+  position: sticky;
+  top: 72px; /* below global header */
+  z-index: 30;
+  background: #fff;
+  border-bottom: 1px solid #e0e0e0;
+  padding: 0; /* removed extra top spacing */
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
 
 /* On large screens, the main content needs padding for the fixed header */
+/* Content wrapper below sticky header */
 .svc-container {
-  padding: 20px;
-  padding-top: 170px; /* Adjust this value if header height changes */
-  max-width: 800px;
+  /* Further tightened vertical padding */
+  padding: 10px 0 16px;
+  /* max-width: 1080px; */
+  width: 90%;
   margin: 0 auto;
   flex-grow: 1;
 }
 
 .svc-header {
-  padding: 20px;
-  /* max-width: 800px; */
-  margin: 0 auto;
+  padding: 8px 0 4px; /* was 12px 0 8px */
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-end;
+  gap: 1.25rem;
 }
 
 .svc-header h2 {
-  font-size: 40px;
+  font-size: clamp(1.7rem, 2.6vw, 2.5rem);
   margin: 0;
-  text-align: start;
   font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: -0.5px;
 }
 
 .svc-cart-indicator {
@@ -79,15 +82,17 @@ body {
   font-size: 14px;
 }
 
+/* Category pills nav */
 .svc-nav {
   display: flex;
   flex-wrap: nowrap;
-  gap: 10px;
+  gap: 8px;
   overflow-x: auto;
-  padding: 10px 20px;
-  /* border-bottom: 1px solid #e0e0e0; */
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+  /* Tightened vertical padding to reduce gap below header */
+  padding: 4px 2px 6px;
   -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  border-bottom: 1px solid #f0f0f0;
 }
 
 .svc-nav::-webkit-scrollbar {
@@ -95,24 +100,45 @@ body {
 }
 
 .svc-nav button {
-  padding: 8px 14px;
-  background: #f0f0f0;
-  border: none;
-  border-radius: 20px;
+  padding: 8px 16px;
+  background: #f2f2f2;
+  border: 1px solid #e5e5e5;
+  border-radius: 999px;
   cursor: pointer;
-  font-size: 14px;
-  transition: all 0.3s;
+  font-size: .8rem;
+  font-weight: 500;
+  letter-spacing: .3px;
+  transition: background .25s, color .25s, border-color .25s;
   white-space: nowrap;
+  line-height: 1;
 }
 
 .svc-nav button.active {
-  background-color: #000;
+  background: #000;
   color: #fff;
+  border-color: #000;
+}
+
+@media (max-width: 960px) {
+  .svc-header-wrapper { top: 60px; }
+  .svc-header { padding: 6px 0 4px; }
+  .svc-header h2 { font-size: clamp(1.55rem, 5vw, 2.1rem); }
+  /* Match desktop tightening */
+  .svc-container { padding: 4px 0 16px; }
+}
+
+@media (max-width: 640px) {
+  .svc-header { flex-wrap: wrap; gap: .75rem; align-items: center; }
+  .svc-header h2 { flex: 1 1 100%; }
+  .svc-cart-indicator { order: 2; }
+  .svc-nav { padding: 6px 0 10px; }
 }
 
 .svc-category-section {
-  margin-top: 40px;
+  /* Further reduced from 16px to 12px */
+  margin-top: 12px;
 }
+.svc-category-section:first-of-type { margin-top: 4px; }
 
 .svc-category-title {
   font-size: 20px;
@@ -422,7 +448,8 @@ body {
 
   /* The content no longer needs padding on mobile because of the sticky header */
   .svc-container {
-    padding-top: 20px; /* Reset padding-top */
+    /* Further reduced top padding for mobile */
+    padding-top: 8px;
   }
 
   .svc-header {
@@ -465,7 +492,7 @@ body {
   }
 
   .svc-category-section {
-    margin-top: 30px;
+    margin-top: 12px; /* was 20px */
   }
 
   /* Popup - Mobile specific styles */
