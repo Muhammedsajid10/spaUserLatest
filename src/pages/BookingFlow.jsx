@@ -1,306 +1,139 @@
-import React, { useState, useEffect, useRef } from 'react';
-import Services from './Services';
-import TimeWithAPI from './TimeWithAPI';
-import { bookingsAPI, bookingFlow } from '../services/api';
-import { useHeaderTitle } from '../Service/HeaderTitleContext';
-// import './BookingFlow.css';
+import React, { useEffect, useState } from 'react';
+import Base_url from '../Service/Base_url.jsx';
+import {
+  fetchServices,
+  fetchEmployees,
+  fetchAppointmentsForDate,
+  getAvailableProfessionalsForService,
+  getAvailableTimeSlotsForProfessional
+} from '../services/bookingUtils.js';
 
+// Simple 3-step public booking flow: Service -> Professional -> Time Slot
 const BookingFlow = () => {
-  const [currentStep, setCurrentStep] = useState(1);
-  const [selectedService, setSelectedService] = useState(null);
-  const [selectedTimeData, setSelectedTimeData] = useState(null);
+  const [step, setStep] = useState(1);
+  const [date, setDate] = useState(new Date());
+  const [services, setServices] = useState([]);
+  const [employees, setEmployees] = useState([]);
+  const [appointments, setAppointments] = useState({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [bookingConfirmation, setBookingConfirmation] = useState(null);
-  const { setHeaderTitle } = useHeaderTitle();
-  const headingRef = useRef();
 
-  // Load saved booking flow state
+  const [selectedService, setSelectedService] = useState(null);
+  const [availableProfessionals, setAvailableProfessionals] = useState([]);
+  const [selectedProfessional, setSelectedProfessional] = useState(null);
+  const [availableTimeSlots, setAvailableTimeSlots] = useState([]);
+  const [selectedSlot, setSelectedSlot] = useState(null);
+
+  // Step 1: load services
   useEffect(() => {
-    bookingFlow.load();
-    if (bookingFlow.selectedService) {
-      setSelectedService(bookingFlow.selectedService);
-    }
-    if (bookingFlow.selectedTimeSlot) {
-      setSelectedTimeData(bookingFlow.selectedTimeSlot);
-    }
+    const load = async () => {
+      setLoading(true); setError(null);
+      try {
+        const svc = await fetchServices(Base_url);
+        setServices(svc);
+      } catch (e) { setError(e.message); }
+      finally { setLoading(false); }
+    };
+    load();
   }, []);
 
-  useEffect(() => {
-    const observer = new window.IntersectionObserver(
-      ([entry]) => {
-        if (!entry.isIntersecting) {
-          setHeaderTitle('Booking');
-        } else {
-          setHeaderTitle('');
-        }
-      },
-      { threshold: 0 }
-    );
-    if (headingRef.current) observer.observe(headingRef.current);
-    return () => observer.disconnect();
-  }, [setHeaderTitle]);
-
-  const handleServiceSelect = (service) => {
+  // When service chosen -> fetch employees + appointments for date then compute available professionals
+  const handleSelectService = async (service) => {
     setSelectedService(service);
-    bookingFlow.selectedService = service;
-    bookingFlow.save();
-    setCurrentStep(2);
-  };
-
-  const handleTimeSelect = (timeData) => {
-    setSelectedTimeData(timeData);
-    bookingFlow.selectedTimeSlot = timeData;
-    bookingFlow.save();
-    setCurrentStep(3);
-  };
-
-  const handleBookingConfirmation = async () => {
-    if (!selectedService || !selectedTimeData) {
-      setError('Please complete all selections before confirming');
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
-
+    setSelectedProfessional(null);
+    setSelectedSlot(null);
+    setAvailableTimeSlots([]);
+    setLoading(true); setError(null);
     try {
-      const confirmationData = {
-        serviceId: selectedService._id,
-        employeeId: selectedTimeData.professional.id,
-        appointmentDate: selectedTimeData.date.toISOString().split('T')[0],
-        startTime: selectedTimeData.time.startTime,
-        clientNotes: '',
-        specialRequests: ''
-      };
-
-      const response = await bookingsAPI.createBookingConfirmation(confirmationData);
-      
-      if (response.success) {
-        setBookingConfirmation(response.data.bookingConfirmation);
-        bookingFlow.bookingConfirmation = response.data.bookingConfirmation;
-        bookingFlow.save();
-        setCurrentStep(4);
-      }
-    } catch (err) {
-      console.error('Error creating booking confirmation:', err);
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
+      const [emps, appts] = await Promise.all([
+        fetchEmployees(Base_url),
+        fetchAppointmentsForDate(Base_url, date.toISOString().split('T')[0])
+      ]);
+      setEmployees(emps);
+      setAppointments(appts);
+      const professionals = getAvailableProfessionalsForService(service._id, date, emps, appts, services);
+      setAvailableProfessionals(professionals);
+      setStep(2);
+    } catch (e) { setError(e.message); }
+    finally { setLoading(false); }
   };
 
-  const handleCompleteBooking = async () => {
-    if (!bookingConfirmation) {
-      setError('No booking confirmation found');
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
-
-    try {
-      const bookingData = {
-        confirmationToken: bookingConfirmation.confirmationToken,
-        paymentMethod: 'card', // Default payment method
-        clientNotes: '',
-        specialRequests: ''
-      };
-
-      const response = await bookingsAPI.completeBooking(bookingData);
-      
-      if (response.success) {
-        // Reset booking flow
-        bookingFlow.reset();
-        setCurrentStep(5); // Success step
-      }
-    } catch (err) {
-      console.error('Error completing booking:', err);
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
+  // Step 2 choose professional -> compute slots
+  const handleSelectProfessional = (prof) => {
+    setSelectedProfessional(prof);
+    const serviceDuration = selectedService?.duration || 30;
+    const slots = getAvailableTimeSlotsForProfessional(prof, date, serviceDuration, appointments);
+    setAvailableTimeSlots(slots);
+    setStep(3);
   };
 
-  const resetBooking = () => {
-    bookingFlow.reset();
+  const handleSelectSlot = (slot) => {
+    setSelectedSlot(slot);
+    // Continue to next action: collect user details / confirm (not implemented here)
+    alert(`Selected ${selectedService?.name} with ${selectedProfessional?.user?.firstName || selectedProfessional?.name} at ${new Date(slot.startTime).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}`);
+  };
+
+  const resetFlow = () => {
+    setStep(1);
     setSelectedService(null);
-    setSelectedTimeData(null);
-    setBookingConfirmation(null);
-    setCurrentStep(1);
-    setError(null);
-  };
-
-  const renderStep = () => {
-    switch (currentStep) {
-      case 1:
-        return (
-          <div className="booking-step">
-            <h2 ref={headingRef}>Step 1: Select Service</h2>
-            <Services onServiceSelect={handleServiceSelect} />
-          </div>
-        );
-
-      case 2:
-        return (
-          <div className="booking-step">
-            <h2 ref={headingRef}>Step 2: Select Professional & Time</h2>
-            <div className="selected-service-info">
-              <h3>Selected Service: {selectedService?.name}</h3>
-              <p>Duration: {selectedService?.duration} minutes</p>
-              <p>Price: ${selectedService?.price}</p>
-            </div>
-            <TimeWithAPI 
-              selectedService={selectedService}
-              onTimeSelect={handleTimeSelect}
-            />
-          </div>
-        );
-
-      case 3:
-        return (
-          <div className="booking-step">
-            <h2 ref={headingRef}>Step 3: Review & Confirm</h2>
-            <div className="booking-summary">
-              <h3>Booking Summary</h3>
-              <div className="summary-item">
-                <strong>Service:</strong> {selectedService?.name}
-              </div>
-              <div className="summary-item">
-                <strong>Professional:</strong> {selectedTimeData?.professional?.name}
-              </div>
-              <div className="summary-item">
-                <strong>Date:</strong> {selectedTimeData?.date?.toLocaleDateString()}
-              </div>
-              <div className="summary-item">
-                <strong>Time:</strong> {selectedTimeData?.time?.time}
-              </div>
-              <div className="summary-item">
-                <strong>Duration:</strong> {selectedService?.duration} minutes
-              </div>
-              <div className="summary-item total">
-                <strong>Total:</strong> ${selectedService?.price}
-              </div>
-            </div>
-            
-            {error && <div className="error-message">{error}</div>}
-            
-            <div className="booking-actions">
-              <button 
-                className="btn-secondary" 
-                onClick={() => setCurrentStep(2)}
-              >
-                Back
-              </button>
-              <button 
-                className="btn-primary" 
-                onClick={handleBookingConfirmation}
-                disabled={loading}
-              >
-                {loading ? 'Confirming...' : 'Confirm Booking'}
-              </button>
-            </div>
-          </div>
-        );
-
-      case 4:
-        return (
-          <div className="booking-step">
-            <h2 ref={headingRef}>Step 4: Complete Booking</h2>
-            <div className="confirmation-info">
-              <h3>Booking Confirmed!</h3>
-              <p>Your booking has been confirmed. Please login or signup to complete your booking.</p>
-              
-              <div className="confirmation-details">
-                <div className="detail-item">
-                  <strong>Confirmation Token:</strong> {bookingConfirmation?.confirmationToken}
-                </div>
-                <div className="detail-item">
-                  <strong>Service:</strong> {bookingConfirmation?.service?.name}
-                </div>
-                <div className="detail-item">
-                  <strong>Professional:</strong> {bookingConfirmation?.employee?.employeeId}
-                </div>
-                <div className="detail-item">
-                  <strong>Date:</strong> {new Date(bookingConfirmation?.appointmentDate).toLocaleDateString()}
-                </div>
-                <div className="detail-item">
-                  <strong>Time:</strong> {new Date(bookingConfirmation?.startTime).toLocaleTimeString()}
-                </div>
-                <div className="detail-item">
-                  <strong>Total Amount:</strong> ${bookingConfirmation?.totalAmount}
-                </div>
-              </div>
-            </div>
-            
-            {error && <div className="error-message">{error}</div>}
-            
-            <div className="booking-actions">
-              <button 
-                className="btn-secondary" 
-                onClick={resetBooking}
-              >
-                Start New Booking
-              </button>
-              <button 
-                className="btn-primary" 
-                onClick={handleCompleteBooking}
-                disabled={loading}
-              >
-                {loading ? 'Completing...' : 'Complete Booking'}
-              </button>
-            </div>
-          </div>
-        );
-
-      case 5:
-        return (
-          <div className="booking-step">
-            <h2 ref={headingRef}>Booking Successful!</h2>
-            <div className="success-message">
-              <div className="success-icon">✅</div>
-              <h3>Your booking has been completed successfully!</h3>
-              <p>You will receive a confirmation email shortly.</p>
-              <p>Thank you for choosing our spa services!</p>
-            </div>
-            
-            <div className="booking-actions">
-              <button 
-                className="btn-primary" 
-                onClick={resetBooking}
-              >
-                Book Another Service
-              </button>
-            </div>
-          </div>
-        );
-
-      default:
-        return <div>Invalid step</div>;
-    }
+    setSelectedProfessional(null);
+    setSelectedSlot(null);
+    setAvailableProfessionals([]);
+    setAvailableTimeSlots([]);
   };
 
   return (
-    <div className="booking-flow-container">
-      <div className="booking-header">
-        <h1>Spa Booking</h1>
-        <div className="step-indicator">
-          {[1, 2, 3, 4, 5].map((step) => (
-            <div 
-              key={step}
-              className={`step-dot ${currentStep >= step ? 'active' : ''}`}
-            >
-              {step}
-            </div>
-          ))}
+    <div style={{ maxWidth: 800, margin: '0 auto', padding: '1rem' }}>
+      <h2>User Booking</h2>
+      <p>Step {step} of 3</p>
+      {error && <div style={{ color:'red' }}>{error}</div>}
+      {loading && <div>Loading...</div>}
+      {step === 1 && (
+        <div>
+          <h3>Select a Service</h3>
+            <ul style={{ listStyle:'none', padding:0 }}>
+              {services.map(s => (
+                <li key={s._id} style={{ marginBottom:8 }}>
+                  <button onClick={() => handleSelectService(s)} style={{ width:'100%' }}>
+                    {s.name} ({s.duration} mins)
+                  </button>
+                </li>
+              ))}
+            </ul>
         </div>
-      </div>
-
-      <div className="booking-content">
-        {renderStep()}
-      </div>
+      )}
+      {step === 2 && (
+        <div>
+          <h3>Select a Professional</h3>
+          <button onClick={resetFlow}>Back</button>
+          <ul style={{ listStyle:'none', padding:0 }}>
+            {availableProfessionals.map(p => (
+              <li key={p._id || p.id} style={{ marginBottom:8 }}>
+                <button onClick={() => handleSelectProfessional(p)} style={{ width:'100%' }}>
+                  {p.user ? `${p.user.firstName} ${p.user.lastName}` : p.name}
+                </button>
+              </li>
+            ))}
+            {availableProfessionals.length === 0 && !loading && <li>No professionals available for this date.</li>}
+          </ul>
+        </div>
+      )}
+      {step === 3 && (
+        <div>
+          <h3>Select a Time</h3>
+          <button onClick={() => setStep(2)}>Back</button>
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(100px,1fr))', gap:8 }}>
+            {availableTimeSlots.map(slot => (
+              <button key={slot.startTime} onClick={() => handleSelectSlot(slot)}>
+                {new Date(slot.startTime).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
+              </button>
+            ))}
+            {availableTimeSlots.length === 0 && !loading && <div>No free slots.</div>}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
 
-export default BookingFlow; 
+export default BookingFlow;

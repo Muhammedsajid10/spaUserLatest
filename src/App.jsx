@@ -5,28 +5,11 @@ import viteLogo from "/vite.svg";
 import "./App.css";
 import "bootstrap/dist/css/bootstrap.min.css";
 import Services from "./pages/Services";
-import Time from "./pages/Time";
-import Professional from "./pages/Professionals";
 import Payment from "./pages/Payment";
-import Button from "./pages/Button";
-import Layout from "./Layout";
-// import Appoint from "./Clientsidepage/Appoint"
 
-import Teammembers from "./Clientsidepage/Teammembers";
-import Giftcards from "./Clientsidepage/Giftcards";
-import Membership from "./Clientsidepage/Membership";
-import ClientsList from "./Clientsidepage/Clientlist";
-import Visit from "./pages/Visit";
-import Todayandbody from "./Clientsidepage/Todayandbody";
-import Memberss from "./Clientsidepage/Memberss";
-import Dailysalesss from "./Clientsidepage/Dailysalesss";
-import Paymentclient from "./Clientsidepage/Paymentclient";
-import SalesPage from "./Clientsidepage/Salespage";
-import TopService from "./Clientsidepage/Topservices";
+
 import Dashboard from "./Clientsidepage/Dashboard";
-import Sheduledshifts from "./Clientsidepage/Sheduledshifts";
-import Graphs from "./Clientsidepage/Graphs";
-import Selectcalander from "./Clientsidepage/Selectcalander";
+
 import LoginPage from "./Clientsidepage/Loginpage";
 import Signuppage from "./Clientsidepage/Signuppage";
 import ForgotPassword from "./Clientsidepage/ForgotPassword";
@@ -34,7 +17,7 @@ import ResetPassword from "./Clientsidepage/ResetPassword";
 import VerifyEmailPage from './pages/VerifyEmailPage';
 
 // Import the new/updated components
-import BookingFlow from "./pages/BookingFlow";
+// import BookingFlow from "./pages/BookingFlow";
 import SelectProfessional from "./pages/ProfessionalsUpdated";
 import TimeWithAPI from "./pages/TimeWithAPI";
 import LayoutWithBooking from "./LayoutWithBooking";
@@ -135,7 +118,7 @@ function App() {
           } />
 
           {/* Alternative booking flow route */}
-          <Route path="/booking" element={<BookingFlow />} />
+          <Route path="/booking" element={<LayoutWithBooking />} />
           
           {/* Demo/test routes for updated components */}
           <Route path="/professionals-demo" element={<SelectProfessional />} />

@@ -16,6 +16,7 @@ function Services() {
   const [selectedService, setSelectedService] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [selectedOption, setSelectedOption] = useState(null);
+  const [selectedServiceIds, setSelectedServiceIds] = useState([]);
   const [selectedServicesCount, setSelectedServicesCount] = useState(0);
   const [currentStep, setCurrentStep] = useState(1); // Can be updated based on flow
 
@@ -181,6 +182,12 @@ function Services() {
     };
 
     bookingFlow.addService(serviceForBooking);
+    // mark as selected (checkbox)
+    setSelectedServiceIds(prev => {
+      if (!prev.includes(selectedService._id)) return [...prev, selectedService._id];
+      return prev;
+    });
+
     handleCloseModal();
 
     const newCount = bookingFlow.selectedServices.length;
@@ -195,14 +202,43 @@ function Services() {
       position: 'top-right',
       timerProgressBar: true
     });
+
+    // notify sidebar and other components
+    window.dispatchEvent(new CustomEvent('bookingFlowChange'));
   }
 };
+
+  // Toggle service selection (checkbox / plus behavior)
+  const handleServiceToggle = (service) => {
+    bookingFlow.load();
+    const exists = bookingFlow.selectedServices && bookingFlow.selectedServices.find(s => s._id === service._id);
+    if (exists) {
+      bookingFlow.removeService(service._id);
+      setSelectedServiceIds(prev => prev.filter(id => id !== service._id));
+    } else {
+      const serviceForBooking = {
+        _id: service._id,
+        name: service.title,
+        duration: service.duration,
+        price: service.effectivePrice,
+        description: service.desc,
+        category: service.category,
+        option: 'single',
+      };
+      bookingFlow.addService(serviceForBooking);
+      setSelectedServiceIds(prev => [...prev, service._id]);
+    }
+    // Notify others and update count
+    window.dispatchEvent(new CustomEvent('bookingFlowChange'));
+    setSelectedServicesCount((bookingFlow.selectedServices || []).length);
+  };
 
 
   useEffect(() => {
     const loadSelectedServicesCount = () => {
       bookingFlow.load();
-      setSelectedServicesCount(bookingFlow.selectedServices.length);
+      setSelectedServicesCount(bookingFlow.selectedServices.length || 0);
+      setSelectedServiceIds((bookingFlow.selectedServices || []).map(s => s._id));
     };
 
     loadSelectedServicesCount();
@@ -247,15 +283,25 @@ function Services() {
 
   return (
     <div className="svc-container">
-      <div className="svc-header">
-        <h2>Services</h2>
-        {selectedServicesCount > 0 && (
-          <div className="svc-cart-indicator">
-            <span className="cart-count">{selectedServicesCount}</span>
-            <span className="cart-text">services selected</span>
-          </div>
-        )}
-      </div>
+        <div
+          className="svc-header"
+          style={{
+            position: 'sticky',
+            top: '0px',
+            zIndex: 30,
+            background: '#fff',
+            padding: '12px 0',
+            borderBottom: '1px solid rgba(0,0,0,0.06)'
+          }}
+        >
+          <h2>Services</h2>
+          {selectedServicesCount > 0 && (
+            <div className="svc-cart-indicator">
+              <span className="cart-count">{selectedServicesCount}</span>
+              <span className="cart-text">services selected</span>
+            </div>
+          )}
+        </div>
 
       <nav className="svc-nav">
         {Object.keys(services).map((category) => (
@@ -277,7 +323,20 @@ function Services() {
           data-title={category}
           ref={(el) => (sectionRefs.current[category] = el)}
         >
-          <h3 className="svc-category-title">{category}</h3>
+          <h3
+            className="svc-category-title"
+            style={{
+              position: 'sticky',
+              top: '72px',
+              background: '#fff',
+              zIndex: 20,
+              margin: 0,
+              padding: '10px 0',
+              borderBottom: '1px solid rgba(0,0,0,0.06)'
+            }}
+          >
+            {category}
+          </h3>
           <div className="svc-list">
             {servicesList.map((item, idx) => {
               const isOpen = isExpanded(category, idx);
@@ -285,9 +344,10 @@ function Services() {
                 item.desc.length > 100
                   ? item.desc.slice(0, 100) + "..."
                   : item.desc;
+              const checked = selectedServiceIds.includes(item._id);
               return (
                 <div
-                  className="svc-item"
+                  className={`svc-item ${checked ? 'selected' : ''}`}
                   key={idx}
                   onClick={() => handleServiceClick(item)}
                 >
@@ -323,15 +383,46 @@ function Services() {
                         </span>
                       )}
                   </div>
-                  <button
-                    className="svc-add-btn"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleServiceClick(item);
-                    }}
-                  >
-                    +
-                  </button>
+                  {/* show + when not selected, checkbox when selected */}
+                  {!checked ? (
+                    <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '44px' }}>
+                      <button
+                        className="svc-add-btn"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          // open modal to choose single/couple option
+                          handleServiceClick(item);
+                        }}
+                        aria-label={`Add ${item.title} to booking`}
+                        style={{ width: '34px', height: '34px', borderRadius: '6px' }}
+                      >
+                        +
+                      </button>
+                    </div>
+                  ) : (
+                    <div
+                      onClick={(e) => e.stopPropagation()}
+                      style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '44px' }}
+                    >
+                        <input
+                          type="checkbox"
+                          checked={true}
+                          onChange={(e) => {
+                            e.stopPropagation();
+                            handleServiceToggle(item);
+                          }}
+                          aria-label={`Remove ${item.title} from selection`}
+                          style={{
+                            width: '28px',
+                            height: '28px',
+                            accentColor: '#5000e6ff',
+                            borderRadius: '100px',
+                            
+                            boxSizing: 'border-box',
+                          }}
+                        />
+                    </div>
+                  )}
                 </div>
               );
             })}

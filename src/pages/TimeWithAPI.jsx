@@ -44,6 +44,7 @@ const Time = () => {
         // If using the new multiple professionals structure, get the first one
         const firstServiceId = Object.keys(data.selectedProfessionals)[0];
         const firstProfessional = data.selectedProfessionals[firstServiceId];
+        
         console.log('TimeWithAPI - Setting selected professional from selectedProfessionals:', firstProfessional);
         setSelectedProfessional(firstProfessional);
       } else {
@@ -53,7 +54,7 @@ const Time = () => {
         console.log('TimeWithAPI - selectedProfessionals keys:', Object.keys(data.selectedProfessionals || {}));
       }
     };
-    
+  const  professionalName = selectedProfessional ? selectedProfessional.name : '';
     loadBookingData();
     
     // Listen for changes in booking flow, but debounce to prevent too many calls

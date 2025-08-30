@@ -1,6 +1,8 @@
 // API service for spa backend
 // Always use deployed backend
 const API_BASE_URL = 'https://spabackend-0tko.onrender.com/api/v1';
+// Temporary token for development/testing when no user token is set
+const TEMP_AUTH_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4NjhiODQ0ZTE5MDc2MmNhNjkzZDk0MiIsImlhdCI6MTc1NjM4MTc2MSwiZXhwIjoxNzY0MTU3NzYxfQ.w-Z6ZArZLzoM1Hj2TW8dw_Vw-UrNDYN6hM3GGfoS9-I';
 
 // Helper function to handle API responses
 const handleResponse = async (response) => {
@@ -13,10 +15,10 @@ const handleResponse = async (response) => {
 
 // Helper function to get auth headers
 const getAuthHeaders = () => {
-  const token = localStorage.getItem('token');
+  const token = localStorage.getItem('token') || TEMP_AUTH_TOKEN;
   return {
     'Content-Type': 'application/json',
-    ...(token && { Authorization: `Bearer ${token}` })
+    Authorization: `Bearer ${token}`
   };
 };
 
@@ -142,7 +144,10 @@ export const bookingsAPI = {
   createBooking: async (bookingData) => {
     const response = await fetch(`${API_BASE_URL}/bookings`, {
       method: 'POST',
-      headers: getAuthHeaders(),
+    headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4NjhiODQ0ZTE5MDc2MmNhNjkzZDk0MiIsImlhdCI6MTc1NjM4MTc2MSwiZXhwIjoxNzY0MTU3NzYxfQ.w-Z6ZArZLzoM1Hj2TW8dw_Vw-UrNDYN6hM3GGfoS9-I`
+      },
       body: JSON.stringify(bookingData)
     });
     return handleResponse(response);
@@ -190,11 +195,20 @@ export const bookingsAPI = {
   },
 
   // Get available professionals for a service (public)
-  getAvailableProfessionals: async (serviceId, date) => {
-    const params = new URLSearchParams({ service: serviceId, date });
-    const response = await fetch(`${API_BASE_URL}/bookings/professionals?${params}`);
-    return handleResponse(response);
-  },
+  // getAvailableProfessionals: async (serviceId, date) => {
+  //   const params = new URLSearchParams({ service: serviceId, date });
+  //   const response = await fetch(`https://spabackend-0tko.onrender.com/api/v1/employees`,{
+  //     method: 'GET',
+  //     headers:'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4NjhiODQ0ZTE5MDc2MmNhNjkzZDk0MiIsImlhdCI6MTc1NjM4MTc2MSwiZXhwIjoxNzY0MTU3NzYxfQ.w-Z6ZArZLzoM1Hj2TW8dw_Vw-UrNDYN6hM3GGfoS9-I'
+  //   });
+  //   return handleResponse(response);
+  // },
+getAvailableProfessionals: async (serviceId, date) => {
+  const params = new URLSearchParams({ service: serviceId, date });
+  const url = `${API_BASE_URL.replace(/\/api\/v1\/?$/, '')}/employees?${params.toString()}`;
+  const response = await fetch(url, { method: 'GET', headers: getAuthHeaders() });
+  return handleResponse(response);
+},
 
   // Get available time slots for a professional (public)
   getAvailableTimeSlots: async (employeeId, serviceId, date) => {
@@ -204,7 +218,7 @@ export const bookingsAPI = {
     console.log('Parameters:', { employeeId, serviceId, date });
     
     try {
-      const response = await fetch(url);
+  const response = await fetch(url, { headers: getAuthHeaders() });
       console.log('Time slots API response status:', response.status);
       console.log('Time slots API response headers:', response.headers);
       
@@ -222,6 +236,15 @@ export const bookingsAPI = {
       throw error;
     }
   },
+
+  // Get appointments for a specific date (public)
+  getAppointmentsForDate: async (dateISO) => {
+  const url = `${API_BASE_URL}/bookings?date=${encodeURIComponent(dateISO)}`;
+  const response = await fetch(url, { headers: getAuthHeaders()});
+    const data = await handleResponse(response);
+    // Return the raw bookings array for client-side processing
+    return data.data?.bookings || [];
+  }, 
 
   // Create booking confirmation (public)
   createBookingConfirmation: async (confirmationData) => {
@@ -282,7 +305,10 @@ export const employeesAPI = {
   // Get all employees (admin only)
   getAllEmployees: async () => {
     const response = await fetch(`${API_BASE_URL}/employees`, {
-      headers: getAuthHeaders()
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4NjhiODQ0ZTE5MDc2MmNhNjkzZDk0MiIsImlhdCI6MTc1NjM4MTc2MSwiZXhwIjoxNzY0MTU3NzYxfQ.w-Z6ZArZLzoM1Hj2TW8dw_Vw-UrNDYN6hM3GGfoS9-I`
+      }
     });
     return handleResponse(response);
   },

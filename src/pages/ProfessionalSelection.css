@@ -13,14 +13,17 @@
 
 .professional-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 20px;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 30px; /* uniform row and column gap */
+  align-items: stretch;
+  grid-auto-rows: minmax(120px, auto);
+  padding-bottom: 8px;
 }
 
 @media (max-width: 768px) {
   .professional-grid {
-    grid-template-columns: repeat(2, 1fr);
-    max-height: calc((160px + 20px) * 2); /* 2 rows */
+  grid-template-columns: repeat(2, 1fr);
+  max-height: calc((160px + 20px) * 2); /* 2 rows */
     overflow-y: auto;
   }
 }
@@ -34,35 +37,57 @@
 
 .professional-card {
   border: 1px solid #eee;
-  border-radius: 12px;
-  padding: 20px 10px;
+  border-radius: 10px;
+  padding: 12px 8px;
   text-align: center;
   cursor: pointer;
-  transition: 0.2s ease-in-out;
+  transition: 0.15s ease-in-out;
   position: relative;
   background: #fff;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+}
+
+.professional-card.compact {
+  padding: 10px 8px;
+  border-radius: 8px;
+}
+
+/* Make cards align height-wise and distribute content vertically */
+.professional-card,
+.professional-card.compact {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: center;
+  min-height: 120px;
+}
+
+.professional-card .name-text {
+  margin-top: 8px;
 }
 
 .professional-card.selected {
-  border: 2px solid #050506;
+  border: 2px solid #1976d2; /* blue border for selected */
+  background: #fff; /* keep background white */
 }
 
 .icon-circle,
 .letter-circle,
 .image-circle {
-  width: 60px;
-  height: 60px;
-  margin: 0 auto 10px;
+  width: 48px;
+  height: 48px;
+  margin: 0 auto 8px;
   border-radius: 50%;
-  background-color: #f4f4ff;
+  background-color: #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: bold;
-  font-size: 1.25rem;
+  font-size: 1rem;
   color: #333;
   position: relative;
   overflow: hidden;
+  border: 1px solid rgba(0,0,0,0.06);
 }
 
 .image-circle img {
@@ -97,6 +122,26 @@
   font-size: 0.9rem;
   font-weight: 600;
   text-transform: capitalize;
+}
+
+.name-text.small {
+  font-size: 0.85rem;
+}
+
+.letter-circle.blue {
+  background: #e8f4ff;
+  color: #1976d2;
+  border: none;
+}
+
+.icon-circle.small,
+.image-circle.small {
+  width: 40px;
+  height: 40px;
+}
+
+.rating-display.small {
+  font-size: 0.85rem;
 }
 
 .subtitle-text {

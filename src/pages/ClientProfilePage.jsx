@@ -1,12 +1,196 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Button, Form, Table, Spinner } from 'react-bootstrap';
-import './ClientProfilePage.css';
+import './ClientProfilePage.css'; // Main CSS file
 import { authAPI, bookingsAPI, paymentsAPI, feedbackAPI } from '../services/api';
-import StarRating from '../Components/StarRating';
-import FeedbackModal from '../Components/FeedbackModal';
 import Swal from 'sweetalert2';
+import { IoCalendarClearOutline } from "react-icons/io5";
+import { IoCardOutline } from "react-icons/io5";
+import { FaRegStar } from "react-icons/fa6";
+import { CgProfile } from "react-icons/cg";
+import { IoSearch } from "react-icons/io5";
+import { FaChevronDown } from "react-icons/fa";
+import { FaUnlockAlt } from "react-icons/fa";
+import { SlUser } from "react-icons/sl";
+// StarRating Component (extracted from pasted_content.txt)
+const StarRating = ({ rating = 0, readOnly = false, size = 'medium', showText = true, onRatingChange }) => {
+  const sizeClasses = {
+    small: 'cpd-star-rating__star--small',
+    medium: 'cpd-star-rating__star--medium',
+    large: 'cpd-star-rating__star--large'
+  };
 
-export default function ClientProfilePage() {
+  const handleStarClick = (starIndex) => {
+    if (!readOnly && onRatingChange) {
+      onRatingChange(starIndex + 1);
+    }
+  };
+
+  return (
+    <div className="cpd-star-rating">
+      {[...Array(5)].map((_, index) => (
+        <span
+          key={index}
+          className={`cpd-star-rating__star ${sizeClasses[size]} ${
+            index < rating ? 'cpd-star-rating__star--filled' : 'cpd-star-rating__star--empty'
+          } ${!readOnly ? 'cpd-star-rating__star--clickable' : ''}`}
+          onClick={() => handleStarClick(index)}
+        >
+          ★
+        </span>
+      ))}
+      {showText && (
+        <span className="cpd-star-rating__text">
+          {rating}/5
+        </span>
+      )}
+    </div>
+  );
+};
+
+// FeedbackModal Component (extracted from pasted_content.txt)
+const FeedbackModal = ({ isOpen, onClose, booking, onSubmit }) => {
+  const [ratings, setRatings] = useState({
+    overall: 0,
+    service: 0,
+    professional: 0,
+    value: 0
+  });
+  
+  const [comments, setComments] = useState({
+    positive: '',
+    improvement: ''
+  });
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleRatingChange = (category, rating) => {
+    setRatings(prev => ({ ...prev, [category]: rating }));
+  };
+
+  const handleSubmit = async () => {
+    if (ratings.overall === 0) {
+      Swal.fire({
+        title: 'Error!',
+        text: 'Please provide an overall rating',
+        icon: 'error',
+        timer: 3000,
+        showConfirmButton: false
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await onSubmit({
+        bookingId: booking._id,
+        ratings,
+        comments,
+        service: booking.services?.[0]?.service?._id,
+        employee: booking.services?.[0]?.employee?._id
+      });
+      
+      setRatings({ overall: 0, service: 0, professional: 0, value: 0 });
+      setComments({ positive: '', improvement: '' });
+      onClose();
+    } catch (error) {
+      console.error('Failed to submit feedback:', error);
+      Swal.fire({
+        title: 'Error!',
+        text: 'Failed to submit feedback. Please try again.',
+        icon: 'error',
+        timer: 5000,
+        showConfirmButton: true
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="cpd-feedback-modal__overlay" onClick={onClose}>
+      <div className="cpd-feedback-modal__content" onClick={(e) => e.stopPropagation()}>
+        <div className="cpd-feedback-modal__header">
+          <h3 className="cpd-feedback-modal__title">Rate Your Experience</h3>
+          <button className="cpd-feedback-modal__close-btn" onClick={onClose}>×</button>
+        </div>
+        
+        <div className="cpd-feedback-modal__body">
+          <div className="cpd-feedback-modal__rating-section">
+            <label className="cpd-feedback-modal__label">Overall Rating *</label>
+            <StarRating
+              rating={ratings.overall}
+              onRatingChange={(rating) => handleRatingChange('overall', rating)}
+              size="large"
+              showText={false}
+            />
+          </div>
+
+          <div className="cpd-feedback-modal__rating-section">
+            <label className="cpd-feedback-modal__label">Service Quality</label>
+            <StarRating
+              rating={ratings.service}
+              onRatingChange={(rating) => handleRatingChange('service', rating)}
+              showText={false}
+            />
+          </div>
+
+          <div className="cpd-feedback-modal__rating-section">
+            <label className="cpd-feedback-modal__label">Professional</label>
+            <StarRating
+              rating={ratings.professional}
+              onRatingChange={(rating) => handleRatingChange('professional', rating)}
+              showText={false}
+            />
+          </div>
+
+          <div className="cpd-feedback-modal__rating-section">
+            <label className="cpd-feedback-modal__label">Value for Money</label>
+            <StarRating
+              rating={ratings.value}
+              onRatingChange={(rating) => handleRatingChange('value', rating)}
+              showText={false}
+            />
+          </div>
+
+          <div className="cpd-feedback-modal__form-group">
+            <label htmlFor="positive" className="cpd-feedback-modal__label">What did you like?</label>
+            <textarea
+              id="positive"
+              className="cpd-feedback-modal__textarea"
+              placeholder="Tell us what you enjoyed about your experience..."
+              value={comments.positive}
+              onChange={(e) => setComments(prev => ({ ...prev, positive: e.target.value }))}
+            />
+          </div>
+
+          <div className="cpd-feedback-modal__form-group">
+            <label htmlFor="improvement" className="cpd-feedback-modal__label">Any suggestions for improvement?</label>
+            <textarea
+              id="improvement"
+              className="cpd-feedback-modal__textarea"
+              placeholder="How can we improve your experience?"
+              value={comments.improvement}
+              onChange={(e) => setComments(prev => ({ ...prev, improvement: e.target.value }))}
+            />
+          </div>
+        </div>
+
+        <div className="cpd-feedback-modal__footer">
+          <button className="cpd-btn cpd-btn--secondary" onClick={onClose} disabled={isSubmitting}>
+            Cancel
+          </button>
+          <button className="cpd-btn cpd-btn--primary" onClick={handleSubmit} disabled={isSubmitting}>
+            {isSubmitting ? 'Submitting...' : 'Submit Feedback'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Main App Component (ClientProfilePage from pasted_content.txt)
+export default function App() {
   const [profile, setProfile] = useState({});
   const [editMode, setEditMode] = useState(false);
   const [editProfile, setEditProfile] = useState({});
@@ -20,6 +204,19 @@ export default function ClientProfilePage() {
   const [error, setError] = useState(null);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [selectedBookingForFeedback, setSelectedBookingForFeedback] = useState(null);
+
+  // Pagination states
+  const [bookingsPage, setBookingsPage] = useState(1);
+  const [invoicesPage, setInvoicesPage] = useState(1);
+  const [feedbackPage, setFeedbackPage] = useState(1);
+  const itemsPerPage = 5;
+
+  // Search and filter states
+  const [bookingsSearch, setBookingsSearch] = useState('');
+  const [bookingsFilter, setBookingsFilter] = useState('all');
+  const [invoicesSearch, setInvoicesSearch] = useState('');
+  const [invoicesFilter, setInvoicesFilter] = useState('all');
+  const [feedbackSearch, setFeedbackSearch] = useState('');
 
   useEffect(() => {
     const fetchData = async () => {
@@ -145,10 +342,10 @@ export default function ClientProfilePage() {
   };
 
   const sidebarItems = [
-    { key: 'bookings', label: 'Bookings', icon: '📅' },
-    { key: 'invoices', label: 'Invoices & Payments', icon: '💳' },
-    { key: 'feedback', label: 'My Feedback', icon: '⭐' },
-    { key: 'profile', label: 'Profile', icon: '👤' },
+    { key: 'bookings', label: 'Bookings', icon: <IoCalendarClearOutline /> },
+    { key: 'invoices', label: 'Invoices & Payments', icon: <IoCardOutline />},
+    { key: 'feedback', label: 'My Feedback', icon: <FaRegStar /> },
+    { key: 'profile', label: 'Profile', icon: <CgProfile />},
   ];
 
   const handleSidebarTabClick = (key) => {
@@ -165,10 +362,9 @@ export default function ClientProfilePage() {
   const renderContent = () => {
     if (loading) {
       return (
-        <div className="text-center">
-          <Spinner animation="border" role="status">
-            <span className="visually-hidden">Loading...</span>
-          </Spinner>
+        <div className="cpd-loading">
+          <div className="cpd-loading__spinner"></div>
+          <p className="cpd-loading__text">Loading...</p>
         </div>
       );
     }
@@ -182,11 +378,128 @@ export default function ClientProfilePage() {
         showConfirmButton: true
       });
       return (
-        <div className="text-center">
-          <p className="text-danger">Something went wrong. Please try again.</p>
+        <div className="cpd-error">
+          <p className="cpd-error__message">Something went wrong. Please try again.</p>
         </div>
       );
     }
+
+    // Filter and search functions
+    const filterBookings = () => {
+      let filtered = bookings;
+      
+      if (bookingsSearch) {
+        filtered = filtered.filter(booking => 
+          getServiceNames(booking).toLowerCase().includes(bookingsSearch.toLowerCase()) ||
+          getProfessionalNames(booking).toLowerCase().includes(bookingsSearch.toLowerCase())
+        );
+      }
+      
+      if (bookingsFilter !== 'all') {
+        const now = new Date();
+        if (bookingsFilter === 'upcoming') {
+          filtered = filtered.filter(b => new Date(b.appointmentDate || b.date) >= now);
+        } else if (bookingsFilter === 'past') {
+          filtered = filtered.filter(b => new Date(b.appointmentDate || b.date) < now);
+        }
+      }
+      
+      return filtered;
+    };
+
+    const filterInvoices = () => {
+      let filtered = invoices;
+      
+      if (invoicesSearch) {
+        filtered = filtered.filter(invoice => 
+          invoice._id.toLowerCase().includes(invoicesSearch.toLowerCase())
+        );
+      }
+      
+      if (invoicesFilter !== 'all') {
+        filtered = filtered.filter(invoice => invoice.status === invoicesFilter);
+      }
+      
+      return filtered;
+    };
+
+    const filterFeedback = () => {
+      let filtered = userFeedback;
+      
+      if (feedbackSearch) {
+        filtered = filtered.filter(feedback => 
+          feedback.service?.name?.toLowerCase().includes(feedbackSearch.toLowerCase()) ||
+          feedback.employee?.user?.firstName?.toLowerCase().includes(feedbackSearch.toLowerCase())
+        );
+      }
+      
+      return filtered;
+    };
+
+    // Pagination functions
+    const paginateData = (data, page) => {
+      const startIndex = (page - 1) * itemsPerPage;
+      return data.slice(startIndex, startIndex + itemsPerPage);
+    };
+
+    const getTotalPages = (dataLength) => {
+      return Math.ceil(dataLength / itemsPerPage);
+    };
+
+    const PaginationControls = ({ currentPage, totalPages, onPageChange }) => (
+      <div className="cpd-pagination">
+        <div className="cpd-pagination__info">
+          Page {currentPage} of {totalPages}
+        </div>
+        <div className="cpd-pagination__controls">
+          <button
+            className="cpd-btn cpd-btn--outline cpd-btn--small"
+            onClick={() => onPageChange(currentPage - 1)}
+            disabled={currentPage === 1}
+          >
+            ‹
+          </button>
+          <button
+            className="cpd-btn cpd-btn--outline cpd-btn--small"
+            onClick={() => onPageChange(currentPage + 1)}
+            disabled={currentPage === totalPages}
+          >
+            ›
+          </button>
+        </div>
+      </div>
+    );
+
+    const SearchAndFilter = ({ searchValue, onSearchChange, filterValue, onFilterChange, filterOptions, placeholder }) => (
+      <div className="cpd-search-filter">
+        <div className="cpd-search-filter__search-wrapper">
+          <input
+            type="text"
+            placeholder={placeholder}
+            value={searchValue}
+            onChange={(e) => onSearchChange(e.target.value)}
+            className="cpd-search-filter__search-input"
+          />
+          <span className="cpd-search-filter__search-icon"><IoSearch />
+</span>
+        </div>
+        <div className="cpd-search-filter__filter-wrapper">
+          <span className="cpd-search-filter__filter-icon"><FaChevronDown />
+</span>
+          <select 
+            value={filterValue} 
+            onChange={(e) => onFilterChange(e.target.value)} 
+            className="cpd-search-filter__filter-select"
+          >
+            {filterOptions.map(option => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+    );
 
     switch (activeTab) {
       case 'bookings':
@@ -232,102 +545,137 @@ export default function ClientProfilePage() {
         };
         
         return (
-          <Card>
-            <h5 className="card-title">Upcoming Bookings</h5>
-            <div className="table-responsive">
-              {/* <Table striped hover>
-                <thead>
-                  <tr>
-                    <th>Date</th>
-                    <th>Service</th>
-                    <th>Professional</th>
-                    <th>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {upcomingBookings.length > 0 ? upcomingBookings.map(b => (
-                    <tr key={`upcoming-${b._id}`}>
-                      <td>{new Date(b.appointmentDate || b.date).toLocaleDateString()}</td>
-                      <td>{getServiceNames(b)}</td>
-                      <td>{getProfessionalNames(b)}</td>
-                      <td><span className={`badge bg-success`}>{b.status}</span></td>
-                    </tr>
-                  )) : <tr><td colSpan="4">No upcoming bookings.</td></tr>}
-                </tbody>
-              </Table> */}
+          <div className="cpd-card">
+            <div className="cpd-card__header">
+              <h2 className="cpd-card__title"><IoCalendarClearOutline /> My Bookings</h2>
             </div>
-            <h5 className="card-title mt-4">Past Bookings</h5>
-            <div className="table-responsive">
-              <Table striped hover>
-                <thead>
-                  <tr>
-                    <th>Date</th>
-                    <th>Service</th>
-                    <th>Professional</th>
-                    <th>Rate</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {pastBookings.length > 0 ? pastBookings.map(b => (
-                    <tr key={`past-${b._id}`}>
-                      <td>{new Date(b.appointmentDate || b.date).toLocaleDateString()}</td>
-                      <td>{getServiceNames(b)}</td>
-                      <td>{getProfessionalNames(b)}</td>
-                      <td>
-                        {getBookingFeedback(b._id).length > 0 ? (
-                          <div className="feedback-display">
-                            <StarRating 
-                              rating={getBookingFeedback(b._id)[0]?.ratings?.overall || 0} 
-                              readOnly 
-                              size="small"
-                              showText={false}
-                            />
-                            <small className="text-muted">Rated</small>
-                          </div>
-                        ) : (
-                          <Button 
-                            size="sm" 
-                            variant="outline-primary" 
-                            onClick={() => handleRate(b)}
-                          >
-                            Rate Experience
-                          </Button>
-                        )}
-                      </td>
+            <div className="cpd-card__content">
+              <SearchAndFilter
+                searchValue={bookingsSearch}
+                onSearchChange={setBookingsSearch}
+                filterValue={bookingsFilter}
+                onFilterChange={setBookingsFilter}
+                filterOptions={[
+                  { value: 'all', label: 'All Bookings' },
+                  { value: 'upcoming', label: 'Upcoming' },
+                  { value: 'past', label: 'Past' }
+                ]}
+                placeholder="Search bookings..."
+              />
+              
+              <div className="cpd-table-container">
+                <table className="cpd-data-table">
+                  <thead className="cpd-data-table__head">
+                    <tr className="cpd-data-table__header-row">
+                      <th className="cpd-data-table__header-cell">Date</th>
+                      <th className="cpd-data-table__header-cell">Service</th>
+                      <th className="cpd-data-table__header-cell">Professional</th>
+                      <th className="cpd-data-table__header-cell">Status</th>
+                      <th className="cpd-data-table__header-cell">Action</th>
                     </tr>
-                  )) : <tr><td colSpan="4">No past bookings.</td></tr>}
-                </tbody>
-              </Table>
+                  </thead>
+                  <tbody className="cpd-data-table__body">
+                    {paginateData(filterBookings(), bookingsPage).map(booking => (
+                      <tr key={booking._id} className="cpd-data-table__row">
+                        <td className="cpd-data-table__cell">{new Date(booking.appointmentDate || booking.date).toLocaleDateString()}</td>
+                        <td className="cpd-data-table__cell">{getServiceNames(booking)}</td>
+                        <td className="cpd-data-table__cell">{getProfessionalNames(booking)}</td>
+                        <td className="cpd-data-table__cell">
+                          <span className={`cpd-badge cpd-badge--${booking.status === 'completed' ? 'success' : 'secondary'}`}>
+                            {booking.status}
+                          </span>
+                        </td>
+                        <td className="cpd-data-table__cell">
+                          {new Date(booking.appointmentDate || booking.date) < new Date() && !getBookingFeedback(booking._id).length ? (
+                            <button className="cpd-btn cpd-btn--primary cpd-btn--small" onClick={() => handleRate(booking)}>
+                              Rate Experience
+                            </button>
+                          ) : getBookingFeedback(booking._id).length > 0 ? (
+                            <div className="cpd-feedback-display">
+                              <StarRating 
+                                rating={getBookingFeedback(booking._id)[0]?.ratings?.overall || 0} 
+                                readOnly 
+                                size="small"
+                                showText={false}
+                              />
+                              <span className="cpd-feedback-display__text">Rated</span>
+                            </div>
+                          ) : (
+                            <span className="cpd-upcoming-text">Upcoming</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              
+              <PaginationControls
+                currentPage={bookingsPage}
+                totalPages={getTotalPages(filterBookings().length)}
+                onPageChange={setBookingsPage}
+              />
             </div>
-          </Card>
+          </div>
         );
       case 'invoices':
         return (
-          <Card>
-            <h5 className="card-title">Invoices & Payments</h5>
-            <div className="table-responsive">
-              <Table striped hover>
-                <thead>
-                  <tr>
-                    <th>Date</th>
-                    <th>Invoice #</th>
-                    <th>Amount</th>
-                    <th>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {invoices.length > 0 ? invoices.map(inv => (
-                    <tr key={inv._id}>
-                      <td>{new Date(inv.createdAt).toLocaleDateString()}</td>
-                      <td>{inv._id}</td>
-                      <td>${inv.amount.toFixed(2)}</td>
-                      <td><span className={`badge ${inv.status === 'paid' ? 'bg-success' : 'bg-warning'}`}>{inv.status}</span></td>
-                    </tr>
-                  )) : <tr><td colSpan="4">No invoices found.</td></tr>}
-                </tbody>
-              </Table>
+          <div className="cpd-card">
+            <div className="cpd-card__header">
+              <h2 className="cpd-card__title"><IoCardOutline /> Invoices & Payments</h2>
             </div>
-          </Card>
+            <div className="cpd-card__content">
+              <SearchAndFilter
+                searchValue={invoicesSearch}
+                onSearchChange={setInvoicesSearch}
+                filterValue={invoicesFilter}
+                onFilterChange={setInvoicesFilter}
+                filterOptions={[
+                  { value: 'all', label: 'All Invoices' },
+                  { value: 'completed', label: 'completed' },
+                  { value: 'pending', label: 'Pending' }
+                ]}
+                placeholder="Search invoices..."
+              />
+              
+              <div className="cpd-table-container">
+                <table className="cpd-data-table">
+                  <thead className="cpd-data-table__head">
+                    <tr className="cpd-data-table__header-row">
+                      <th className="cpd-data-table__header-cell">Date</th>
+                      <th className="cpd-data-table__header-cell">Invoice #</th>
+                      <th className="cpd-data-table__header-cell">Amount</th>
+                      <th className="cpd-data-table__header-cell">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="cpd-data-table__body">
+                    {paginateData(filterInvoices(), invoicesPage).map(invoice => (
+                      <tr key={invoice._id} className="cpd-data-table__row">
+                        <td className="cpd-data-table__cell">{new Date(invoice.createdAt).toLocaleDateString()}</td>
+                        <td className="cpd-data-table__cell">
+                          <span className="cpd-invoice-id">{invoice._id}</span>
+                        </td>
+                        <td className="cpd-data-table__cell">
+                          <span className="cpd-amount">${invoice.amount.toFixed(2)}</span>
+                        </td>
+                        <td className="cpd-data-table__cell">
+                          <span className={`cpd-badge cpd-badge--${invoice.status === 'paid' ? 'success' : 'warning'}`}>
+                            {invoice.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              
+              <PaginationControls
+                currentPage={invoicesPage}
+                totalPages={getTotalPages(filterInvoices().length)}
+                onPageChange={setInvoicesPage}
+              />
+            </div>
+          </div>
         );
       case 'feedback':
         // Deduplicate feedback by _id
@@ -336,79 +684,165 @@ export default function ClientProfilePage() {
         );
         
         return (
-          <Card>
-            <h5 className="card-title">My Feedback & Reviews</h5>
-            <div className="table-responsive">
-              <Table striped hover>
-                <thead>
-                  <tr>
-                    <th>Date</th>
-                    <th>Service</th>
-                    <th>Professional</th>
-                    <th>Overall Rating</th>
-                    <th>Comments</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {uniqueFeedback.length > 0 ? uniqueFeedback.map(feedback => (
-                    <tr key={feedback._id}>
-                      <td>{new Date(feedback.submittedAt).toLocaleDateString()}</td>
-                      <td>{feedback.service?.name || feedback.booking?.services?.[0]?.service?.name || 'N/A'}</td>
-                      <td>{feedback.employee?.user ? `${feedback.employee.user.firstName} ${feedback.employee.user.lastName}` : feedback.booking?.services?.[0]?.employee?.user?.firstName || 'N/A'}</td>
-                      <td>
-                        <StarRating 
-                          rating={feedback.ratings?.overall || 0} 
-                          readOnly 
-                          size="small"
-                        />
-                      </td>
-                      <td>
-                        <div>
-                          {feedback.comments?.positive && (
-                            <div><strong>Liked:</strong> {feedback.comments.positive}</div>
-                          )}
-                          {feedback.comments?.improvement && (
-                            <div><strong>Improvement:</strong> {feedback.comments.improvement}</div>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  )) : <tr><td colSpan="5">No feedback submitted yet.</td></tr>}
-                </tbody>
-              </Table>
+          <div className="cpd-card">
+            <div className="cpd-card__header">
+              <h2 className="cpd-card__title"><FaRegStar /> My Feedback & Reviews</h2>
             </div>
-          </Card>
+            <div className="cpd-card__content">
+              <div className="cpd-search-filter">
+                <div className="cpd-search-filter__search-wrapper">
+                  <input
+                    type="text"
+                    placeholder="Search feedback..."
+                    value={feedbackSearch}
+                    onChange={(e) => setFeedbackSearch(e.target.value)}
+                    className="cpd-search-filter__search-input"
+                  />
+                  <span className="cpd-search-filter__search-icon"><IoSearch /></span>
+                </div>
+              </div>
+              
+              <div className="cpd-table-container">
+                <table className="cpd-data-table">
+                  <thead className="cpd-data-table__head">
+                    <tr className="cpd-data-table__header-row">
+                      <th className="cpd-data-table__header-cell">Date</th>
+                      <th className="cpd-data-table__header-cell">Service</th>
+                      <th className="cpd-data-table__header-cell">Professional</th>
+                      <th className="cpd-data-table__header-cell">Rating</th>
+                      <th className="cpd-data-table__header-cell">Comments</th>
+                    </tr>
+                  </thead>
+                  <tbody className="cpd-data-table__body">
+                    {paginateData(filterFeedback(), feedbackPage).map(feedback => (
+                      <tr key={feedback._id} className="cpd-data-table__row">
+                        <td className="cpd-data-table__cell">{new Date(feedback.submittedAt).toLocaleDateString()}</td>
+                        <td className="cpd-data-table__cell">{feedback.service?.name || feedback.booking?.services?.[0]?.service?.name || 'N/A'}</td>
+                        <td className="cpd-data-table__cell">
+                          {feedback.employee?.user 
+                            ? `${feedback.employee.user.firstName} ${feedback.employee.user.lastName}`
+                            : feedback.booking?.services?.[0]?.employee?.user?.firstName || 'N/A'}
+                        </td>
+                        <td className="cpd-data-table__cell">
+                          <StarRating 
+                            rating={feedback.ratings?.overall || 0} 
+                            readOnly 
+                            size="small"
+                          />
+                        </td>
+                        <td className="cpd-data-table__cell cpd-comments-cell">
+                          <div className="cpd-comments">
+                            {feedback.comments?.positive && (
+                              <div className="cpd-comments__positive">
+                                <strong>Liked:</strong> {feedback.comments.positive}
+                              </div>
+                            )}
+                            {feedback.comments?.improvement && (
+                              <div className="cpd-comments__improvement">
+                                <strong>Improvement:</strong> {feedback.comments.improvement}
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              
+              <PaginationControls
+                currentPage={feedbackPage}
+                totalPages={getTotalPages(filterFeedback().length)}
+                onPageChange={setFeedbackPage}
+              />
+            </div>
+          </div>
         );
       case 'profile':
         return (
-          <Card>
-            <h5 className="card-title">My Profile</h5>
-            {editMode ? (
-              <Form onSubmit={handleProfileSave}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Name</Form.Label>
-                  <Form.Control name="name" value={editProfile.name || ''} onChange={handleProfileChange} required />
-                </Form.Group>
-                <Form.Group className="mb-3">
-                  <Form.Label>Email</Form.Label>
-                  <Form.Control name="email" type="email" value={editProfile.email || ''} onChange={handleProfileChange} required />
-                </Form.Group>
-                <Form.Group className="mb-3">
-                  <Form.Label>Phone</Form.Label>
-                  <Form.Control name="phone" value={editProfile.phone || ''} onChange={handleProfileChange} />
-                </Form.Group>
-                <Button type="submit" variant="primary" className="me-2">Save Changes</Button>
-                <Button variant="secondary" onClick={() => { setEditMode(false); setEditProfile(profile); }}>Cancel</Button>
-              </Form>
-            ) : (
-              <div>
-                <p><strong>Name:</strong> {profile.name}</p>
-                <p><strong>Email:</strong> {profile.email}</p>
-                <p><strong>Phone:</strong> {profile.phone || 'Not provided'}</p>
-                <Button onClick={() => setEditMode(true)}>Edit Profile</Button>
-              </div>
-            )}
-          </Card>
+          <div className="cpd-card">
+            <div className="cpd-card__header">
+              <h2 className="cpd-card__title"><CgProfile /> My Profile</h2>
+            </div>
+            <div className="cpd-card__content">
+              {editMode ? (
+                <form onSubmit={handleProfileSave} className="cpd-profile-form">
+                  <div className="cpd-profile-form__grid">
+                    <div className="cpd-form-group">
+                      <label htmlFor="name" className="cpd-form-group__label">Full Name</label>
+                      <input
+                        id="name"
+                        name="name"
+                        type="text"
+                        value={editProfile.name || ''}
+                        onChange={handleProfileChange}
+                        className="cpd-form-group__input"
+                        required
+                      />
+                    </div>
+                    <div className="cpd-form-group">
+                      <label htmlFor="email" className="cpd-form-group__label">Email Address</label>
+                      <input
+                        id="email"
+                        name="email"
+                        type="email"
+                        value={editProfile.email || ''}
+                        onChange={handleProfileChange}
+                        className="cpd-form-group__input"
+                        required
+                      />
+                    </div>
+                    <div className="cpd-form-group">
+                      <label htmlFor="phone" className="cpd-form-group__label">Phone Number</label>
+                      <input
+                        id="phone"
+                        name="phone"
+                        type="tel"
+                        value={editProfile.phone || ''}
+                        onChange={handleProfileChange}
+                        className="cpd-form-group__input"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="cpd-profile-form__actions">
+                    <button type="submit" className="cpd-btn cpd-btn--primary">Save Changes</button>
+                    <button 
+                      type="button" 
+                      className="cpd-btn cpd-btn--secondary"
+                      onClick={() => {
+                        setEditMode(false);
+                        setEditProfile(profile);
+                      }}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <div className="cpd-profile-view">
+                  <div className="cpd-profile-view__grid">
+                    <div className="cpd-profile-field">
+                      <label className="cpd-profile-field__label">Full Name</label>
+                      <p className="cpd-profile-field__value">{profile.name}</p>
+                    </div>
+                    <div className="cpd-profile-field">
+                      <label className="cpd-profile-field__label">Email Address</label>
+                      <p className="cpd-profile-field__value">{profile.email}</p>
+                    </div>
+                    <div className="cpd-profile-field">
+                      <label className="cpd-profile-field__label">Phone Number</label>
+                      <p className="cpd-profile-field__value">{profile.phone || 'Not provided'}</p>
+                    </div>
+                  </div>
+                  
+                  <button className="cpd-btn cpd-btn--primary" onClick={() => setEditMode(true)}>
+                    Edit Profile
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
         );
       default:
         return null;
@@ -416,53 +850,82 @@ export default function ClientProfilePage() {
   };
 
   return (
-    <div className={`client-profile-wrapper ${theme}`}>
-      <button
-        className={`sidebar-toggle-btn ${theme}`}
-        onClick={() => setSidebarOpen(!sidebarOpen)}
-        aria-label="Toggle sidebar"
-      >
-        &#9776;
-      </button>
-
-      <div
-        className={`sidebar-overlay ${sidebarOpen ? 'open' : ''}`}
-        onClick={() => setSidebarOpen(false)}
-      />
-
-      <div className="client-profile-container">
-        <aside className={`client-profile-sidebar ${theme} ${sidebarOpen ? 'open' : ''}`}>
-          <div className={`sidebar-header ${theme}`}>
-            <h3>My Portal</h3>
+    <div className={`cpd-app ${theme === 'dark' ? 'cpd-dark-theme' : ''}`}>
+      {/* Header */}
+      <header className="cpd-header">
+        <div className="cpd-header__content">
+          <div className="cpd-header__left">
+            <button
+              className="cpd-header__sidebar-toggle"
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+            >
+              ☰
+            </button>
+            <h1 className="cpd-header__title">Client Dashboard</h1>
           </div>
-          <nav className={`sidebar-nav ${theme}`}>
-            {sidebarItems.map(item => (
-              <button
-                key={item.key}
-                className={`sidebar-link ${activeTab === item.key ? 'active' : ''}`}
-                onClick={() => handleSidebarTabClick(item.key)}
-              >
-                <span className="icon">{item.icon}</span>
-                {item.label}
-              </button>
-            ))}
-          </nav>
+          
+          <div className="cpd-header__right">
+            
+            <button className="cpd-header__login-btn">
+              <FaUnlockAlt />
+ Login
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <div className="cpd-main-layout">
+        {/* Sidebar */}
+        <aside className={`cpd-sidebar ${sidebarOpen ? 'cpd-sidebar--open' : ''}`}>
+          <div className="cpd-sidebar__content">
+            <div className="cpd-sidebar__user-profile">
+              <div className="cpd-sidebar__user-avatar"><SlUser /></div>
+              <h3 className="cpd-sidebar__user-name">{profile.name}</h3>
+              <p className="cpd-sidebar__user-email">{profile.email}</p>
+            </div>
+            
+            <nav className="cpd-sidebar__nav">
+              {sidebarItems.map(({ key, label, icon }) => (
+                <button
+                  key={key}
+                  className={`cpd-sidebar__nav-item ${activeTab === key ? 'cpd-sidebar__nav-item--active' : ''}`}
+                  onClick={() => {
+                    handleSidebarTabClick(key);
+                  }}
+                >
+                  <span className="cpd-sidebar__nav-icon">{icon}</span>
+                  <span className="cpd-sidebar__nav-label">{label}</span>
+                </button>
+              ))}
+            </nav>
+          </div>
         </aside>
 
-        <main className={`client-profile-content ${theme}`}>
-          {renderContent()}
+        {/* Overlay for mobile */}
+        {sidebarOpen && (
+          <div 
+            className="cpd-sidebar__overlay"
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
+
+        {/* Main Content */}
+        <main className="cpd-main-content">
+          <div className="cpd-main-content__container">
+            {renderContent()}
+          </div>
         </main>
       </div>
 
+      {/* Feedback Modal */}
       <FeedbackModal
-        show={showFeedbackModal}
-        onHide={() => {
-          setShowFeedbackModal(false);
-          setSelectedBookingForFeedback(null);
-        }}
+        isOpen={showFeedbackModal}
+        onClose={() => setShowFeedbackModal(false)}
         booking={selectedBookingForFeedback}
-        onSubmitFeedback={handleSubmitFeedback}
+        onSubmit={handleSubmitFeedback}
       />
     </div>
   );
 }
+
+

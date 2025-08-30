@@ -251,43 +251,31 @@ const LayoutWithBooking = ({ children }) => {
               {bookingFlow.selectedServices && bookingFlow.selectedServices.length > 0 ? (
                 <div className="selected-services-scroll">
                   <div className="selected-services">
-                    {bookingFlow.selectedServices.map((service, index) => (
-                      <div key={service._id} className="selected-service">
-                        <div className="service-header">
-                          <h4>{service.name}</h4>
-                          <button 
-                            className="remove-service-btn"
-                            onClick={() => {
-                              bookingFlow.removeService(service._id);
-                              window.dispatchEvent(new CustomEvent('bookingFlowChange'));
-                              setSummaryKey(k => k + 1); // Force re-render
-                            }}
-                            title="Remove service"
-                          >
-                            ×
-                          </button>
+                    {bookingFlow.selectedServices.map((service, index) => {
+                      // load latest bookingFlow to get professional mapping
+                      bookingFlow.load && bookingFlow.load();
+                      const prof = bookingFlow.selectedProfessionals && bookingFlow.selectedProfessionals[service._id];
+                      const professionalName = prof
+                        ? (prof.name || (prof.user && `${prof.user.firstName} ${prof.user.lastName}`) || 'Any professional')
+                        : 'Any professional';
+                      const durationText = apiUtils.formatDuration ? apiUtils.formatDuration(service.duration) : `${service.duration} min`;
+                      const priceText = apiUtils.formatPrice ? apiUtils.formatPrice(service.price || service.effectivePrice) : (service.price || service.effectivePrice);
+
+                      return (
+                        <div key={service._id} className="selected-service" style={{ padding: '0.5rem 0', borderBottom: 'none' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: 600,  color:'black'}}>{service.name}</h4>
+                            <div style={{ fontSize: '0.95rem', fontWeight: 700, color:'black' }}>AED {priceText}</div>
+                          </div>
+
+                          <div style={{ marginTop: '6px', display: 'flex', gap: '8px', alignItems: 'center' }}>
+                            <div style={{ color: '#666', fontSize: '0.9rem' }}>{durationText} with</div>
+                            <div style={{ color: '#1976d2', fontSize: '0.9rem' }}>{professionalName}</div>
+                          </div>
+
                         </div>
-                        <div className="service-details">
-                          <div className="detail-item">
-                            <span className="label">Duration:</span>
-                            <span className="value">{apiUtils.formatDuration(service.duration)}</span>
-                          </div>
-                          <div className="detail-item">
-                            <span className="label">Price:</span>
-                            <span className="value">{apiUtils.formatPrice(service.price)}</span>
-                          </div>
-                          <div className="detail-item">
-                            <span className="label">Category:</span>
-                            <span className="value">
-                              {typeof service.category === 'object' 
-                                ? (service.category.displayName || service.category.name || 'N/A')
-                                : service.category
-                              }
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               ) : (

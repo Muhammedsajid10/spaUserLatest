@@ -2,8 +2,16 @@ import React, { useState, useEffect, useRef } from "react";
 import "./ProfessionalSelection.css";
 import { FaStar } from "react-icons/fa";
 import { bookingsAPI, apiUtils, bookingFlow } from "../services/api";
+import { fetchAvailableProfessionalsForService } from '../services/bookingUtils';
 import { useNavigate } from "react-router-dom";
+import Loading from '../states/Loading';
+import Error500Page from '../states/ErrorPage.jsx';
+import API_BASE_URL from '../services/api';
 
+
+
+const BOOKING_API_URL = `${API_BASE_URL}/bookings`;
+const EMPLOYEES_API_URL = `${API_BASE_URL}/employees`;
 const SelectProfessional = () => {
   const [professionals, setProfessionals] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
@@ -73,60 +81,41 @@ const SelectProfessional = () => {
           formattedDate
         );
 
-        const response = await bookingsAPI.getAvailableProfessionals(
-          firstService._id,
-          formattedDate
-        );
+        // Use bookingUtils which will fetch employees + bookings and filter by shifts/bookings
+        const availableEmployees = await fetchAvailableProfessionalsForService(formattedDate, firstService._id);
+        console.log('bookingUtils returned', availableEmployees.length, 'employees');
 
-        console.log("API response:", response);
+        if (availableEmployees && availableEmployees.length > 0) {
+          const transformedProfessionals = availableEmployees.map((employee) => ({
+            id: employee._id || employee.id,
+            name: employee.user ? `${employee.user.firstName} ${employee.user.lastName}` : employee.name,
+            subtitle: employee.position || employee.role,
+            letter: employee.user ? employee.user.firstName.charAt(0) : (employee.name ? employee.name.charAt(0) : '?'),
+            rating: employee.performance?.ratings?.average || 0,
+            employeeId: employee.employeeId || employee._id || employee.id,
+            specializations: employee.specializations || [],
+            image: null,
+            isAvailable: true,
+            employee: employee,
+          }));
 
-        if (response.success) {
-          // Check if we have professionals in the response
-          if (
-            response.results > 0 &&
-            response.data.professionals &&
-            response.data.professionals.length > 0
-          ) {
-            // Transform the API response to match our component structure
-            const transformedProfessionals = response.data.professionals.map(
-              (employee, index) => ({
-                id: employee._id,
-                name: `${employee.user.firstName} ${employee.user.lastName}`,
-                subtitle: employee.position,
-                letter: employee.user.firstName.charAt(0),
-                rating: employee.performance?.ratings?.average || 0,
-                employeeId: employee.employeeId,
-                specializations: employee.specializations || [],
-                image: null, // Add profile image if available
-                isAvailable: true,
-                // Store original employee data for booking flow
-                employee: employee,
-              })
-            );
+          const perServiceCard = {
+            id: 'per-service',
+            name: 'Select professional per service',
+            subtitle: 'assign per service',
+            icon: '👥➕',
+            isAvailable: true,
+          };
 
-            // Add "Any professional" option at the beginning
-            const allProfessionals = [
-              {
-                id: "any",
-                name: "Any professional",
-                subtitle: "for maximum availability",
-                icon: "👥",
-                isAvailable: true,
-              },
-              ...transformedProfessionals,
-            ];
+          const allProfessionals = [
+            { id: "any", name: "Any professional", subtitle: "for maximum availability", icon: "👥", isAvailable: true },
+            perServiceCard,
+            ...transformedProfessionals,
+          ];
 
-            setProfessionals(allProfessionals);
-          } else {
-            // No professionals found, show fallback data
-            console.log(
-              "No professionals found in API response, showing fallback data"
-            );
-            showFallbackProfessionals();
-          }
+          setProfessionals(allProfessionals);
         } else {
-          // API call failed, show fallback data
-          console.log("API call failed, showing fallback data");
+          console.log('No available employees from bookingUtils, showing fallback');
           showFallbackProfessionals();
         }
       } catch (err) {
@@ -149,6 +138,13 @@ const SelectProfessional = () => {
           name: "Any professional",
           subtitle: "for maximum availability",
           icon: "👥",
+          isAvailable: true,
+        },
+        {
+          id: 'per-service',
+          name: 'Select professional per service',
+          subtitle: 'assign per service',
+          icon: '👥➕',
           isAvailable: true,
         },
         {
@@ -204,7 +200,7 @@ const SelectProfessional = () => {
         },
       ];
 
-      setProfessionals(fallbackProfessionals);
+  setProfessionals(fallbackProfessionals);
     };
 
     fetchProfessionals();
@@ -214,33 +210,32 @@ const SelectProfessional = () => {
     setSelectedId(professional.id);
 
     // Save selected professional to booking flow using the new structure
-    if (professional.id !== "any") {
-      // For sample professionals, create a proper structure
-      if (professional.id.startsWith("sample")) {
-        const professionalData = {
-          id: professional.id,
-          _id: professional.id,
-          name: professional.name,
-          user: professional.employee.user,
-          position: professional.employee.position,
-          employeeId: professional.employee.employeeId,
-        };
-
-        // Assign this professional to all selected services
-        bookingFlow.selectedServices.forEach((service) => {
-          bookingFlow.addProfessional(service._id, professionalData);
-        });
-      } else {
-        // Assign this professional to all selected services
-        bookingFlow.selectedServices.forEach((service) => {
-          bookingFlow.addProfessional(service._id, professional.employee);
-        });
-      }
-    } else {
-      // For "any professional", assign to all services
+    // Handle special cases
+    if (professional.id === 'any') {
       const anyProfessional = { id: "any", name: "Any professional" };
       bookingFlow.selectedServices.forEach((service) => {
         bookingFlow.addProfessional(service._id, anyProfessional);
+      });
+    } else if (professional.id === 'per-service') {
+      // Mark services to use per-service selection. We'll store a special marker.
+      bookingFlow.selectedServices.forEach((service) => {
+        bookingFlow.addProfessional(service._id, { id: 'per-service', name: 'Select professional per service' });
+      });
+    } else if (professional.id.startsWith('sample')) {
+      const professionalData = {
+        id: professional.id,
+        _id: professional.id,
+        name: professional.name,
+        user: professional.employee.user,
+        position: professional.employee.position,
+        employeeId: professional.employee.employeeId,
+      };
+      bookingFlow.selectedServices.forEach((service) => {
+        bookingFlow.addProfessional(service._id, professionalData);
+      });
+    } else {
+      bookingFlow.selectedServices.forEach((service) => {
+        bookingFlow.addProfessional(service._id, professional.employee);
       });
     }
 
@@ -256,7 +251,7 @@ const SelectProfessional = () => {
       <div className="select-professional-container">
         <h2>Select professional</h2>
         <div className="loading-container">
-          <div className="loading-spinner"></div>
+          <Loading  />
           <p>Loading available professionals...</p>
         </div>
       </div>
@@ -268,7 +263,7 @@ const SelectProfessional = () => {
       <div className="select-professional-container">
         <h2>Select professional</h2>
         <div className="error-container">
-          <p>Error loading professionals: {error}</p>
+          <Error500Page/>
           <button onClick={() => window.location.reload()}>Try Again</button>
         </div>
       </div>
@@ -305,15 +300,17 @@ const SelectProfessional = () => {
         {professionals.map((pro) => (
           <div
             key={pro.id}
-            className={`professional-card ${
+            className={`professional-card compact ${
               selectedId === pro.id ? "selected" : ""
             }`}
             onClick={() => handleProfessionalSelect(pro)}
           >
-            {pro.icon && <div className="icon-circle">{pro.icon}</div>}
+            {pro.icon && (
+              <div className="icon-circle small">{pro.icon}</div>
+            )}
 
             {pro.image && (
-              <div className="image-circle">
+              <div className="image-circle small">
                 <img src={pro.image} alt={pro.name} />
                 {pro.rating && (
                   <div className="rating-badge">
@@ -323,15 +320,12 @@ const SelectProfessional = () => {
               </div>
             )}
 
-            {pro.letter && <div className="letter-circle">{pro.letter}</div>}
+            {pro.letter && <div className="letter-circle blue">{pro.letter}</div>}
 
-            <div className="name-text">{pro.name}</div>
-            {pro.subtitle && (
-              <div className="subtitle-text">{pro.subtitle}</div>
-            )}
+            <div className="name-text small">{pro.name}</div>
 
             {pro.rating > 0 && (
-              <div className="rating-display">
+              <div className="rating-display small">
                 <FaStar className="star" />
                 <span>{pro.rating}</span>
               </div>
