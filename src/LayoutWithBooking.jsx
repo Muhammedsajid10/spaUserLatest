@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useLocation, Link } from 'react-router-dom';
+import { useNavigate, useLocation, Link, Outlet } from 'react-router-dom';
 import { bookingFlow, apiUtils } from './services/api';
 import './Layout.css'; // Assuming this CSS file exists
 import { HeaderTitleProvider, useHeaderTitle } from './Service/HeaderTitleContext'; // Assuming this context exists
@@ -87,18 +87,26 @@ const LayoutWithBooking = ({ children }) => {
   const [selectedProfessional, setSelectedProfessional] = useState(null); // Managed here
   const [summaryKey, setSummaryKey] = useState(0); // To force re-render of summary
 
-  // Define the booking flow steps
+  // Define the booking flow steps (added Confirm as step 5)
   const steps = [
     { number: 1, label: 'Service', path: '/' },
     { number: 2, label: 'Professional', path: '/professionals' },
     { number: 3, label: 'Time', path: '/time' },
-    { number: 4, label: 'Payment', path: '/payment' }
+    { number: 4, label: 'Payment', path: '/payment' },
+    { number: 5, label: 'Confirm', path: '/payment/confirm' }
   ];
-
-  // Determine current step based on location
+  
+  // Determine current step based on location (handle /payment and /payment/confirm)
   useEffect(() => {
     const currentPath = location.pathname;
-    const stepIndex = steps.findIndex(step => step.path === currentPath);
+    let stepIndex = steps.findIndex(step => step.path === currentPath);
+    if (stepIndex === -1) {
+      if (currentPath.startsWith('/payment/confirm')) {
+        stepIndex = steps.findIndex(s => s.path === '/payment/confirm');
+      } else if (currentPath.startsWith('/payment')) {
+        stepIndex = steps.findIndex(s => s.path === '/payment');
+      }
+    }
     setCurrentStep(stepIndex >= 0 ? stepIndex + 1 : 1);
   }, [location.pathname, steps]); // Add steps to dependency array for completeness
 
@@ -189,6 +197,20 @@ const LayoutWithBooking = ({ children }) => {
           showConfirmButton: true
         });
         break;
+      case 5: // Confirm
+        // Navigate to a confirmation page or show a confirmation modal
+        Swal.fire({
+          title: 'Booking Confirmed',
+          text: 'Your booking has been successfully confirmed!',
+          icon: 'success',
+          confirmButtonText: 'OK',
+          timer: 5000,
+          showConfirmButton: true
+        }).then(() => {
+          // After confirmation, navigate to the home page or any other page
+          navigate('/');
+        });
+        break;
       default:
         break;
     }
@@ -207,6 +229,9 @@ const LayoutWithBooking = ({ children }) => {
         break;
       case 4: // Payment
         navigate('/time');
+        break;
+      case 5: // Confirm
+        navigate('/payment');
         break;
       default:
         break;
@@ -234,6 +259,8 @@ const LayoutWithBooking = ({ children }) => {
       case 3:
         return !!bookingFlow.selectedTimeSlot;
       case 4:
+        return true;
+      case 5:
         return true;
       default:
         return false;
@@ -307,6 +334,8 @@ const LayoutWithBooking = ({ children }) => {
         return true;
       case 4:
         return true;
+      case 5:
+        return true;
       default:
         return false;
     }
@@ -341,27 +370,8 @@ const LayoutWithBooking = ({ children }) => {
               It's important that the components rendered as `children` are the actual components
               like <Time /> in your <App /> or parent routing setup.
             */}
-            {React.Children.map(children, child => {
-              if (React.isValidElement(child)) {
-                // Check child component name to pass specific props
-                // Ensure the component names match your imports/exports (e.g., 'Time' or 'SelectProfessional')
-                if (child.type && child.type.name === 'Time') {
-                    return React.cloneElement(child, {
-                        selectedService: selectedService, // Pass the service from Layout's state
-                        selectedProfessional: selectedProfessional, // Pass the professional from Layout's state
-                        // onTimeSelect callback is handled by Time internally updating bookingFlow
-                    });
-                }
-                if (child.type && child.type.name === 'SelectProfessional') { // Assuming your ProfessionalsUpdated is named SelectProfessional
-                    return React.cloneElement(child, {
-                         selectedDate: bookingFlow.load().selectedDate ? new Date(bookingFlow.load().selectedDate) : new Date(),
-                         selectedServices: bookingFlow.selectedServices || [],
-                         // onProfessionalSelect is handled internally by SelectProfessional updating bookingFlow
-                    });
-                }
-              }
-              return child; // Render other children as-is (e.g., Services or Payment)
-            })}
+            {/* Render routed child via Outlet. child components can call useOutletContext() to get selectedService/selectedProfessional */}
+            <Outlet context={{ selectedService, selectedProfessional }} />
           </div>
           <div className="booking-sidebar">
             <div className="booking-summary" key={summaryKey}>

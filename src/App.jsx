@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import reactLogo from "./assets/react.svg";
 import viteLogo from "/vite.svg";
 import "./App.css";
@@ -8,7 +8,7 @@ import Services from "./pages/Services";
 // import Time from "./pages/Time";
 // import Professional from "./pages/Professionals";
 import Payment from "./pages/Payment";
-import Button from "./pages/Button";
+// import Button from "./pages/Button";
 // import Layout from "./Layout";
 // import Appoint from "./Clientsidepage/Appoint"
 
@@ -41,7 +41,7 @@ import LayoutWithBooking from "./LayoutWithBooking";
 
 // Import Stripe payment components
 import StripePayment from "./pages/StripePayment";
-import PaymentSuccess from "./pages/PaymentSuccess";
+// import PaymentSuccess from "./pages/PaymentSuccess";
 import PaymentCancel from "./pages/PaymentCancel";
 import PaymentProcess from "./pages/PaymentProcess";
 
@@ -60,9 +60,6 @@ function App() {
     <AuthProvider>
     <BrowserRouter>
         <Routes>
-          {/* Keep / as the booking root. Redirect legacy /booking -> / */}
-          <Route path="/booking" element={<Navigate to="/" replace />} />
-          
           {/* Authentication routes */}
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<Signuppage />} />

@@ -360,7 +360,12 @@ export const apiUtils = {
 
   // Format date for API
   formatDate: (date) => {
-    return date.toISOString().split('T')[0];
+    // Use local YYYY-MM-DD to match localDateKey and booking indexing (avoid UTC shift)
+    const dt = date instanceof Date ? date : new Date(date);
+    const yyyy = dt.getFullYear();
+    const mm = String(dt.getMonth() + 1).padStart(2, '0');
+    const dd = String(dt.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
   },
 
   // Format time for API

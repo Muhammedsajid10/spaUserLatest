@@ -5,9 +5,9 @@ import "./Time.css";
 import Professionals from "./ProfessionalsUpdated";
 import { employeesAPI, bookingsAPI, apiUtils, bookingFlow } from "../services/api";
 import {
-  computeSequentialServiceStartTimes,
+  // computeSequentialServiceStartTimes,
   getValidTimeSlotsForProfessional,
-  fetchAvailableProfessionalsForServiceByWeek,
+  // fetchAvailableProfessionalsForServiceByWeek,
   computeSequentialServiceStartTimesWithBookings,
   localDateKey,
   getEmployeeShiftHours,
@@ -48,6 +48,8 @@ const Time = (props) => {
   const [selectedServices, setSelectedServices] = useState([]);
   const [currentStep] = useState(3);
   const popupRef = useRef(null);
+  // Prevent "backupPerServiceRef is not defined" — keep a local backup of per-service assignments
+  const backupPerServiceRef = useRef(bookingFlow.load().selectedProfessionals || {});
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -209,6 +211,14 @@ const Time = (props) => {
     });
 
     console.log('[Time] fetchDateData done', { employeesCount: employees.length, bookingsCount: bookings.length });
+    console.log('[Time] fetchDateData raw employees sample', employees.slice(0,3));
+    console.log('[Time] fetchDateData raw bookings sample', bookings.slice(0,6));
+    // show mapping of appointmentsIndex keys and date keys inside them
+    Object.keys(appointmentsIndex).forEach(empKey => {
+      console.log('[Time] appointmentsIndex key', empKey, 'dates:', Object.keys(appointmentsIndex[empKey] || {}).slice(0,6));
+    });
+    // also show formattedDate and localDateKey for that date
+    console.log('[Time] formattedDate/localDateKey', { formattedDate, localDateKey: localDateKey(date) });
     return { employees, appointmentsIndex };
   };
 
@@ -660,18 +670,9 @@ const Time = (props) => {
             <LoadingDots />
             <p>Loading available time slots...</p>
           </div>
-        ) : error ? (
-          <div className="info-container error-state">
-            <p>{error}</p>
-            <div className="error-actions">
-              <button onClick={() => setError(null)} className="change-date-btn">Change Date</button>
-              <button onClick={() => setShowPopup(true)} className="change-professional-btn">Change Professional</button>
-            </div>
-          </div>
         ) : availableTimeSlots.length === 0 ? (
           <div className="info-container no-slots">
-            <p>No available time slots for the selected date</p>
-            <p className="suggestion">Please select another date or professional</p>
+            <p>Please select another date or professional or another service </p>
           </div>
         ) : (
           <div className="time-slots-grid">

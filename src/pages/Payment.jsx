@@ -401,175 +401,57 @@ const Payment = () => {
     );
   }
 
+  // Minimal left-only payment panel.
+  // The booking summary will be shown by LayoutWithBooking's sidebar (right side).
   return (
     <div className="payment-container">
-      <div className="payment-card">
-        <div className="payment-header">
-          <h2>Complete Your Payment</h2>
-          <p>Secure checkout with multiple gateways</p>
-        </div>
+      <div className="payment-card" style={{ maxWidth: 720, margin: '18px auto', padding: 20 }}>
+        <h2 style={{ margin: 0 }}>Payment</h2>
+        <p style={{ marginTop: 6, color: '#666' }}>Choose a payment method</p>
 
-        {/* Booking Summary - professional style */}
-        <div className="booking-summary-details">
-          <h3>Booking summary</h3>
-          <div className="summary-list">
-            <div className="summary-item">
-              <span>Booking ID</span>
-              <strong>{finalBookingData.bookingId}</strong>
-            </div>
-
-            {finalBookingData.services && finalBookingData.services.length > 0 ? (
-              <div className="summary-services-scroll">
-                {finalBookingData.services.map((service) => (
-                  <div key={service._id} className="summary-service-item">
-                    <div className="service-info">
-                      <strong>{service.name}</strong>
-                      <p>
-                        {service.duration ? `${service.duration} min` : ''}
-                        {(() => {
-                          const assign = finalBookingData.professionalAssignments?.find(p => p.serviceId === service._id);
-                          if (assign) {
-                            return <><br /><span style={{fontSize:'12px', color:'#555'}}>with {assign.professionalName}</span></>;
-                          }
-                          return null;
-                        })()}
-                      </p>
-                    </div>
-                    <div className="service-actions">
-                      <div className="service-price">AED {service.price}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="summary-item">
-                <span>Service</span>
-                <strong>{finalBookingData.serviceName}</strong>
-              </div>
-            )}
-
-            {finalBookingData.uniqueProfessionalNames && finalBookingData.uniqueProfessionalNames.length > 1 ? (
-              <div className="summary-item">
-                <span>Professionals</span>
-                <strong>{finalBookingData.uniqueProfessionalNames.join(', ')}</strong>
-              </div>
-            ) : (
-              <div className="summary-item">
-                <span>Professional</span>
-                <strong>{finalBookingData.professionalName}</strong>
-              </div>
-            )}
-            <div className="summary-item">
-              <span>Date</span>
-              <strong>{finalBookingData.date}</strong>
-            </div>
-            <div className="summary-item">
-              <span>Time</span>
-              <strong>{finalBookingData.time}</strong>
-            </div>
-            <div className="summary-item">
-              <span>Duration</span>
-              <strong>{finalBookingData.duration} minutes</strong>
-            </div>
-
-            <div className="summary-footer">
-              <div className="summary-item">
-                <span>Subtotal</span>
-                <strong>AED {finalBookingData.servicePrice}</strong>
-              </div>
-              <div className="summary-item">
-                <span>Tax (5%)</span>
-                <strong>AED {(finalBookingData.servicePrice * 0.05).toFixed(2)}</strong>
-              </div>
-              <div className="summary-item total-row">
-                <span>Total</span>
-                <strong>AED {finalBookingData.totalAmount}</strong>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Payment Method Selection */}
-        <div className="payment-method-selection">
-          <h3>Payment method</h3>
-          <div className="gateway-grid">
-            <button
-              type="button"
-              className={`gateway-button ${selectedMethod === 'card' ? 'selected' : ''}`}
-              onClick={() => setSelectedMethod('card')}
-              aria-pressed={selectedMethod === 'card'}
-            >
-              <h4>Debit Card</h4>
-              <p>Pay securely with card via Stripe</p>
-            </button>
-            <button
-              type="button"
-              className={`gateway-button ${selectedMethod === 'upi' ? 'selected' : ''}`}
-              onClick={() => setSelectedMethod('upi')}
-              aria-pressed={selectedMethod === 'upi'}
-            >
-              <h4>UPI</h4>
-              <p>Pay using UPI through Stripe</p>
-            </button>
-            <button
-              type="button"
-              className={`gateway-button ${selectedMethod === 'cash' ? 'selected' : ''}`}
-              onClick={() => setSelectedMethod('cash')}
-              aria-pressed={selectedMethod === 'cash'}
-            >
-              <h4>Cash</h4>
-              <p>Pay at the venue</p>
-            </button>
-          </div>
-        </div>
-
-        {selectedMethod === 'upi' && (
-          <div className="upi-panel">
-            <h4>UPI Payment</h4>
-            <div className="upi-field-row">
-              <label htmlFor="upiVpa" style={{fontSize:'0.7rem', fontWeight:600, letterSpacing:'.05em'}}>UPI ID</label>
-              <input
-                id="upiVpa"
-                type="text"
-                placeholder="name@bank"
-                value={upiVpa}
-                onChange={e => setUpiVpa(e.target.value.trim())}
-                className="upi-input"
-              />
-              {upiVpa && !/^[\w.\-]{2,}@[a-zA-Z]{2,}$/.test(upiVpa) && (
-                <span className="upi-error">Invalid UPI ID format</span>
-              )}
-              <p className="upi-helper">Example: user@icici or john.doe@oksbi. Simulated via Stripe test mode.</p>
-            </div>
-          </div>
-        )}
-
-        {/* Final Actions */}
-        <div className="payment-actions-final">
-          <div className="total-amount-display">
-            <span>Total due</span>
-            <strong>AED {finalBookingData.totalAmount}</strong>
-          </div>
+        <div style={{ display: 'grid', gap: 10, marginTop: 12 }}>
           <button
-            onClick={handlePayment}
-            className="pay-button"
-            disabled={loading || !selectedGateway}
+            type="button"
+            className={`gateway-button ${selectedMethod === 'card' ? 'selected' : ''}`}
+            onClick={() => setSelectedMethod('card')}
           >
-            {loading ? 'Processing…' : selectedMethod === 'upi' ? 'Pay via UPI' : 'Pay now'}
+            Debit / Credit card
+          </button>
+          <button
+            type="button"
+            className={`gateway-button ${selectedMethod === 'upi' ? 'selected' : ''}`}
+            onClick={() => setSelectedMethod('upi')}
+          >
+            UPI
+          </button>
+          <button
+            type="button"
+            className={`gateway-button ${selectedMethod === 'cash' ? 'selected' : ''}`}
+            onClick={() => setSelectedMethod('cash')}
+          >
+            Cash
           </button>
         </div>
 
-        {/* Secondary navigation */}
-        {/* <div style={{ marginTop: 12, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <button onClick={handleBackToBooking} className="btn-secondary">Back to Booking</button>
-          <button onClick={handleViewBookings} className="btn-outline">View My Bookings</button>
-        </div> */}
-
-        {error && (
-          <div className="error-message">
-            <p>{error}</p>
+        {selectedMethod === 'upi' && (
+          <div style={{ marginTop: 10 }}>
+            <input
+              value={upiVpa}
+              onChange={(e) => setUpiVpa(e.target.value)}
+              placeholder="name@bank"
+              style={{ width: '100%', padding: 10, borderRadius: 6, border: '1px solid #e6e6e6' }}
+            />
           </div>
         )}
+
+        <div style={{ display: 'flex', gap: 8, marginTop: 18 }}>
+          <button onClick={handleBackToBooking} className="btn-back" disabled={loading}>Back</button>
+          <button onClick={handlePayment} className="btn-confirm" disabled={loading} style={{ marginLeft: 'auto' }}>
+            {loading ? 'Processing…' : (selectedMethod === 'upi' ? 'Pay via UPI' : 'Confirm & Pay')}
+          </button>
+        </div>
+
+        {error && <div style={{ marginTop: 12, color: '#b00020' }}>{error}</div>}
       </div>
     </div>
   );

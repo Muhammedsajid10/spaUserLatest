@@ -5,7 +5,7 @@ import { bookingsAPI, bookingFlow } from "../services/api";
 import { useNavigate, useLocation } from "react-router-dom";
 import Skeleton from 'react-loading-skeleton';
 import 'react-loading-skeleton/dist/skeleton.css';
-import { fetchAvailableProfessionalsForServiceByWeek } from '../bookingUtils';
+// import { fetchAvailableProfessionalsForServiceByWeek } from '../bookingUtils';
 
 const SelectProfessional = () => {
   const [professionals, setProfessionals] = useState([]);
@@ -181,7 +181,7 @@ const SelectProfessional = () => {
           // two mode cards always shown first
           const modeCards = [
             { id: 'mode-any', name: 'Any professional', subtitle: 'for maximum availability', icon: '👥', _mode: 'anyAll' },
-            { id: 'mode-per-service', name: 'Select professional per service', subtitle: 'assign each separately', icon: '👥+', _mode: 'perService' }
+            // { id: 'mode-per-service', name: 'Select professional per service', subtitle: 'assign each separately', icon: '👥+', _mode: 'perService' }
           ];
 
           const transformed = available.data.employees.map(item => {
@@ -203,7 +203,7 @@ const SelectProfessional = () => {
           // still show the two mode cards even if no professionals available
           setProfessionals([
             { id: 'mode-any', name: 'Any professional', subtitle: 'for maximum availability', icon: '👥', _mode: 'anyAll' },
-            { id: 'mode-per-service', name: 'Select professional per service', subtitle: 'assign each separately', icon: '👥+', _mode: 'perService' }
+            // { id: 'mode-per-service', name: 'Select professional per service', subtitle: 'assign each separately', icon: '👥+', _mode: 'perService' }
           ]);
         }
       } catch (err) {
