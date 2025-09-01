@@ -1,0 +1,211 @@
+
+/* Outer layout wrapper */
+.svc-container {
+  padding: 20px;
+  font-family: "Segoe UI", sans-serif;
+  max-width: 100%;
+  width: 100%;
+  margin: 0 auto;
+  background: #fff;
+  box-sizing: border-box;
+}
+
+@media (min-width: 768px) {
+  .svc-container {
+    max-width: 700px;
+    border-radius: 20px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+  }
+}
+
+/* Main content styling */
+.main-allora {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  width: 100%;
+  background-color: #ffffff;
+  padding: 24px;
+  box-sizing: border-box;
+}
+
+.allora-main {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.image-mer {
+  width: 100px;
+  height: 110px;
+  border-radius: 16px;
+  object-fit: cover;
+  cursor: pointer;
+  transition: transform 0.3s ease;
+}
+
+.image-mer:hover {
+  transform: scale(1.05);
+}
+
+.detail-allora h3,
+.detail-allora h4,
+.detail-allora h5 {
+  margin: 4px 0;
+}
+
+.allora-h1 {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.all-h4 {
+  font-size: 16px;
+  color: #0e99fd;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 500;
+}
+
+.allora-h2 {
+  font-size: 14px;
+  color: #666;
+  font-weight: 400;
+}
+
+.booking-info {
+  font-size: 14px;
+  color: #333;
+  margin-top: 16px;
+}
+
+.booking-info p {
+  margin: 4px 0;
+}
+
+.allora-h3 {
+  margin: 8px 0;
+  font-weight: 500;
+}
+
+.divider-line {
+  height: 1px;
+  width: 100%;
+  background-color: #ddd;
+  margin: 20px 0;
+}
+
+.final-price {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  font-size: 16px;
+}
+
+.total, .total-amount {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.pay-method, .pay-now {
+  color: green;
+  font-weight: 500;
+}
+
+.payment-section {
+  margin-top: 24px;
+}
+
+.section-title {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+.input-box {
+  width: 100%;
+  padding: 10px;
+  margin-bottom: 12px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  font-size: 14px;
+  box-sizing: border-box;
+}
+
+.card-details {
+  display: flex;
+  gap: 12px;
+}
+
+.half {
+  width: 100%;
+}
+
+.secure-text {
+  font-size: 12px;
+  color: #666;
+  margin-bottom: 12px;
+}
+
+.gift-btn {
+  background: none;
+  color: #007bff;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 0;
+  margin-bottom: 16px;
+}
+
+.terms {
+  font-size: 13px;
+  color: #333;
+  line-height: 1.4;
+}
+
+.btn-allora {
+  width: 100%;
+  height: 48px;
+  background-color: #000;
+  color: #fff;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 500;
+  margin-top: 20px;
+  cursor: pointer;
+  border: none;
+  transition: background-color 0.3s ease;
+}
+
+.btn-allora:hover {
+  background-color: #222;
+}
+
+/* Mobile responsiveness */
+@media screen and (max-width: 600px) {
+  .image-mer {
+    width: 80px;
+    height: 90px;
+  }
+
+  .allora-h1 {
+    font-size: 16px;
+  }
+
+  .all-h4 {
+    font-size: 14px;
+  }
+
+  .allora-h2 {
+    font-size: 12px;
+  }
+
+  .btn-allora {
+    font-size: 14px;
+  }
+}
+

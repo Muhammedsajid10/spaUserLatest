@@ -1,0 +1,74 @@
+.star-rating {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.star-rating .stars {
+  display: flex;
+  gap: 2px;
+}
+
+.star-rating .star {
+  background: none;
+  border: none;
+  font-size: 20px;
+  color: #ddd;
+  cursor: pointer;
+  transition: color 0.2s ease;
+  padding: 2px;
+  line-height: 1;
+}
+
+.star-rating:not(.read-only) .star:hover {
+  color: #ffc107;
+}
+
+.star-rating .star.filled {
+  color: #ffc107;
+}
+
+.star-rating.read-only .star {
+  cursor: default;
+}
+
+.star-rating.small .star {
+  font-size: 16px;
+}
+
+.star-rating.large .star {
+  font-size: 24px;
+}
+
+.star-rating .rating-text {
+  font-size: 14px;
+  color: #666;
+  margin-left: 4px;
+}
+
+/* Animation for interactive stars */
+.star-rating:not(.read-only) .star {
+  transform: scale(1);
+  transition: transform 0.1s ease, color 0.2s ease;
+}
+
+.star-rating:not(.read-only) .star:hover {
+  transform: scale(1.1);
+}
+
+.star-rating:not(.read-only) .star:active {
+  transform: scale(0.95);
+}
+
+/* Dark theme support */
+.client-profile-wrapper.dark .star-rating .rating-text {
+  color: #ccc;
+}
+
+.client-profile-wrapper.dark .star-rating .star {
+  color: #555;
+}
+
+.client-profile-wrapper.dark .star-rating .star.filled {
+  color: #ffc107;
+}

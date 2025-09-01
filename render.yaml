@@ -1,0 +1,48 @@
+services:
+  - type: web
+    name: allora-spa-frontend
+    env: node
+    buildCommand: npm install --legacy-peer-deps && npm run build
+    startCommand: npm start
+    plan: free
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: VITE_API_BASE_URL
+        value: https://spabackend-0tko.onrender.com/api/v1
+      - key: VITE_STRIPE_PUBLISHABLE_KEY
+        value: pk_test_51RpSYD5FOF6KgbFpVgzOspHQuZYVwLuawvNXCAI60gDNuyEFdfvwd9UnhHMqal5RfWh3N4WPv5uzLn3GEFiRTm1D00rpI5BXPQ
+  - type: web
+    name: spabackend
+    env: node
+    rootDir: backend
+    buildCommand: npm install --production
+    startCommand: npm start
+    plan: free
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: MONGODB_URI
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_PUBLISHABLE_KEY
+        value: pk_test_51RpSYD5FOF6KgbFpVgzOspHQuZYVwLuawvNXCAI60gDNuyEFdfvwd9UnhHMqal5RfWh3N4WPv5uzLn3GEFiRTm1D00rpI5BXPQ
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: BACKEND_URL
+        value: https://spabackend-0tko.onrender.com
+      - key: FRONTEND_URL
+        value: https://allora-spa-frontend.onrender.com
+      - key: EMAIL_HOST
+        sync: false
+      - key: EMAIL_PORT
+        sync: false
+      - key: EMAIL_USER
+        sync: false
+      - key: EMAIL_PASS
+        sync: false
