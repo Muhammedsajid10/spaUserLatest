@@ -20,6 +20,15 @@ const getAuthHeaders = () => {
   };
 };
 
+// helper: format to local YYYY-MM-DD
+const formatLocalYYYYMMDD = (d) => {
+  const dt = d instanceof Date ? d : new Date(d);
+  if (isNaN(dt)) return '';
+  const yyyy = dt.getFullYear();
+  const mm = String(dt.getMonth() + 1).padStart(2, '0');
+  const dd = String(dt.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+};
 
 // Auth API calls
 export const authAPI = {
@@ -160,8 +169,8 @@ export const bookingsAPI = {
   },
 
   // Get user bookings
-  getUserBookings: async () => {
-    const response = await fetch(`${API_BASE_URL}/bookings/my-bookings`, {
+  getUserBookings: async (formattedDate) => {
+    const response = await fetch(`${API_BASE_URL}/bookings/admin/all?start=${formattedDate}&end=${formattedDate}`, {
       headers: getAuthHeaders()
     });
     return handleResponse(response);
@@ -202,13 +211,27 @@ export const bookingsAPI = {
 
   // Get available professionals for a service (public)
   getAvailableProfessionals: async (serviceId, date) => {
-    const params = new URLSearchParams({ service: serviceId, date });
-    const response = await fetch(`${API_BASE_URL}/employees`,
+    const dateStr = formatLocalYYYYMMDD(date);
+    const url = `${API_BASE_URL}/employees?weekStartDate=${dateStr}`;
+    const response = await fetch(url,
       {
         method: 'GET',
         headers: getAuthHeaders(),
       }
     );
+    console.log(response.data)
+    return handleResponse(response);
+  },
+
+  // Fetch bookings in an admin range (used to compute occupied slots)
+  getBookingsForRange: async (startDate, endDate) => {
+    const s = formatLocalYYYYMMDD(startDate);
+    const e = formatLocalYYYYMMDD(endDate);
+    const url = `${API_BASE_URL}/bookings?start=${encodeURIComponent(s)}&end=${encodeURIComponent(e)}`;
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: getAuthHeaders()
+    });
     return handleResponse(response);
   },
 
@@ -282,6 +305,16 @@ export const employeesAPI = {
   // Get available employees for service
   getAvailableEmployees: async (serviceId, date) => {
     const response = await fetch(`${API_BASE_URL}/employees/available/${serviceId}?date=${date}`, {
+      headers: getAuthHeaders()
+    });
+    return handleResponse(response);
+  },
+
+  // Get employees for a given week start (weekStartDate = YYYY-MM-DD)
+  getEmployeesByWeekStart: async (weekStartDate) => {
+    const q = formatLocalYYYYMMDD(weekStartDate);
+    const url = `${API_BASE_URL}/employees?weekStartDate=${encodeURIComponent(q)}`;
+    const response = await fetch(url, {
       headers: getAuthHeaders()
     });
     return handleResponse(response);
@@ -548,12 +581,28 @@ export const paymentsAPI = {
 
   // Create payment
   createPayment: async (paymentData) => {
+    // Temporarily bypass payment gateway: return a successful mock so booking can be created without payment.
+    // Original implementation kept commented for reference.
+    /*
     const response = await fetch(`${API_BASE_URL}/payments/create`, {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify(paymentData)
     });
     return handleResponse(response);
+    */
+
+    console.log('[paymentsAPI] createPayment bypassed - returning mock success', { paymentData });
+    return Promise.resolve({
+      success: true,
+      data: {
+        status: 'bypassed',
+        message: 'Payment step bypassed in client (no external payment performed).',
+        clientSecret: null,
+        paymentUrl: null,
+        paymentId: null
+      }
+    });
   }
 };
 
@@ -621,4 +670,4 @@ export default {
   payments: paymentsAPI,
   feedback: feedbackAPI,
   utils: apiUtils
-}; 
+};

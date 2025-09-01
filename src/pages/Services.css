@@ -15,14 +15,39 @@ body {
 
 /* === Header Wrapper - Desktop Fixed by Default === */
 .svc-header-wrapper {
-      position: fixed;
+  position: fixed;
+  top: 72px;
+  left: 40px;
+  right: 0;
+  z-index: 1000;
+  background: #fff;
+  /* border-bottom: 1px solid #e0e0e0; */
+  max-width: 800px; /* default target for 1280w screens */
+}
+
+/* Apply layout for larger desktops (>=1280px) — keep safe defaults */
+@media (min-width: 1280px) {
+  .svc-header-wrapper {
+    /* small adjustment for wider viewports while keeping centered layout */
     top: 72px;
     left: 40px;
-    right: 0px;
+    right: 0;
+    max-width: 963px;
+  }
+}
+
+/* Very wide screens (approx 1980px width) */
+@media (min-width: 1900px) {
+  .svc-header-wrapper {
+    position: fixed;
+    top: 67px;
+    left:279px;
+    right: 0;
     z-index: 1000;
     background: #fff;
-    border-bottom: 1px solid #e0e0e0;
-    max-width: 963px;
+    /* border-bottom: 1px solid #e0e0e0; */
+    max-width: 1282px; /* use the provided large-screen width */
+  }
 }
 
 /* On large screens, the main content needs padding for the fixed header */
@@ -88,6 +113,9 @@ body {
   /* border-bottom: 1px solid #e0e0e0; */
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
   -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth; /* smooth horizontal scrolling */
+  overflow-y: hidden; /* prevent vertical scroll */
+  white-space: nowrap; /* ensure items stay in single row */
 }
 
 .svc-nav::-webkit-scrollbar {
@@ -411,6 +439,19 @@ body {
   cursor: not-allowed;
 }
 
+@media (max-width:1280) {
+  .svc-header-wrapper {
+    position: fixed;
+    top: 67px;
+    left: 177px;
+    right: 0px;
+    z-index: 1000;
+    background: #fff;
+    border-bottom: 1px solid #e0e0e0;
+    max-width: 1282px;
+}
+}
+
 /* === MOBILE SPECIFIC STYLES === */
 @media (max-width: 600px) {
   /* On mobile, the header becomes sticky instead of fixed */
@@ -559,5 +600,27 @@ body {
   to {
     transform: translateY(0);
     opacity: 1;
+  }
+}
+
+/* Large screens: ensure horizontal scrolling is enabled and styled */
+@media (min-width: 1280px) {
+  .svc-nav {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+    gap: 14px;
+  }
+
+  /* Optional: subtle custom scrollbar for large desktops */
+  .svc-nav::-webkit-scrollbar {
+    height: 8px;
+  }
+  .svc-nav::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .svc-nav::-webkit-scrollbar-thumb {
+    background: rgba(0,0,0,0.12);
+    border-radius: 8px;
   }
 }

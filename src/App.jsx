@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import reactLogo from "./assets/react.svg";
 import viteLogo from "/vite.svg";
 import "./App.css";
@@ -60,6 +60,9 @@ function App() {
     <AuthProvider>
     <BrowserRouter>
         <Routes>
+          {/* Keep / as the booking root. Redirect legacy /booking -> / */}
+          <Route path="/booking" element={<Navigate to="/" replace />} />
+          
           {/* Authentication routes */}
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<Signuppage />} />
@@ -131,7 +134,7 @@ function App() {
           {/* Dashboard route - requires authentication */}
           <Route path="/dashboard" element={
             <ProtectedRoute>
-              <Dashboard />
+              <ClientProfilePage />
             </ProtectedRoute>
           } />
 

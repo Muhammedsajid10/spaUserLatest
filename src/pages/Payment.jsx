@@ -277,10 +277,21 @@ const Payment = () => {
       
       // If this is still a temporary booking ID, create the booking first
       if (bookingId.startsWith('BK')) {
-        console.log('Creating booking in database before payment...');
-        const booking = await createBookingInDatabase();
-        bookingId = booking.bookingNumber; // Use bookingNumber for payment API
-        console.log('Booking created, using bookingNumber:', bookingId);
+        console.log('Creating booking in database before payment (bypass payment) ...');
+        try {
+          const booking = await createBookingInDatabase();
+          bookingId = booking.bookingNumber || booking._id || booking.bookingNumber;
+          console.log('Booking created successfully (no payment):', bookingId);
+          // Navigate to dashboard or booking confirmation after successful creation
+          // Keep existing flow intact by returning early to skip payment creation.
+          navigate('/dashboard');
+          return;
+        } catch (err) {
+          console.error('Failed to create booking before payment bypass:', err);
+          setError('Failed to create booking. Please try again.');
+          setLoading(false);
+          return;
+        }
       }
 
       console.log('Creating payment with booking ID:', bookingId);

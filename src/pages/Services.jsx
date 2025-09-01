@@ -116,6 +116,19 @@ function Services() {
   };
 
   const handleServiceClick = (service) => {
+    // prevent opening modal when already at limit
+    bookingFlow.load();
+    const currentCount = bookingFlow.selectedServices.length;
+    if (currentCount >= 15) {
+      Swal.fire({
+        title: 'Limit reached',
+        text: 'You can only select up to 15 services.',
+        icon: 'warning',
+        confirmButtonText: 'OK'
+      });
+      return;
+    }
+
     setSelectedService(service);
     setShowModal(true);
     setSelectedOption(null);
@@ -134,6 +147,20 @@ function Services() {
   };
 
   const handleAddToBooking = () => {
+    // guard again before adding (in case state changed while modal open)
+    bookingFlow.load();
+    const currentCount = bookingFlow.selectedServices.length;
+    if (currentCount >= 15) {
+      Swal.fire({
+        title: 'Limit reached',
+        text: 'You can only select up to 15 services.',
+        icon: 'warning',
+        confirmButtonText: 'OK'
+      });
+      handleCloseModal();
+      return;
+    }
+
     if (selectedService && selectedOption) {
       let finalPrice = selectedService.effectivePrice;
       if (selectedOption === "couple") {
@@ -149,18 +176,11 @@ function Services() {
         option: selectedOption,
       };
       bookingFlow.addService(serviceForBooking);
+      // refresh local count
+      bookingFlow.load();
       handleCloseModal();
       const newCount = bookingFlow.selectedServices.length;
-      // Swal.fire({
-      //   title: 'Service Added!',
-      //   text: `Service added to booking! You now have ${newCount} service${newCount > 1 ? "s" : ""} selected.`,
-      //   icon: 'success',
-      //   timer: 3000,
-      //   showConfirmButton: false,
-      //   toast: true,
-      //   position: 'top-right',
-      //   timerProgressBar: true
-      // });
+      // (optional) show toast / confirmation here
     }
   };
 
