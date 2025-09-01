@@ -89,104 +89,55 @@ const Payment = () => {
   console.log('Payment component: Has bookingId:', !!finalBookingData.bookingId);
 
   const createBookingInDatabase = async () => {
-    try {
-      console.log('Creating booking in database with data:', finalBookingData);
-      console.log('User creating booking:', {
-        id: user._id,
-        email: user.email,
-        name: `${user.firstName} ${user.lastName}`
-      });
-      
-      // Prepare services data for the API
-      console.log('DEBUG: finalBookingData.services:', finalBookingData.services);
-      console.log('DEBUG: bookingFlow.selectedProfessionals:', bookingFlow.selectedProfessionals);
-      
-  const services = finalBookingData.services.map(service => {
-        // Get the professional for this service
-        const professional = bookingFlow.selectedProfessionals[service._id];
-        
-        console.log('DEBUG: Processing service:', {
-          serviceId: service._id,
-          serviceName: service.name,
-          servicePrice: service.price,
-          serviceDuration: service.duration,
-          professional: professional
-        });
-        
-        // Validate required fields
-        if (!service._id) {
-          throw new Error(`Service ID is missing for service: ${service.name}`);
-        }
-        if (!professional || (!professional._id && !professional.id)) {
-          throw new Error(`Professional is missing for service: ${service.name}`);
-        }
-        if (!service.price) {
-          throw new Error(`Price is missing for service: ${service.name}`);
-        }
-        if (!service.duration) {
-          throw new Error(`Duration is missing for service: ${service.name}`);
-        }
-        
-        // Calculate start and end times
-        const appointmentDate = new Date(bookingFlow.selectedTimeSlot.date);
-        const timeString = bookingFlow.selectedTimeSlot.time?.time || '10:00 AM';
-        const [time, period] = timeString.split(' ');
-        const [hours, minutes] = time.split(':');
-        let hour = parseInt(hours);
-        if (period === 'PM' && hour !== 12) hour += 12;
-        if (period === 'AM' && hour === 12) hour = 0;
-        
-        appointmentDate.setHours(hour, parseInt(minutes), 0, 0);
-        const startTime = new Date(appointmentDate);
-        const endTime = new Date(appointmentDate.getTime() + service.duration * 60 * 1000);
-        
-        const serviceData = {
-          service: service._id,        // backend expects 'service'
-          employee: professional.id === 'any' ? 'any' : (professional._id || professional.id),
-          price: service.price,        // Add required price field
-          duration: service.duration,  // Add required duration field
-          startTime: startTime.toISOString(),
-          endTime: endTime.toISOString(),
-          notes: ''
-        };
-        
-        console.log('DEBUG: Prepared service data:', serviceData);
-        return serviceData;
-      });
-      
-      const bookingData = {
-        services,
-        appointmentDate: new Date(bookingFlow.selectedTimeSlot.date).toISOString(),
-        notes: '',
-        selectionMode: bookingFlow.selectionMode || 'perService'
+    console.log('Creating booking in database...');
+    
+    // Get current logged-in user data
+    console.log('[DEBUG] Current logged-in user:', user);
+    
+    if (!user || !user.email) {
+      throw new Error('User not logged in or missing user data');
+    }
+
+    const servicesPayload = finalBookingData.services.map(service => {
+      const professional = bookingFlow.selectedProfessionals[service._id];
+      return {
+        service: service._id,
+        employee: professional && (professional._id || professional.id) ? 
+          (professional.id === 'any' ? 'any' : (professional._id || professional.id)) : 'any',
+        price: service.price,
+        duration: service.duration,
+        startTime: bookingFlow.selectedTimeSlot?.startTime || new Date().toISOString(),
+        endTime: bookingFlow.selectedTimeSlot?.endTime || new Date().toISOString()
       };
-      
-      console.log('DEBUG: Final booking data being sent to API:');
-      console.log('- Services count:', services.length);
-      console.log('- First service structure:', services[0]);
-      console.log('- No client data sent - backend will use authenticated user');
-      console.log('- Full booking data:', JSON.stringify(bookingData, null, 2));
-      
-      console.log('Sending booking data to API:', bookingData);
-      
-      // Use the API service instead of direct fetch
-      const result = await bookingsAPI.createBooking(bookingData);
-      
-      console.log('Booking created successfully:', result);
-      console.log('Booking client ID:', result.data.booking.client);
-      console.log('Booking number:', result.data.booking.bookingNumber);
-      
-      // Update the booking data with the database ID
-      finalBookingData.bookingId = result.data.booking._id;
-      finalBookingData.bookingNumber = result.data.booking.bookingNumber;
-      
-      // Save the updated booking data to localStorage
-      localStorage.setItem('currentBooking', JSON.stringify(finalBookingData));
-      
-      return result.data.booking;
-      
+    });
+
+    const bookingPayload = {
+      // Include current logged-in user as client
+      client: {
+        id: user._id || user.id,
+        name: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.name || user.username || 'Client',
+        email: user.email,
+        phone: user.phone || user.phoneNumber || user.mobile || '',
+        userId: user._id || user.id // backend reference
+      },
+      services: servicesPayload,
+      appointmentDate: new Date(bookingFlow.selectedTimeSlot.date).toISOString(),
+      notes: '',
+      selectionMode: bookingFlow.selectionMode || 'perService'
+    };
+
+    console.log('[DEBUG] Booking payload with client data:', {
+      clientName: bookingPayload.client.name,
+      clientEmail: bookingPayload.client.email,
+      servicesCount: bookingPayload.services.length
+    });
+
+    try {
+      const response = await bookingsAPI.createBooking(bookingPayload);
+      console.log('Booking created successfully:', response);
+      return response.data || response;
     } catch (error) {
-      console.error('Error creating booking in database:', error);
+      console.error('Error creating booking:', error);
       throw error;
     }
   };
@@ -224,145 +175,124 @@ const Payment = () => {
 
   const fetchAvailableGateways = async () => {
     try {
-      console.log('Testing backend connectivity...');
+      console.log('[PAYMENT] Fetching available payment gateways...');
+      const response = await paymentsAPI.getAvailableGateways();
       
-      const data = await paymentsAPI.getAvailableGateways();
-
-      console.log('Backend is running! Available gateways:', data.data.gateways);
-      setAvailableGateways(data.data.gateways);
-
-  // Force gateway to stripe (only supported)
-  setSelectedGateway('stripe');
+      if (response.success && response.data.gateways) {
+        console.log('[PAYMENT] Available gateways:', response.data.gateways);
+        // setAvailableGateways(response.data.gateways); // Commented - using hardcoded methods
+      }
     } catch (error) {
-      console.error('Error fetching gateways (backend might not be running):', error);
+      console.warn('[PAYMENT] Failed to fetch gateways, using defaults:', error);
+      // Continue with hardcoded payment methods (card, upi, cash)
     }
   };
 
   const handlePayment = async () => {
-    console.log('DEBUG: handlePayment function called');
-    console.log('DEBUG: Current state:', {
-      loading,
-      selectedGateway,
-      finalBookingData
-    });
-
-    if (!selectedMethod) {
-      setError('Please select a payment method');
-      return;
-    }
+    setLoading(true);
+    setError(null);
 
     try {
-      setLoading(true);
-      setError('');
-      
-      const methodForApi = selectedMethod === 'card' ? 'card' : (selectedMethod === 'upi' ? 'digital_wallet' : selectedMethod);
+      console.log('[PAYMENT] Starting payment process with method:', selectedMethod);
 
-      if (selectedMethod === 'upi') {
-        if (!upiVpa) { setError('Please enter your UPI ID'); setLoading(false); return; }
-        const valid = /^[\w.\-]{2,}@[a-zA-Z]{2,}$/.test(upiVpa);
-        if (!valid) { setError('Invalid UPI ID format'); setLoading(false); return; }
-      }
-
-      const gatewayForApi = 'stripe'; // Force stripe gateway
-      console.log('DEBUG: Making payment API request with data:', {
-        bookingId: finalBookingData.bookingId,
-        amount: finalBookingData.totalAmount,
-        currency: 'AED',
-        paymentMethod: methodForApi,
-        gateway: gatewayForApi
-      });
-
-      // Ensure booking is created in database first
-      let bookingId = finalBookingData.bookingId;
-      
-      // If this is still a temporary booking ID, create the booking first
-      if (bookingId.startsWith('BK')) {
-        console.log('Creating booking in database before payment (bypass payment) ...');
-        try {
-          const booking = await createBookingInDatabase();
-          bookingId = booking.bookingNumber || booking._id || booking.bookingNumber;
-          console.log('Booking created successfully (no payment):', bookingId);
-          // Navigate to dashboard or booking confirmation after successful creation
-          // Keep existing flow intact by returning early to skip payment creation.
-          navigate('/dashboard');
-          return;
-        } catch (err) {
-          console.error('Failed to create booking before payment bypass:', err);
-          setError('Failed to create booking. Please try again.');
-          setLoading(false);
-          return;
-        }
-      }
-
-      console.log('Creating payment with booking ID:', bookingId);
-      console.log('Payment request data:', {
-        bookingId: bookingId,
-        amount: finalBookingData.totalAmount,
-        currency: 'AED',
-        paymentMethod: methodForApi,
-        gateway: gatewayForApi,
-        userInfo: {
-          id: user._id,
-          email: user.email
-        }
-      });
-
-      console.log('DEBUG: About to make payment API call to /api/v1/payments/create');
-      console.log('DEBUG: Using bookingNumber:', bookingId);
-      console.log('DEBUG: User token available:', !!token);
-
-      // Cash flow: no Stripe needed, go to process page with cash instructions
-      if (selectedMethod === 'cash') {
-        console.log('Selected method is CASH. Skipping Stripe and showing cash instructions.');
-        navigate('/payment/process', {
-          state: {
-            paymentData: { isCash: true },
-            bookingData: finalBookingData,
-            selectedGateway,
-            selectedMethod
-          }
-        });
+      // Validation: UPI requires VPA
+      if (selectedMethod === 'upi' && !upiVpa.trim()) {
+        setError('Please enter your UPI ID');
         return;
       }
 
-      // Create payment intent via backend
-      const data = await paymentsAPI.createPayment({
-        bookingId: bookingId,
-        amount: finalBookingData.totalAmount,
-        currency: 'AED',
-        paymentMethod: methodForApi,
-        gateway: gatewayForApi,
-        ...(selectedMethod === 'upi' && { upiVpa })
-      });
-      
-      console.log('DEBUG: Payment API response:', { data });
-      console.log('Payment created successfully:', data);
+      // Validation: Card requires fields (commented out for bypass)
+      // if (selectedMethod === 'card') {
+      //   if (!cardData.holderName || !cardData.number || !cardData.expiry || !cardData.cvv) {
+      //     setError('Please fill all card details');
+      //     return;
+      //   }
+      // }
 
-      // If using Stripe and we get a clientSecret, redirect to payment processing
-      const hasSecretOrUrl = !!(data.data?.clientSecret || data.data?.paymentUrl);
-      if (hasSecretOrUrl) {
-        navigate('/payment/process', { 
+      // 1. Ensure booking exists in database
+      let bookingData = finalBookingData;
+      if (!bookingData.bookingId || bookingData.bookingId.toString().startsWith('BK')) {
+        console.log('[PAYMENT] Creating booking in database first...');
+        const createdBooking = await createBookingInDatabase();
+        bookingData = {
+          ...bookingData,
+          bookingId: createdBooking.booking._id || createdBooking.booking.bookingNumber,
+          bookingNumber: createdBooking.booking.bookingNumber
+        };
+      }
+
+      // 2. Prepare payment data
+      const paymentData = {
+        bookingId: bookingData.bookingId,
+        bookingNumber: bookingData.bookingNumber,
+        amount: bookingData.totalAmount,
+        currency: 'AED',
+        paymentMethod: selectedMethod,
+        gateway: selectedMethod === 'upi' ? 'razorpay' : (selectedMethod === 'card' ? 'stripe' : 'cash'),
+        
+        // Include method-specific data
+        ...(selectedMethod === 'upi' && { upiVpa }),
+        // ...(selectedMethod === 'card' && { cardData }), // Commented for bypass
+        
+        // Client info
+        clientInfo: {
+          name: `${user.firstName || ''} ${user.lastName || ''}`.trim(),
+          email: user.email,
+          phone: user.phone
+        }
+      };
+
+      console.log('[PAYMENT] Payment data prepared:', paymentData);
+
+      // 3. Process payment (BYPASSED)
+      const paymentResponse = await paymentsAPI.createPayment(paymentData);
+      
+      console.log('[PAYMENT] Payment response:', paymentResponse);
+
+      if (paymentResponse.success) {
+        // 4. Clear booking flow data
+        bookingFlow.clear();
+        
+        // 5. Success handling
+        await Swal.fire({
+          title: 'Booking Confirmed!',
+          text: `Your booking has been confirmed. ${selectedMethod === 'cash' ? 'Please pay at the venue.' : 'Payment processed successfully.'}`,
+          icon: 'success',
+          confirmButtonText: 'View Booking',
+          timer: 5000
+        });
+
+        // 6. Navigate to success page
+        navigate('/dashboard', { 
           state: { 
-            paymentData: data.data,
-            bookingData: finalBookingData,
-            selectedGateway,
-            selectedMethod
+            bookingData,
+            paymentData: paymentResponse.data,
+            paymentBypassed: true 
           } 
         });
+
       } else {
-        // Fallback
-        navigate('/payment/stripe', { 
-          state: { 
-            bookingData: finalBookingData,
-            selectedGateway: 'stripe',
-            selectedMethod
-          } 
-        });
+        throw new Error(paymentResponse.message || 'Payment failed');
       }
 
     } catch (error) {
-      console.error('Payment error:', error);
-      setError(error.message);
+      console.error('[PAYMENT] Payment error:', error);
+      
+      let errorMessage = 'Payment failed. Please try again.';
+      
+      if (error.message.includes('conflicting booking')) {
+        errorMessage = 'This time slot is no longer available. Please select a different time.';
+      } else if (error.message.includes('network') || error.message.includes('fetch')) {
+        errorMessage = 'Network error. Please check your connection and try again.';
+      }
+      
+      setError(errorMessage);
+      
+      // COMMENT OUT: Actual payment failure handling
+      // if (paymentResponse?.data?.paymentUrl) {
+      //   window.location.href = paymentResponse.data.paymentUrl;
+      // }
+      
     } finally {
       setLoading(false);
     }
@@ -404,54 +334,88 @@ const Payment = () => {
   // Minimal left-only payment panel.
   // The booking summary will be shown by LayoutWithBooking's sidebar (right side).
   return (
-    <div className="payment-container">
-      <div className="payment-card" style={{ maxWidth: 720, margin: '18px auto', padding: 20 }}>
-        <h2 style={{ margin: 0 }}>Payment</h2>
-        <p style={{ marginTop: 6, color: '#666' }}>Choose a payment method</p>
-
-        <div style={{ display: 'grid', gap: 10, marginTop: 12 }}>
-          <button
-            type="button"
-            className={`gateway-button ${selectedMethod === 'card' ? 'selected' : ''}`}
-            onClick={() => setSelectedMethod('card')}
-          >
-            Debit / Credit card
-          </button>
-          <button
-            type="button"
-            className={`gateway-button ${selectedMethod === 'upi' ? 'selected' : ''}`}
-            onClick={() => setSelectedMethod('upi')}
-          >
-            UPI
-          </button>
-          <button
-            type="button"
-            className={`gateway-button ${selectedMethod === 'cash' ? 'selected' : ''}`}
-            onClick={() => setSelectedMethod('cash')}
-          >
-            Cash
-          </button>
-        </div>
-
-        {selectedMethod === 'upi' && (
-          <div style={{ marginTop: 10 }}>
-            <input
-              value={upiVpa}
-              onChange={(e) => setUpiVpa(e.target.value)}
-              placeholder="name@bank"
-              style={{ width: '100%', padding: 10, borderRadius: 6, border: '1px solid #e6e6e6' }}
-            />
+    <div className="payment-page">
+      <div className="payment-card-main">
+        <h2 className="payment-title">Review and confirm</h2>
+        
+        <div className="payment-section">
+          <h3 className="section-title">Payment method</h3>
+          
+          <div className="payment-methods-grid">
+            <button
+              type="button"
+              className={`payment-method-btn ${selectedMethod === 'card' ? 'selected' : ''}`}
+              onClick={() => setSelectedMethod('card')}
+            >
+              {/* <span className="method-icon">💳</span> */}
+              <span className="method-text">Card</span>
+            </button>
+            
+            <button
+              type="button"
+              className={`payment-method-btn ${selectedMethod === 'upi' ? 'selected' : ''}`}
+              onClick={() => setSelectedMethod('upi')}
+            >
+              {/* <span className="method-icon"></span> */}
+              <span className="method-text">UPI</span>
+            </button>
+            
+            <button
+              type="button"
+              className={`payment-method-btn ${selectedMethod === 'cash' ? 'selected' : ''}`}
+              onClick={() => setSelectedMethod('cash')}
+            >
+              {/* <span className="method-icon"> </span> */}
+              <span className="method-text">Cash</span>
+            </button>
           </div>
-        )}
 
-        <div style={{ display: 'flex', gap: 8, marginTop: 18 }}>
-          <button onClick={handleBackToBooking} className="btn-back" disabled={loading}>Back</button>
-          <button onClick={handlePayment} className="btn-confirm" disabled={loading} style={{ marginLeft: 'auto' }}>
-            {loading ? 'Processing…' : (selectedMethod === 'upi' ? 'Pay via UPI' : 'Confirm & Pay')}
-          </button>
+          {selectedMethod === 'card' && (
+            <div className="card-details-form">
+              <div className="form-group">
+                <label>Card holder full name*</label>
+                <input type="text" placeholder="Add card holder full name" className="form-input" />
+              </div>
+              
+              <div className="form-group">
+                <label>Card number*</label>
+                <input type="text" placeholder="Credit or debit card number" className="form-input" />
+              </div>
+              
+              <div className="form-row">
+                <div className="form-group half">
+                  <label>Expiry date*</label>
+                  <input type="text" placeholder="MM/YY" className="form-input" />
+                </div>
+                <div className="form-group half">
+                  <label>Security code*</label>
+                  <input type="text" placeholder="123" className="form-input" />
+                </div>
+              </div>
+              
+              <div className="payment-icons">
+                <span>Pay securely with</span>
+                <div className="icons"></div>
+              </div>
+            </div>
+          )}
+
+          {selectedMethod === 'upi' && (
+            <div className="upi-form">
+              <div className="form-group">
+                <label>UPI ID*</label>
+                <input
+                  value={upiVpa}
+                  onChange={(e) => setUpiVpa(e.target.value)}
+                  placeholder="name@bank"
+                  className="form-input"
+                />
+              </div>
+            </div>
+          )}
         </div>
 
-        {error && <div style={{ marginTop: 12, color: '#b00020' }}>{error}</div>}
+        {error && <div className="error-message">{error}</div>}
       </div>
     </div>
   );

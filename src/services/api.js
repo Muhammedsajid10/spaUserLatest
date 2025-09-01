@@ -586,26 +586,29 @@ export const paymentsAPI = {
 
   // Create payment
   createPayment: async (paymentData) => {
-    // Temporarily bypass payment gateway: return a successful mock so booking can be created without payment.
-    // Original implementation kept commented for reference.
-    /*
-    const response = await fetch(`${API_BASE_URL}/payments/create`, {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: JSON.stringify(paymentData)
-    });
-    return handleResponse(response);
-    */
+    console.log('[BYPASS] Payment data that would be sent:', paymentData);
+    
+    // COMMENT OUT: Actual payment gateway call
+    // const response = await fetch(`${API_BASE_URL}/payments/create`, {
+    //   method: 'POST',
+    //   headers: getAuthHeaders(),
+    //   body: JSON.stringify(paymentData)
+    // });
+    // return handleResponse(response);
 
-    console.log('[paymentsAPI] createPayment bypassed - returning mock success', { paymentData });
+    // BYPASS: Return mock success after delay (simulate processing)
+    await new Promise(resolve => setTimeout(resolve, 2000)); // 2s delay
+    
     return Promise.resolve({
       success: true,
       data: {
-        status: 'bypassed',
-        message: 'Payment step bypassed in client (no external payment performed).',
-        clientSecret: null,
-        paymentUrl: null,
-        paymentId: null
+        paymentId: 'mock_' + Date.now(),
+        status: 'completed',
+        amount: paymentData.amount,
+        currency: paymentData.currency,
+        gateway: 'bypassed',
+        transactionId: 'TXN_' + Math.random().toString(36).substr(2, 9),
+        message: 'Payment bypassed - booking confirmed'
       }
     });
   }

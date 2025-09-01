@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link, Outlet } from 'react-router-dom';
 import { bookingFlow, apiUtils } from './services/api';
+import { IoMdTime } from "react-icons/io";
+
+import { CiCalendar } from "react-icons/ci";
 import './Layout.css'; // Assuming this CSS file exists
 import { HeaderTitleProvider, useHeaderTitle } from './Service/HeaderTitleContext'; // Assuming this context exists
 import { useAuth } from './Service/Context'; // Assuming this context exists
@@ -180,36 +183,19 @@ const LayoutWithBooking = ({ children }) => {
         navigate('/professionals');
         break;
       case 2: // Professional selection
-        // The selectedProfessional state in Layout is already updated via useEffect
-        // based on bookingFlow. No need to explicitly set state here again.
         navigate('/time');
         break;
       case 3: // Time selection
         navigate('/payment');
         break;
-      case 4: // Payment
-        Swal.fire({
-          title: 'Payment Step',
-          text: 'Payment step - implement payment logic',
-          icon: 'info',
-          confirmButtonText: 'OK',
-          timer: 3000,
-          showConfirmButton: true
-        });
+      case 4: // Payment -> call handlePayment from Payment component
+        // Find and call the Payment component's handlePayment method
+        // We'll trigger payment processing here
+        const event = new CustomEvent('confirmPayment');
+        window.dispatchEvent(event);
         break;
-      case 5: // Confirm
-        // Navigate to a confirmation page or show a confirmation modal
-        Swal.fire({
-          title: 'Booking Confirmed',
-          text: 'Your booking has been successfully confirmed!',
-          icon: 'success',
-          confirmButtonText: 'OK',
-          timer: 5000,
-          showConfirmButton: true
-        }).then(() => {
-          // After confirmation, navigate to the home page or any other page
-          navigate('/');
-        });
+      case 5: // Confirm -> proceed to payment processing or finalization
+        navigate('/payment/process');
         break;
       default:
         break;
@@ -376,6 +362,48 @@ const LayoutWithBooking = ({ children }) => {
           <div className="booking-sidebar">
             <div className="booking-summary" key={summaryKey}>
               <h3>Booking Summary</h3>
+             
+             {/* Date and Time section with icons - only show on payment route */}
+             {bookingFlow.selectedTimeSlot && location.pathname === '/payment' && (
+               <div className="booking-datetime">
+                 <div className="datetime-item">
+                   <span className="datetime-icon"><CiCalendar />
+</span>
+                   <span className="datetime-text">
+                     {(() => {
+                       const date = new Date(bookingFlow.selectedTimeSlot.date);
+                       const dayName = date.toLocaleDateString('en-US', { weekday: 'long' });
+                       const day = date.getDate();
+                       const month = date.toLocaleDateString('en-US', { month: 'long' });
+                       return `${dayName}, ${day} ${month}`;
+                     })()}
+                   </span>
+                 </div>
+                 
+                 <div className="datetime-item">
+                   <span className="datetime-icon"><IoMdTime />
+  </span>
+                   <span className="datetime-text">
+                     {(() => {
+                       const startTime = bookingFlow.selectedTimeSlot.time?.time || '2:30 PM';
+                       const totalDuration = bookingFlow.getTotalDuration(); // in minutes
+                       const startDate = new Date(`2000-01-01 ${startTime}`);
+                       const endDate = new Date(startDate.getTime() + totalDuration * 60000);
+                       const endTime = endDate.toLocaleTimeString('en-US', { 
+                         hour: 'numeric', 
+                         minute: '2-digit', 
+                         hour12: true 
+                       });
+                       const duration = totalDuration >= 60 
+                         ? `${Math.floor(totalDuration/60)} hr ${totalDuration%60 ? totalDuration%60 + ' min' : ''}`.trim()
+                         : `${totalDuration} min`;
+                       return `${startTime} - ${endTime} (${duration}s duration)`;
+                     })()}
+                   </span>
+                 </div>
+               </div>
+             )}
+
               {bookingFlow.selectedServices && bookingFlow.selectedServices.length > 0 ? (
                 <div className="selected-services-scroll">
                   <div className="selected-services">
@@ -435,20 +463,40 @@ const LayoutWithBooking = ({ children }) => {
                   ))}
                 </div>
                 <div className="action-buttons">
-                  <button 
-                    className="btn-back" 
-                    onClick={handleBack}
-                    disabled={currentStep === 1}
-                  >
-                    Back
-                  </button>
-                  <button 
-                    className={`btn-continue ${!canProceed() ? 'disabled' : ''}`}
-                    onClick={handleContinue}
-                    disabled={false}
-                  >
-                    {currentStep === steps.length ? 'Complete Booking' : 'Continue'}
-                  </button>
+                  {/* Show only Back and Confirm buttons on payment route */}
+                  {location.pathname === '/payment' ? (
+                    <>
+                      <button 
+                        className="btn-back" 
+                        onClick={handleBack}
+                      >
+                        Back
+                      </button>
+                      <button 
+                        className="btn-continue"
+                        onClick={handleContinue}
+                      >
+                        Confirm
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button 
+                        className="btn-back" 
+                        onClick={handleBack}
+                        disabled={currentStep === 1}
+                      >
+                        Back
+                      </button>
+                      <button 
+                        className={`btn-continue ${!canProceed() ? 'disabled' : ''}`}
+                        onClick={handleContinue}
+                        disabled={false}
+                      >
+                        {currentStep === steps.length ? 'Complete Booking' : 'Continue'}
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
             </div>

@@ -1,32 +1,34 @@
 import { useState } from "react";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import reactLogo from "./assets/react.svg";
 import viteLogo from "/vite.svg";
 import "./App.css";
 import "bootstrap/dist/css/bootstrap.min.css";
-import Services from "./pages/Services";
-// import Time from "./pages/Time";
-// import Professional from "./pages/Professionals";
+import Services from "./pages/Services"; // adjust imports to match your project
+import ProfessionalsUpdated from "./pages/ProfessionalsUpdated";
+import Time from "./pages/TimeWithAPI";
 import Payment from "./pages/Payment";
+import PaymentSuccess from "./pages/PaymentSuccess";
+
 // import Button from "./pages/Button";
 // import Layout from "./Layout";
 // import Appoint from "./Clientsidepage/Appoint"
 
-import Teammembers from "./Clientsidepage/Teammembers";
-import Giftcards from "./Clientsidepage/Giftcards";
-import Membership from "./Clientsidepage/Membership";
-import ClientsList from "./Clientsidepage/Clientlist";
-import Visit from "./pages/Visit";
-import Todayandbody from "./Clientsidepage/Todayandbody";
-import Memberss from "./Clientsidepage/Memberss";
-import Dailysalesss from "./Clientsidepage/Dailysalesss";
-import Paymentclient from "./Clientsidepage/Paymentclient";
-import SalesPage from "./Clientsidepage/Salespage";
-import TopService from "./Clientsidepage/Topservices";
-import Dashboard from "./Clientsidepage/Dashboard";
-import Sheduledshifts from "./Clientsidepage/Sheduledshifts";
-import Graphs from "./Clientsidepage/Graphs";
-import Selectcalander from "./Clientsidepage/Selectcalander";
+// import Teammembers from "./Clientsidepage/Teammembers";
+// import Giftcards from "./Clientsidepage/Giftcards";
+// import Membership from "./Clientsidepage/Membership";
+// import ClientsList from "./Clientsidepage/Clientlist";
+// import Visit from "./pages/Visit";
+// import Todayandbody from "./Clientsidepage/Todayandbody";
+// import Memberss from "./Clientsidepage/Memberss";
+// import Dailysalesss from "./Clientsidepage/Dailysalesss";
+// import Paymentclient from "./Clientsidepage/Paymentclient";
+// import SalesPage from "./Clientsidepage/Salespage";
+// import TopService from "./Clientsidepage/Topservices";
+// import Dashboard from "./Clientsidepage/Dashboard";
+// import Sheduledshifts from "./Clientsidepage/Sheduledshifts";
+// import Graphs from "./Clientsidepage/Graphs";
+// import Selectcalander from "./Clientsidepage/Selectcalander";
 import LoginPage from "./Clientsidepage/Loginpage";
 import Signuppage from "./Clientsidepage/Signuppage";
 import ForgotPassword from "./Clientsidepage/ForgotPassword";
@@ -60,38 +62,31 @@ function App() {
     <AuthProvider>
     <BrowserRouter>
         <Routes>
+          <Route path="/booking" element={<Navigate to="/" replace />} />
+          
+          {/* Booking flow wrapped by LayoutWithBooking (left = page, right = summary) */}
+          <Route path="/" element={<LayoutWithBooking />}>
+            <Route index element={<Services />} />
+            <Route path="professionals" element={<ProfessionalsUpdated />} />
+            <Route path="time" element={<Time />} />
+            <Route path="payment" element={<Payment />} />
+            <Route path="payment/confirm" element={<PaymentSuccess />} />
+          </Route>
+
+          {/* Non-booking routes */}
           {/* Authentication routes */}
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<Signuppage />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password/:token" element={<ResetPassword />} />
           
-          {/* Main booking flow with LayoutWithBooking */}
-          <Route path="/" element={
-            <LayoutWithBooking>
-              <Services />
-            </LayoutWithBooking>
-          } />
-          
-          <Route path="/professionals" element={
-            <LayoutWithBooking>
-              <SelectProfessional />
-            </LayoutWithBooking>
-          } />
-          
-          <Route path="/time" element={
-            <LayoutWithBooking>
-              <TimeWithAPI />
-            </LayoutWithBooking>
-          } />
-          
           {/* Protected payment route - requires authentication */}
           <Route path="/payment" element={
-            <ProtectedRoute>
+            <LayoutWithBooking>
               {/* <LayoutWithBooking> */}
                 <Payment />
               {/* </LayoutWithBooking> */}
-            </ProtectedRoute>
+            </LayoutWithBooking>
           } />
 
           {/* Test payment route without protection */}
@@ -99,40 +94,40 @@ function App() {
 
           {/* Stripe Payment Routes */}
           <Route path="/payment/network" element={
-            <ProtectedRoute>
+            <LayoutWithBooking>
               <StripePayment />
-            </ProtectedRoute>
+            </LayoutWithBooking>
           } />
           
           <Route path="/payment/stripe" element={
-            <ProtectedRoute>
+            <LayoutWithBooking>
               <StripePayment />
-            </ProtectedRoute>
+            </LayoutWithBooking>
           } />
           
           <Route path="/payment/process" element={
-            <ProtectedRoute>
+            <LayoutWithBooking>
               <PaymentProcess />
-            </ProtectedRoute>
+            </LayoutWithBooking>
           } />
           
           <Route path="/payment/success" element={
-            <ProtectedRoute>
+            <LayoutWithBooking>
               <PaymentSuccess />
-            </ProtectedRoute>
+            </LayoutWithBooking>
           } />
           
           <Route path="/payment/cancel" element={
-            <ProtectedRoute>
+            <LayoutWithBooking>
               <PaymentCancel />
-            </ProtectedRoute>
+            </LayoutWithBooking>
           } />
 
           {/* Dashboard route - requires authentication */}
           <Route path="/dashboard" element={
-            <ProtectedRoute>
+            <LayoutWithBooking>
               <ClientProfilePage />
-            </ProtectedRoute>
+            </LayoutWithBooking>
           } />
 
           {/* Alternative booking flow route */}

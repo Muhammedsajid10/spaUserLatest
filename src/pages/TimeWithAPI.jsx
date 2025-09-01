@@ -20,7 +20,7 @@ import Swal from 'sweetalert2';
 const FullPageLoader = () => (
   <div className="full-page-loading">
     <div className="loader-spinner"></div>
-    <p>Loading your booking options...</p>
+
   </div>
 );
 
