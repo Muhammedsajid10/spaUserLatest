@@ -104,7 +104,9 @@ body {
 }
 
 /* Right panel summary */
-.payment-right { }
+.payment-right {
+  position: relative;
+}
 .summary-card {
     background:#fff;
     border:1px solid rgba(0,0,0,0.06);
@@ -903,6 +905,121 @@ body {
   font-size: 14px;
 }
 
+/* Stripe Payment Form Styles */
+.card-payment-section {
+  margin-top: 20px;
+  padding: 24px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+}
+
+.card-payment-section h4 {
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+  margin: 0 0 20px 0;
+}
+
+.stripe-payment-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.card-element-container {
+  padding: 16px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  background: white;
+  transition: border-color 0.2s ease;
+}
+
+.card-element-container:focus-within {
+  border-color: #1976d2;
+  box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.1);
+}
+
+.payment-submit-btn {
+  width: 100%;
+  padding: 16px;
+  background: #1976d2;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.payment-submit-btn:hover:not(:disabled) {
+  background: #1565c0;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(25, 118, 210, 0.3);
+}
+
+.payment-submit-btn:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.card-error {
+  color: #d32f2f;
+  font-size: 14px;
+  margin-top: 8px;
+  padding: 8px 12px;
+  background: #ffeaea;
+  border-radius: 4px;
+  border-left: 4px solid #d32f2f;
+}
+
+/* Cash payment info */
+.cash-payment-info {
+  margin-top: 20px;
+  padding: 20px;
+  background: #e8f5e9;
+  border-radius: 8px;
+  border: 1px solid #c8e6c9;
+}
+
+.cash-payment-info p {
+  margin: 0;
+  color: #2e7d32;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+/* Payment confirmation button */
+.payment-confirm-btn {
+  width: 100%;
+  padding: 16px;
+  background: #1a1a1a;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-top: 24px;
+}
+
+.payment-confirm-btn:hover:not(:disabled) {
+  background: #333;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(26, 26, 26, 0.3);
+}
+
+.payment-confirm-btn:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .payment-methods-grid {
@@ -917,4 +1034,83 @@ body {
     padding: 20px;
     margin: 10px;
   }
+}
+
+/* Test mode styles */
+.test-mode-banner {
+  background: linear-gradient(135deg, #ff6b6b, #ffa726);
+  color: white;
+  padding: 12px 20px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  text-align: center;
+  font-weight: 600;
+  box-shadow: 0 2px 10px rgba(255, 107, 107, 0.3);
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% { box-shadow: 0 2px 10px rgba(255, 107, 107, 0.3); }
+  50% { box-shadow: 0 2px 20px rgba(255, 107, 107, 0.5); }
+  100% { box-shadow: 0 2px 10px rgba(255, 107, 107, 0.3); }
+}
+
+.test-mode-toggle {
+  margin: 15px 0;
+  padding: 10px;
+  background: #f8f9fa;
+  border-radius: 6px;
+  border: 1px solid #e0e0e0;
+}
+
+.test-mode-toggle label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.test-mode-toggle input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: #ff6b6b;
+}
+
+.test-card-info {
+  background: #e3f2fd;
+  border: 1px solid #2196f3;
+  border-radius: 6px;
+  padding: 15px;
+  margin: 15px 0;
+}
+
+.test-card-info h4 {
+  margin: 0 0 10px 0;
+  color: #1976d2;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.test-card-info ul {
+  margin: 0;
+  padding-left: 20px;
+  font-size: 13px;
+  color: #424242;
+}
+
+.test-card-info li {
+  margin: 5px 0;
+  font-family: 'Courier New', monospace;
+}
+
+.test-card-info li strong {
+  color: #1976d2;
+}
+
+.offline-notice {
+  font-size: 12px;
+  margin-top: 4px;
+  opacity: 0.9;
+  font-style: italic;
 }

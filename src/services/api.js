@@ -1,6 +1,6 @@
 // API service for spa backend
 // Always use deployed backend
-const API_BASE_URL = 'https://spabackend-0tko.onrender.com/api/v1';
+const API_BASE_URL = 'https://spabacklat.onrender.com/api/v1';
 // const API_BASE_URL = ' http://localhost:3000/api/v1';
 
 // Helper function to handle API responses
@@ -13,6 +13,15 @@ const handleResponse = async (response) => {
 };
 
 // Helper function to get auth headers
+// const getAuthHeaders = () => {
+//   const token = localStorage.getItem('token');
+//   return {
+//     'Content-Type': 'application/json',
+//     // ...(token && { Authorization: `Bearer ${token}` })
+//   };
+// };
+
+
 const getAuthHeaders = () => {
   return {
     'Content-Type': 'application/json',
@@ -444,6 +453,11 @@ export const bookingFlow = {
     
     console.log('BookingFlow: Reset completed - all data cleared');
   },
+
+  // Clear booking flow (alias for reset)
+  clear: () => {
+    bookingFlow.reset();
+  },
   
   // Add service to booking
   addService: (service) => {
@@ -586,31 +600,26 @@ export const paymentsAPI = {
 
   // Create payment
   createPayment: async (paymentData) => {
-    console.log('[BYPASS] Payment data that would be sent:', paymentData);
+    console.log('[PAYMENT] Creating payment with data:', paymentData);
     
-    // COMMENT OUT: Actual payment gateway call
-    // const response = await fetch(`${API_BASE_URL}/payments/create`, {
-    //   method: 'POST',
-    //   headers: getAuthHeaders(),
-    //   body: JSON.stringify(paymentData)
-    // });
-    // return handleResponse(response);
-
-    // BYPASS: Return mock success after delay (simulate processing)
-    await new Promise(resolve => setTimeout(resolve, 2000)); // 2s delay
-    
-    return Promise.resolve({
-      success: true,
-      data: {
-        paymentId: 'mock_' + Date.now(),
-        status: 'completed',
-        amount: paymentData.amount,
-        currency: paymentData.currency,
-        gateway: 'bypassed',
-        transactionId: 'TXN_' + Math.random().toString(36).substr(2, 9),
-        message: 'Payment bypassed - booking confirmed'
-      }
+    const response = await fetch(`${API_BASE_URL}/payments/create`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(paymentData)
     });
+    return handleResponse(response);
+  },
+
+  // Confirm Stripe payment
+  confirmStripePayment: async (confirmationData) => {
+    console.log('[PAYMENT] Confirming Stripe payment with data:', confirmationData);
+    
+    const response = await fetch(`${API_BASE_URL}/payments/confirm-stripe`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(confirmationData)
+    });
+    return handleResponse(response);
   }
 };
 
