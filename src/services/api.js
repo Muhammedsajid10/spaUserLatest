@@ -1,7 +1,7 @@
 // API service for spa backend
 // Always use deployed backend
-const API_BASE_URL = 'https://spabacklat.onrender.com/api/v1';
-// const API_BASE_URL = ' http://localhost:3000/api/v1';
+// const API_BASE_URL = 'https://spabacklat.onrender.com/api/v1';
+const API_BASE_URL = ' http://localhost:5000/api/v1';
 
 // Helper function to handle API responses
 const handleResponse = async (response) => {
@@ -221,14 +221,14 @@ export const bookingsAPI = {
   // Get available professionals for a service (public)
   getAvailableProfessionals: async (serviceId, date) => {
     const dateStr = formatLocalYYYYMMDD(date);
-    const url = `${API_BASE_URL}/employees?weekStartDate=${dateStr}`;
-    const response = await fetch(url,
-      {
-        method: 'GET',
-        headers: getAuthHeaders(),
+    const url = `${API_BASE_URL}/bookings/professionals?service=${serviceId}&date=${dateStr}`;
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json'
       }
-    );
-    console.log(response.data)
+    });
+    console.log('[API] getAvailableProfessionals response:', response.status);
     return handleResponse(response);
   },
 

@@ -16,6 +16,7 @@ const SelectProfessional = () => {
   const [selectedServices, setSelectedServices] = useState([]);
   const [currentStep] = useState(2);
   const previousServicesRef = useRef([]);
+  const backupPerServiceRef = useRef({});
   const [lastSelectedProfessional, setLastSelectedProfessional] = useState(null);
   // don't auto-select a mode; only set when user clicks a mode card
   const [selectionMode, setSelectionMode] = useState(bookingFlow.load().selectionMode || null);
@@ -175,18 +176,21 @@ const SelectProfessional = () => {
 
       try {
         const available = await bookingsAPI.getAvailableProfessionals(serviceId, targetDate);
-        console.log('[SelectProfessional] fetchAvailableProfessionalsForServiceByWeek result', available.data.employees);
+        console.log('[SelectProfessional] getAvailableProfessionals result:', available);
 
-        if ( available.data.employees.length > 0) {
+        // Backend returns: { success: true, data: { professionals: [...] } }
+        const professionals = available.data?.professionals || [];
+        
+        if (professionals.length > 0) {
           // two mode cards always shown first
           const modeCards = [
             { id: 'mode-any', name: 'Any professional', subtitle: 'for maximum availability', icon: '👥', _mode: 'anyAll' },
             // { id: 'mode-per-service', name: 'Select professional per service', subtitle: 'assign each separately', icon: '👥+', _mode: 'perService' }
           ];
 
-          const transformed = available.data.employees.map(item => {
+          const transformed = professionals.map(item => {
             const emp = item || {};
-            console.log(emp)
+            console.log('Processing professional:', emp);
             const name = emp.user ? `${emp.user.firstName || ''} ${emp.user.lastName || ''}`.trim() : (emp.name || '');
             return {
               id: emp._id || emp.id || `emp-${Math.random().toString(36).slice(2,7)}`,
@@ -194,11 +198,11 @@ const SelectProfessional = () => {
               subtitle: emp.position || '',
               letter: (emp.user?.firstName || emp.name || ' ')[0] || '',
               employee: emp,
-              availableSlots: item.slots || []
+              availableSlots: [] // Will be populated when needed
             };
           });
           setProfessionals([...modeCards, ...transformed]);
-          console.log("transformed",transformed)
+          console.log("Transformed professionals:", transformed);
         } else {
           // still show the two mode cards even if no professionals available
           setProfessionals([
