@@ -23,9 +23,10 @@ const handleResponse = async (response) => {
 
 
 const getAuthHeaders = () => {
+  const token = localStorage.getItem('token');
   return {
     'Content-Type': 'application/json',
-    Authorization: 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4NjhiODQ0ZTE5MDc2MmNhNjkzZDk0MiIsImlhdCI6MTc1NjY0OTM5NCwiZXhwIjoxNzY0NDI1Mzk0fQ.-aMkdC55lk2JfYSK-qwO3Wi2YQwcyBtUeQwP0_kHaM0'
+    ...(token && { Authorization: `Bearer ${token}` })
   };
 };
 
@@ -179,7 +180,10 @@ export const bookingsAPI = {
 
   // Get user bookings
   getUserBookings: async (formattedDate) => {
-    const response = await fetch(`${API_BASE_URL}/bookings/admin/all?start=${formattedDate}&end=${formattedDate}`, {
+    const url = formattedDate 
+      ? `${API_BASE_URL}/bookings/my-bookings?date=${formattedDate}`
+      : `${API_BASE_URL}/bookings/my-bookings`;
+    const response = await fetch(url, {
       headers: getAuthHeaders()
     });
     return handleResponse(response);
@@ -232,11 +236,11 @@ export const bookingsAPI = {
     return handleResponse(response);
   },
 
-  // Fetch bookings in an admin range (used to compute occupied slots)
+  // Fetch bookings in a date range for the current user
   getBookingsForRange: async (startDate, endDate) => {
     const s = formatLocalYYYYMMDD(startDate);
     const e = formatLocalYYYYMMDD(endDate);
-    const url = `${API_BASE_URL}/bookings?start=${encodeURIComponent(s)}&end=${encodeURIComponent(e)}`;
+    const url = `${API_BASE_URL}/bookings/my-bookings?start=${encodeURIComponent(s)}&end=${encodeURIComponent(e)}`;
     const response = await fetch(url, {
       method: 'GET',
       headers: getAuthHeaders()

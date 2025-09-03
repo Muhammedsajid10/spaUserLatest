@@ -290,7 +290,7 @@ const Payment = () => {
         professionalAssignments,
         uniqueProfessionalNames,
         date: new Date(bookingFlow.selectedTimeSlot.date).toLocaleDateString(),
-        time: bookingFlow.selectedTimeSlot.time?.time || '10:00 AM',
+        time: bookingFlow.selectedTimeSlot.time || '10:00 AM',
         duration: totalDuration,
         servicePrice: totalPrice,
         totalAmount: Math.round(totalPrice * 1.05) // Including 5% tax
