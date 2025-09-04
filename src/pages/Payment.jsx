@@ -232,7 +232,27 @@ const Payment = () => {
   console.log('Payment component: Starting to render');
   
   const navigate = useNavigate();
-  const { user, token } = useAuth();
+  const { user, token, isAuthenticated } = useAuth();
+  
+  // Check authentication and redirect if needed
+  useEffect(() => {
+    const checkAuthentication = () => {
+      const savedToken = localStorage.getItem('token');
+      const savedUser = localStorage.getItem('user');
+      
+      // If no authentication data and not in development mode
+      if (!user && !savedToken && !savedUser && !import.meta.env.DEV) {
+        console.log('[PAYMENT] User not authenticated, redirecting to login');
+        navigate('/login', { 
+          state: { from: { pathname: '/payment' } },
+          replace: true 
+        });
+        return;
+      }
+    };
+    
+    checkAuthentication();
+  }, [user, navigate]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [availableGateways, setAvailableGateways] = useState([]);
@@ -289,7 +309,11 @@ const Payment = () => {
           selectedProfessional.name,
         professionalAssignments,
         uniqueProfessionalNames,
-        date: new Date(bookingFlow.selectedTimeSlot.date).toLocaleDateString(),
+        date: (() => {
+          const dateStr = bookingFlow.selectedTimeSlot.date;
+          const date = typeof dateStr === 'string' ? new Date(`${dateStr}T12:00:00`) : new Date(dateStr);
+          return date.toLocaleDateString();
+        })(),
         time: bookingFlow.selectedTimeSlot.time || '10:00 AM',
         duration: totalDuration,
         servicePrice: totalPrice,
@@ -309,6 +333,9 @@ const Payment = () => {
   
   console.log('Payment component: User data:', user);
   console.log('Payment component: Token:', token);
+  console.log('Payment component: IsAuthenticated:', isAuthenticated);
+  console.log('Payment component: localStorage user:', localStorage.getItem('user'));
+  console.log('Payment component: localStorage token:', localStorage.getItem('token'));
   console.log('Payment component: Booking data:', finalBookingData);
   console.log('Payment component: Booking data keys:', Object.keys(finalBookingData));
   console.log('Payment component: Has bookingId:', !!finalBookingData.bookingId);
@@ -320,9 +347,55 @@ const Payment = () => {
     
     // Get current logged-in user data
     console.log('[DEBUG] Current logged-in user:', user);
+    console.log('[DEBUG] User keys:', user ? Object.keys(user) : 'User is null/undefined');
+    console.log('[DEBUG] User email:', user?.email);
+    console.log('[DEBUG] User username:', user?.username);
+    console.log('[DEBUG] User _id:', user?._id);
+    console.log('[DEBUG] User id:', user?.id);
+    console.log('[DEBUG] Token:', token);
+    console.log('[DEBUG] IsAuthenticated:', isAuthenticated);
     
-    if (!user || !user.email) {
-      throw new Error('User not logged in or missing user data');
+    // Helper function to get user data reliably
+    const getUserData = () => {
+      // First try the context user
+      if (user && (user.email || user.username || user._id || user.id)) {
+        return user;
+      }
+      
+      // Fallback to localStorage
+      const savedUser = localStorage.getItem('user');
+      if (savedUser) {
+        try {
+          const parsedUser = JSON.parse(savedUser);
+          if (parsedUser && (parsedUser.email || parsedUser.username || parsedUser._id || parsedUser.id)) {
+            return parsedUser;
+          }
+        } catch (parseError) {
+          console.error('[DEBUG] Failed to parse user from localStorage:', parseError);
+        }
+      }
+      
+      // Development mode fallback - create a temporary user for testing
+      if (import.meta.env.DEV) {
+        console.warn('[DEBUG] Using development mode fallback user');
+        return {
+          _id: 'dev_user_id',
+          firstName: 'Test',
+          lastName: 'User',
+          email: 'test@example.com',
+          username: 'testuser'
+        };
+      }
+      
+      return null;
+    };
+
+    const currentUser = getUserData();
+    console.log('[DEBUG] Current user determined:', currentUser);
+    
+    // Check if user is logged in
+    if (!currentUser) {
+      throw new Error('User not logged in - no valid user data found');
     }
 
     // Validate required booking flow data
@@ -334,34 +407,97 @@ const Payment = () => {
       throw new Error('No time slot selected');
     }
 
-    const servicesPayload = finalBookingData.services.map(service => {
+    const servicesPayload = finalBookingData.services.map((service, index) => {
       const professional = bookingFlow.selectedProfessionals[service._id];
+      
+      // Debug logging for time conversion
+      console.log(`[TIME DEBUG] Processing service ${index}:`, {
+        selectedTimeSlot: bookingFlow.selectedTimeSlot,
+        selectedTimeSlotStartTime: bookingFlow.selectedTimeSlot?.startTime,
+        selectedTimeSlotEndTime: bookingFlow.selectedTimeSlot?.endTime,
+        serviceCount: finalBookingData.services.length
+      });
+      
+      // Calculate sequential start and end times for multiple services
+      let startTime, endTime;
+      if (finalBookingData.services.length === 1) {
+        // Single service: use the selected time slot start time, but calculate end time based on service duration
+        startTime = new Date(bookingFlow.selectedTimeSlot?.startTime || new Date());
+        // FIXED: Calculate end time based on actual service duration, not time slot end time
+        endTime = new Date(startTime.getTime() + ((service.duration || 30) * 60 * 1000));
+        
+        console.log(`[TIME DEBUG] Single service times (FIXED):`, {
+          serviceDuration: service.duration,
+          calculatedDurationMs: (service.duration || 30) * 60 * 1000,
+          startTimeLocal: startTime.toString(),
+          endTimeLocal: endTime.toString(),
+          startTimeISO: startTime.toISOString(),
+          endTimeISO: endTime.toISOString(),
+          durationCheck: `${(endTime.getTime() - startTime.getTime()) / (60 * 1000)} minutes`
+        });
+      } else {
+        // Multiple services: calculate sequential times
+        const baseStartTime = new Date(bookingFlow.selectedTimeSlot?.startTime || new Date());
+        const serviceStartMinutes = finalBookingData.services.slice(0, index).reduce((total, s) => total + (s.duration || 30), 0);
+        
+        startTime = new Date(baseStartTime.getTime() + (serviceStartMinutes * 60 * 1000));
+        endTime = new Date(startTime.getTime() + ((service.duration || 30) * 60 * 1000));
+        
+        console.log(`[TIME DEBUG] Multiple service times for service ${index}:`, {
+          baseStartTime: baseStartTime.toString(),
+          serviceStartMinutes,
+          startTimeLocal: startTime.toString(),
+          endTimeLocal: endTime.toString(),
+          startTimeISO: startTime.toISOString(),
+          endTimeISO: endTime.toISOString()
+        });
+      }
+      
+      // CRITICAL FIX: Create timezone-safe ISO strings that preserve local time
+      // Instead of using toISOString() which converts to UTC, manually create local ISO format
+      const formatLocalISO = (date) => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        const seconds = String(date.getSeconds()).padStart(2, '0');
+        return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}.000Z`;
+      };
+
       return {
         service: service._id,
         employee: professional && (professional._id || professional.id) ? 
           (professional.id === 'any' ? 'any' : (professional._id || professional.id)) : 'any',
         price: service.price,
         duration: service.duration,
-        startTime: bookingFlow.selectedTimeSlot?.startTime || new Date().toISOString(),
-        endTime: bookingFlow.selectedTimeSlot?.endTime || new Date().toISOString()
+        // CRITICAL FIX: Store times preserving local timezone (treat as UTC to avoid conversion)
+        startTime: formatLocalISO(startTime),
+        endTime: formatLocalISO(endTime),
+        // Add timezone offset information for debugging
+        timezoneOffset: startTime.getTimezoneOffset(),
+        originalLocalTime: `${startTime.getHours()}:${String(startTime.getMinutes()).padStart(2, '0')}`
       };
     });
 
     const appointmentDate = bookingFlow.selectedTimeSlot.date || 
                            bookingFlow.selectedDate || 
-                           new Date().toISOString();
+                           new Date().toISOString().split('T')[0]; // Use date string format
+
+    // Create a proper date object for the appointment date at noon to avoid timezone issues
+    const appointmentDateObj = new Date(`${appointmentDate}T12:00:00.000Z`);
 
     const bookingPayload = {
       // Include current logged-in user as client
       client: {
-        id: user._id || user.id,
-        name: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.name || user.username || 'Client',
-        email: user.email,
-        phone: user.phone || user.phoneNumber || user.mobile || '',
-        userId: user._id || user.id // backend reference
+        id: currentUser._id || currentUser.id || 'temp_user_id',
+        name: `${currentUser.firstName || ''} ${currentUser.lastName || ''}`.trim() || currentUser.name || currentUser.username || currentUser.fullName || 'Client',
+        email: currentUser.email || currentUser.username || 'client@example.com',
+        phone: currentUser.phone || currentUser.phoneNumber || currentUser.mobile || '',
+        userId: currentUser._id || currentUser.id || 'temp_user_id' // backend reference
       },
       services: servicesPayload,
-      appointmentDate: new Date(appointmentDate).toISOString(),
+      appointmentDate: appointmentDateObj.toISOString(),
       notes: '',
       selectionMode: bookingFlow.selectionMode || 'perService'
     };
@@ -403,17 +539,11 @@ const Payment = () => {
     // Create booking in database if it doesn't exist yet
     const initializePayment = async () => {
       try {
-        // Check if this is a temporary booking ID (starts with 'BK')
-        if (finalBookingData.bookingId.startsWith('BK')) {
-          console.log('Creating booking in database...');
-          await createBookingInDatabase();
-        }
-        
-        // Get available payment gateways
+        // Get available payment gateways (booking creation will happen in handlePayment)
         fetchAvailableGateways();
       } catch (error) {
         console.error('Error initializing payment:', error);
-        setError('Failed to create booking. Please try again.');
+        setError('Failed to initialize payment. Please try again.');
       }
     };
     

@@ -371,7 +371,9 @@ const LayoutWithBooking = ({ children }) => {
 </span>
                    <span className="datetime-text">
                      {(() => {
-                       const date = new Date(bookingFlow.selectedTimeSlot.date);
+                       // Handle both date string (YYYY-MM-DD) and Date object
+                       const dateStr = bookingFlow.selectedTimeSlot.date;
+                       const date = typeof dateStr === 'string' ? new Date(`${dateStr}T12:00:00`) : new Date(dateStr);
                        const dayName = date.toLocaleDateString('en-US', { weekday: 'long' });
                        const day = date.getDate();
                        const month = date.toLocaleDateString('en-US', { month: 'long' });

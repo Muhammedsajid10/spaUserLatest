@@ -1,7 +1,7 @@
 // API service for spa backend
 // Always use deployed backend
 // const API_BASE_URL = 'https://spabacklat.onrender.com/api/v1';
-const API_BASE_URL = ' http://localhost:5000/api/v1';
+const API_BASE_URL = 'http://localhost:5000/api/v1';
 
 // Helper function to handle API responses
 const handleResponse = async (response) => {
@@ -275,6 +275,32 @@ export const bookingsAPI = {
     }
   },
 
+  // Get employee schedule and available time slots (public)
+  getEmployeeSchedule: async (employeeId, date) => {
+    const params = new URLSearchParams({ employeeId, date });
+    const url = `${API_BASE_URL}/bookings/schedule/employee-schedule?${params}`;
+    console.log('Calling employee schedule API with URL:', url);
+    console.log('Parameters:', { employeeId, date });
+    
+    try {
+      const response = await fetch(url);
+      console.log('Employee schedule API response status:', response.status);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Employee schedule API error response:', errorText);
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
+      
+      const result = await handleResponse(response);
+      console.log('Employee schedule API result:', result);
+      return result;
+    } catch (error) {
+      console.error('Employee schedule API fetch error:', error);
+      throw error;
+    }
+  },
+
   // Create booking confirmation (public)
   createBookingConfirmation: async (confirmationData) => {
     const response = await fetch(`${API_BASE_URL}/bookings/confirmation`, {
@@ -289,14 +315,34 @@ export const bookingsAPI = {
 
   // Complete booking after authentication
   completeBooking: async (bookingData) => {
-    // Prepare services data for the backend
-    const services = bookingData.selectedServices.map(service => ({
-      serviceId: service._id,
-      employeeId: bookingData.selectedProfessional._id,
-      startTime: bookingData.selectedTimeSlot.startTime,
-      endTime: bookingData.selectedTimeSlot.endTime,
-      notes: ''
-    }));
+    // Prepare services data for the backend with sequential timing
+    const services = bookingData.selectedServices.map((service, index) => {
+      // Calculate sequential start and end times for multiple services
+      let startTime, endTime;
+      if (bookingData.selectedServices.length === 1) {
+        // Single service: use the selected time slot directly
+        startTime = bookingData.selectedTimeSlot.startTime;
+        endTime = bookingData.selectedTimeSlot.endTime;
+      } else {
+        // Multiple services: calculate sequential times
+        const baseStartTime = new Date(bookingData.selectedTimeSlot.startTime);
+        const serviceStartMinutes = bookingData.selectedServices.slice(0, index).reduce((total, s) => total + (s.duration || 30), 0);
+        
+        const serviceStart = new Date(baseStartTime.getTime() + (serviceStartMinutes * 60 * 1000));
+        const serviceEnd = new Date(serviceStart.getTime() + ((service.duration || 30) * 60 * 1000));
+        
+        startTime = serviceStart.toISOString();
+        endTime = serviceEnd.toISOString();
+      }
+      
+      return {
+        serviceId: service._id,
+        employeeId: bookingData.selectedProfessional._id,
+        startTime,
+        endTime,
+        notes: ''
+      };
+    });
 
     const bookingPayload = {
       services,

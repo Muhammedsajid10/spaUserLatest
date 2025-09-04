@@ -172,9 +172,10 @@ const SelectProfessional = () => {
       const saved = bookingFlow.load();
       const targetDate = saved?.selectedDate ? new Date(saved.selectedDate) : new Date();
 
-      console.log('[SelectProfessional] calling fetchAvailableProfessionalsForServiceByWeek', { serviceId, targetDateIso: targetDate.toISOString().split('T')[0], selectedServicesCount: selectedServices.length });
+      console.log('[SelectProfessional] fetching available professionals for service', { serviceId, targetDateIso: targetDate.toISOString().split('T')[0], selectedServicesCount: selectedServices.length });
 
       try {
+        // Use the appropriate PUBLIC booking API for user-side application
         const available = await bookingsAPI.getAvailableProfessionals(serviceId, targetDate);
         console.log('[SelectProfessional] getAvailableProfessionals result:', available);
 
@@ -182,10 +183,9 @@ const SelectProfessional = () => {
         const professionals = available.data?.professionals || [];
         
         if (professionals.length > 0) {
-          // two mode cards always shown first
+          // Mode cards shown first
           const modeCards = [
             { id: 'mode-any', name: 'Any professional', subtitle: 'for maximum availability', icon: '👥', _mode: 'anyAll' },
-            // { id: 'mode-per-service', name: 'Select professional per service', subtitle: 'assign each separately', icon: '👥+', _mode: 'perService' }
           ];
 
           const transformed = professionals.map(item => {
@@ -204,14 +204,13 @@ const SelectProfessional = () => {
           setProfessionals([...modeCards, ...transformed]);
           console.log("Transformed professionals:", transformed);
         } else {
-          // still show the two mode cards even if no professionals available
+          // Show mode cards even if no professionals available
           setProfessionals([
             { id: 'mode-any', name: 'Any professional', subtitle: 'for maximum availability', icon: '👥', _mode: 'anyAll' },
-            // { id: 'mode-per-service', name: 'Select professional per service', subtitle: 'assign each separately', icon: '👥+', _mode: 'perService' }
           ]);
         }
       } catch (err) {
-        console.error('[SelectProfessional] error calling bookingUtils', err);
+        console.error('[SelectProfessional] error fetching professionals', err);
         setError('Failed to load professionals');
         setProfessionals([]);
       } finally {
