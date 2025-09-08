@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useRef } from "react";
 import "./ProfessionalsUpdated.css"; // This CSS file for SelectProfessional
 import { FaStar } from "react-icons/fa";
+import { FaArrowLeft } from 'react-icons/fa';
 import { bookingsAPI, bookingFlow } from "../services/api";
 import { useNavigate, useLocation } from "react-router-dom";
 import Skeleton from 'react-loading-skeleton';
 import 'react-loading-skeleton/dist/skeleton.css';
 // import { fetchAvailableProfessionalsForServiceByWeek } from '../bookingUtils';
 
-const SelectProfessional = () => {
+const SelectProfessional = ({ onProfessionalSelected }) => {
   const [professionals, setProfessionals] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
   const [activeServiceId, setActiveServiceId] = useState(null);
@@ -247,8 +248,51 @@ const SelectProfessional = () => {
 
       if (newMode === 'anyAll') {
         backupPerServiceRef.current = { ...bookingFlow.selectedProfessionals };
-        applyAnyAll();
-        setLastSelectedProfessional(null);
+        
+        // Instead of just setting "any", immediately assign random professionals to all services
+        console.log('[SelectProfessional] "Any professional" selected - assigning random professionals to all services');
+        const employeesOnly = professionals.filter(p => !p._mode);
+        
+        if (employeesOnly.length > 0) {
+          selectedServices.forEach(service => {
+            // Pick a random professional for each service
+            const randomEmployee = employeesOnly[Math.floor(Math.random() * employeesOnly.length)];
+            const profPayload = randomEmployee.employee;
+            
+            console.log('[SelectProfessional] Randomly assigned to service', {
+              serviceId: service._id,
+              serviceName: service.name,
+              professionalId: profPayload._id,
+              professionalName: profPayload.user ? 
+                `${profPayload.user.firstName} ${profPayload.user.lastName}` : 
+                profPayload.name
+            });
+            
+            bookingFlow.addProfessional(service._id, profPayload);
+          });
+          
+          bookingFlow.save();
+          window.dispatchEvent(new CustomEvent('bookingFlowChange'));
+          
+          // Set the last selected professional to one of the randomly assigned ones
+          const firstAssignment = Object.values(bookingFlow.selectedProfessionals)[0];
+          setLastSelectedProfessional(firstAssignment);
+          setSelectedId(firstAssignment?._id || firstAssignment?.id);
+          
+          // Call the callback to trigger popup auto-close
+          if (onProfessionalSelected) {
+            onProfessionalSelected();
+          }
+        } else {
+          // Fallback to the original behavior if no employees available
+          applyAnyAll();
+          setLastSelectedProfessional(null);
+          
+          // Call the callback to trigger popup auto-close
+          if (onProfessionalSelected) {
+            onProfessionalSelected();
+          }
+        }
       } else if (newMode === 'perService') {
         // Immediately switch UI to per-service-assignment (hide professional grid)
         localStorage.setItem('showPerServiceAssignment', 'true');
@@ -298,40 +342,57 @@ const SelectProfessional = () => {
 
     console.log('[SelectProfessional] profPayload prepared', profPayload);
 
-    // If we are in 'anyAll' mode and a specific professional is chosen, apply that professional to ALL services
-    if (selectionMode === 'anyAll') {
-      console.log('[SelectProfessional] applying selected professional to ALL services', profPayload);
-      selectedServices.forEach(s => {
-        console.log('[SelectProfessional] assigning to service', s._id);
-        bookingFlow.addProfessional(s._id, profPayload);
-      });
-      bookingFlow.save();
-      window.dispatchEvent(new CustomEvent('bookingFlowChange'));
-      setLastSelectedProfessional(profPayload);
-      setSelectedId(profPayload._id || profPayload.id);
-      return;
-    }
+    // DEFAULT BEHAVIOR: ALWAYS assign the professional to ALL services with one click
+    // This implements the "one professional for all services" feature
+    console.log('[SelectProfessional] DEFAULT: One professional for ALL services - applying to all', {
+      professionalId: profPayload._id || profPayload.id,
+      professionalName: profPayload.user ? 
+        `${profPayload.user.firstName} ${profPayload.user.lastName}` : 
+        profPayload.name,
+      servicesToAssign: selectedServices.map(s => ({ id: s._id, name: s.name })),
+      totalServices: selectedServices.length,
+      currentSelectionMode: selectionMode
+    });
     
-    // perService mode logic
-    if (selectionMode === 'perService') {
-      if (!activeServiceId) {
-        console.warn('[SelectProfessional] perService mode but no activeServiceId set');
-        return;
-      }
-      console.log('[SelectProfessional] assigning professional to activeServiceId', activeServiceId, profPayload);
-      bookingFlow.addProfessional(activeServiceId, profPayload);
-      bookingFlow.save();
-      window.dispatchEvent(new CustomEvent('bookingFlowChange'));
-      
-      const unassigned = (bookingFlow.selectedServices || []).find(s => !bookingFlow.selectedProfessionals[s._id]);
-      if (unassigned) {
-        console.log('[SelectProfessional] some services remain unassigned, switching active tab to', unassigned._id);
-        setActiveServiceId(unassigned._id);
-        setSelectedId(null); // Clear selected state for the new active tab
-      } else {
-        setSelectedId(profPayload._id || profPayload.id);
-      }
+    selectedServices.forEach(service => {
+      console.log('[SelectProfessional] Assigning professional to service:', {
+        serviceId: service._id,
+        serviceName: service.name,
+        professionalId: profPayload._id || profPayload.id,
+        professionalName: profPayload.user ? 
+          `${profPayload.user.firstName} ${profPayload.user.lastName}` : 
+          profPayload.name
+      });
+      bookingFlow.addProfessional(service._id, profPayload);
+    });
+    
+    bookingFlow.selectionMode = 'anyAll'; // Set mode to reflect the behavior
+    bookingFlow.save();
+    window.dispatchEvent(new CustomEvent('bookingFlowChange'));
+    setLastSelectedProfessional(profPayload);
+    setSelectedId(profPayload._id || profPayload.id);
+    setSelectionMode('anyAll'); // Update local state
+    
+    console.log('[SelectProfessional] SUCCESS: Professional assigned to all services', {
+      professionalName: profPayload.user ? 
+        `${profPayload.user.firstName} ${profPayload.user.lastName}` : 
+        profPayload.name,
+      assignedToServices: selectedServices.length,
+      assignments: selectedServices.map(s => ({
+        service: s.name,
+        professional: profPayload.user ? 
+          `${profPayload.user.firstName} ${profPayload.user.lastName}` : 
+          profPayload.name
+      }))
+    });
+    
+    // Call the callback to trigger popup auto-close
+    if (onProfessionalSelected) {
+      onProfessionalSelected();
     }
+    return;
+    
+    // Note: Removed perService mode logic - all professionals are now assigned to ALL services with one click
   };
 
   // restore whether user previously clicked Continue (show per-service assignment only)
@@ -393,7 +454,12 @@ const SelectProfessional = () => {
 
   return (
     <div className="select-professional-container">
-      <h2>Select professional</h2>
+      <div className="svc-header" role="banner">
+        <button className="svc-exit-btn" aria-label="Back to services" onClick={() => { if (window.history && window.history.length > 1) navigate(-1); else navigate('/'); }}>
+          <FaArrowLeft />
+        </button>
+        <h2 className="header-title">Select professional</h2>
+      </div>
 
       {/* show either the professional grid OR the per-service summary panels (never both) */}
       {showPerServiceAssignmentOnly ? (

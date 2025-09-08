@@ -70,7 +70,7 @@ function App() {
             <Route path="professionals" element={<ProfessionalsUpdated />} />
             <Route path="time" element={<Time />} />
             <Route path="payment" element={<Payment />} />
-            <Route path="payment/confirm" element={<PaymentSuccess />} />
+            <Route path="payment/success" element={<PaymentSuccess />} />
           </Route>
 
           {/* Non-booking routes */}
@@ -93,42 +93,49 @@ function App() {
           <Route path="/payment-test" element={<Payment />} />
 
           {/* Stripe Payment Routes */}
-          <Route path="/payment/network" element={
+          {/* <Route path="/payment/network" element={
             <LayoutWithBooking>
               <StripePayment />
             </LayoutWithBooking>
           } />
-          
+           */}
           <Route path="/payment/stripe" element={
             <LayoutWithBooking>
               <StripePayment />
             </LayoutWithBooking>
           } />
           
-          <Route path="/payment/process" element={
+          {/* <Route path="/payment/process" element={
             <LayoutWithBooking>
               <PaymentProcess />
             </LayoutWithBooking>
-          } />
+          } /> */}
           
-          <Route path="/payment/success" element={
+          {/* <Route path="/payment/success" element={
             <LayoutWithBooking>
               <PaymentSuccess />
             </LayoutWithBooking>
           } />
-          
+           */}
           <Route path="/payment/cancel" element={
             <LayoutWithBooking>
               <PaymentCancel />
             </LayoutWithBooking>
           } />
 
+          {/* Ensure confirm root is resolvable at top-level as well */}
+          <Route path="/payment/success" element={
+            <LayoutWithBooking>
+              <PaymentSuccess />
+            </LayoutWithBooking>
+          } />
+
           {/* Dashboard route - requires authentication */}
-          <Route path="/dashboard" element={
+          {/* <Route path="/dashboard" element={
             <LayoutWithBooking>
               <ClientProfilePage />
             </LayoutWithBooking>
-          } />
+          } /> */}
 
           {/* Alternative booking flow route */}
           {/* <Route path="/booking" element={<BookingFlow />} /> */}
@@ -160,7 +167,7 @@ function App() {
           <Route path="/verify-email/:token" element={<VerifyEmailPage />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/orders" element={<OrdersPage />} />
-          <Route path="/client-profile" element={<ClientProfilePage />} />
+          <Route path="/dashboard" element={<ClientProfilePage />} />
         </Routes>
 
     </BrowserRouter>

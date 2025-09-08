@@ -650,6 +650,72 @@
   height: 100%;
 }
 
+/* ------------------------------------------------------------------
+   Ensure service header is fixed on the Services page across all
+   screen sizes, and make the exit/back button + bottom bars visible on
+   phone/tablet breakpoints. Reserve content space so the fixed header
+   and bottom bars do not overlap page content.
+   ------------------------------------------------------------------ */
+
+/* Make the service header wrapper fixed globally so it stays on top */
+.svc-header-wrapper {
+  position: fixed !important;
+  top: 72px; /* sits below global header */
+  left: 0;
+  right: 0;
+  z-index: 5000;
+  background: #fff;
+  padding: 0 20px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+  max-width: none;
+}
+
+/* Tweak top offset for slightly smaller screens where the global header
+   reduces height */
+@media (max-width: 1280px) {
+  .svc-header-wrapper { top: 67px; }
+}
+@media (max-width: 600px) {
+  .svc-header-wrapper { top: 42px; }
+}
+
+/* Show the exit/back icon on tablet and phone sizes (hidden on large desktop)
+   and make sure it participates in header flex layout */
+@media (max-width: 1024px) {
+  .svc-exit-btn {
+    display: inline-flex !important;
+    position: static !important;
+    margin-right: 8px !important;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Ensure bottom bars are visible and fixed on tablet/phone so the
+     compact booking summary always appears when appropriate */
+  .service-bottom-bar,
+  .time-bottom-bar,
+  .bottom-bar {
+    display: flex !important;
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    z-index: 6000 !important;
+  }
+
+  /* Reserve space so content isn't hidden under the fixed header or the bottom bar */
+  .svc-container,
+  .time-selector,
+  .layout-with-booking .main-content,
+  .professionals-container,
+  .payment-container {
+    padding-top: 120px; /* safe space for fixed header */
+    padding-bottom: 120px; /* safe space for bottom bars */
+    box-sizing: border-box;
+  }
+}
+
+
 .selected-services-scroll {
   flex: 1 1 auto;
   min-height: 200px; /* Ensure minimum height to always show scrollbar */
@@ -697,8 +763,10 @@
   left: 0;
   background: white;
   z-index: 2;
-  padding-top: 1rem;
+  padding-top: 0.5rem;
+  padding-bottom: 1rem;
   box-shadow: 0 -2px 8px rgba(0,0,0,0.08);
+  margin-top: auto;
 }
 
 .svc-cart-indicator {

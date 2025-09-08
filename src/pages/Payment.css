@@ -26,11 +26,88 @@ body {
 }
 
 /* === Layout === */
+/* --- Global Styles & Variables --- */
+:root {
+    --primary-color: #6a1b9a;
+    --primary-color-dark: #4a148c;
+    --background-color: #f0f2f5;
+    --card-bg: #ffffff;
+    --text-color-primary: #1a237e;
+    --text-color-secondary: #757575;
+    --border-color: #e0e0e0;
+    --error-color: #c62828;
+    --shadow-card: 0 10px 40px rgba(0, 0, 0, 0.1);
+    --transition-speed: 0.3s;
+    --glow-color: rgba(106, 27, 154, 0.5);
+}
+
 .payment-container {
     padding: 12px;
     max-width: 1100px;
     margin: 0 auto;
     box-sizing: border-box;
+}
+
+/* Success panel styles */
+.payment-success-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+}
+.payment-success-card {
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 6px 24px rgba(0,0,0,0.08);
+  padding: 40px 32px;
+  text-align: center;
+  max-width: 520px;
+  width: 100%;
+}
+.payment-success-tick {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  background: #eafaf1;
+  border: 4px solid #b7f0c9;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 20px auto;
+}
+.payment-success-tick svg {
+  width: 56px;
+  height: 56px;
+  color: #1e8e3e;
+}
+.payment-success-title {
+  font-size: 22px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+.payment-success-sub {
+  color: #555;
+  margin-bottom: 20px;
+}
+.payment-success-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  margin-top: 16px;
+}
+.btn-success-primary {
+  background: #1976d2;
+  color: white;
+  padding: 10px 18px;
+  border-radius: 8px;
+  border: none;
+}
+.btn-success-secondary {
+  background: transparent;
+  border: 1px solid #ccc;
+  color: #333;
+  padding: 10px 18px;
+  border-radius: 8px;
 }
 .payment-grid {
     display: grid;
@@ -265,7 +342,7 @@ body {
     height: 6px;
     border-top-left-radius: 16px;
     border-top-right-radius: 16px;
-    background: linear-gradient(90deg, var(--primary-color), #8e24aa, #3949ab);
+    /* background: linear-gradient(90deg, var(--primary-color), #8e24aa, #3949ab); */
 }
 
 .payment-header {
@@ -628,6 +705,26 @@ body {
 .status-text { font-size:.65rem; color:#2e7d32; margin-left:10px; font-weight:600; }
 .action-buttons { display:flex; gap:14px; flex-wrap:wrap; margin-top:10px; }
 .action-buttons .btn-primary, .action-buttons .btn-secondary { flex:1; min-width:180px; }
+
+/* Make the 'View My Bookings' button in the success card plain white with black border/text
+   and remove green/animated effects. Scoped to success card to avoid global changes. */
+.payment-card.success-card .action-buttons .btn-primary {
+  background: #ffffff !important;
+  color: #000000 !important;
+  border: 1px solid #000000 !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+.payment-card.success-card .action-buttons .btn-primary:hover,
+.payment-card.success-card .action-buttons .btn-primary:focus {
+  background: #ffffff !important;
+  color: #000000 !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+/* Ensure the small green status text or icon doesn't color the button text */
+.payment-card.success-card .status-text { color: #000 !important; }
 
 /* === Button System === */
 .btn-primary, .btn-secondary, .btn-outline {
@@ -1114,3 +1211,41 @@ body {
   opacity: 0.9;
   font-style: italic;
 }
+
+/* === Black & White Light Theme Overrides for Payment Success === */
+.bw-theme .payment-card, .bw-theme .payment-card-main, .bw-theme .success-card {
+  background: #ffffff !important;
+  color: #000000 !important;
+  border-color: #00000010 !important;
+}
+
+.bw-theme .success-icon {
+  background: #ffffff !important;
+  border: 2px solid #000000 !important;
+  box-shadow: none !important;
+}
+
+.bw-theme .success-icon svg { stroke: #000 !important; fill: none !important; }
+
+.bw-theme .success-content h1,
+.bw-theme .success-content p,
+.bw-theme .payment-summary,
+.bw-theme .summary-details,
+.bw-theme .step-content,
+.bw-theme .detail-row span { color: #000 !important; }
+
+.bw-theme .btn-primary, .bw-theme .payment-confirm-btn, .bw-theme .pay-button, .bw-theme .resend-btn {
+  background: #000 !important;
+  color: #fff !important;
+  border-color: #000 !important;
+}
+
+.bw-theme .btn-secondary, .bw-theme .action-link, .bw-theme .btn-outline {
+  background: #fff !important;
+  color: #000 !important;
+  border-color: #000 !important;
+}
+
+.bw-theme .step-item { background: #fff !important; border-color: #00000010 !important; }
+
+.debug-panel-bw { background: #f7f7f7; border: 1px dashed #00000020; padding: 8px; border-radius: 6px; font-size: 12px; color: #000; }

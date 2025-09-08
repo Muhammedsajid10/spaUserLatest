@@ -5,7 +5,7 @@ import { Modal, Button } from "react-bootstrap";
 import { servicesAPI, apiUtils, bookingFlow } from "../services/api";
 import { useNavigate } from "react-router-dom";
 import Swal from 'sweetalert2';
-
+import { FaArrowLeft } from "react-icons/fa";
 function Services() {
   const [services, setServices] = useState({});
   const [loading, setLoading] = useState(true);
@@ -19,6 +19,8 @@ function Services() {
   const [selectedServicesCount, setSelectedServicesCount] = useState(0);
   const [currentStep, setCurrentStep] = useState(1);
   const navigate = useNavigate();
+  // exit confirmation for small/medium screens
+  const [showExitConfirm, setShowExitConfirm] = useState(false);
 
   const fetchServices = async () => {
     try {
@@ -224,7 +226,17 @@ function Services() {
   return (
     <div className="services-page-wrapper">
       <div className="svc-header-wrapper">
+        {/* Exit arrow visible on small/medium screens */}
+       
         <div className="svc-header">
+           <button
+          className="svc-exit-btn"
+          aria-label="Back"
+          style={{ color:'black',width:'30px',fontSize:'20px',fontWeight:'bold' }}
+          onClick={() => setShowExitConfirm(true)}
+        >
+          <FaArrowLeft />
+        </button>
           <h2>Services</h2>
           {selectedServicesCount > 0 && (
             <div className="svc-cart-indicator">
@@ -404,7 +416,25 @@ function Services() {
         </div>
       )}
 
-      {typeof window !== "undefined" && window.innerWidth <= 600 && selectedServicesCount > 0 && (
+      {/* Exit confirmation modal */}
+      {showExitConfirm && (
+        <div className="svc-exit-overlay" onClick={() => setShowExitConfirm(false)}>
+          <div className="svc-exit-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
+            <h3>Leave services page?</h3>
+            <p>Are you sure you want to leave this page? Any unsaved selections will remain but you will leave the flow.</p>
+            <div className="svc-exit-actions">
+              <button className="btn-outline" onClick={() => setShowExitConfirm(false)}>No, stay</button>
+              <button className="btn-primary" onClick={() => {
+                setShowExitConfirm(false);
+                // Prefer history back when possible, otherwise go to home
+                if (window.history && window.history.length > 1) navigate(-1); else navigate('/');
+              }}>Yes, leave</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {typeof window !== "undefined" && window.innerWidth <= 1024 && selectedServicesCount > 0 && (
         <ServiceBottomBar currentStep={currentStep} navigate={navigate} />
       )}
     </div>

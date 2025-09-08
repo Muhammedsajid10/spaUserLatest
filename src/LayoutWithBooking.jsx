@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link, Outlet } from 'react-router-dom';
 import { bookingFlow, apiUtils } from './services/api';
+import { confirmBookingAndPay } from './services/paymentFlow';
 import { IoMdTime } from "react-icons/io";
 
 import { CiCalendar } from "react-icons/ci";
@@ -72,7 +73,7 @@ const GlobalHeader = () => {
             )}
           </div>
           <div className="dropdown-content">
-            <Link to="/client-profile" onClick={() => setDropdownOpen(false)}>Profile</Link>
+            <Link to="/dashboard" onClick={() => setDropdownOpen(false)}>Profile</Link>
             
             <button onClick={() => { logout(); setDropdownOpen(false); }}>Logout</button>
           </div>
@@ -96,7 +97,7 @@ const LayoutWithBooking = ({ children }) => {
     { number: 2, label: 'Professional', path: '/professionals' },
     { number: 3, label: 'Time', path: '/time' },
     { number: 4, label: 'Payment', path: '/payment' },
-    { number: 5, label: 'Confirm', path: '/payment/confirm' }
+    { number: 5, label: 'Confirm', path: '/payment/success' }
   ];
   
   // Determine current step based on location (handle /payment and /payment/confirm)
@@ -104,8 +105,9 @@ const LayoutWithBooking = ({ children }) => {
     const currentPath = location.pathname;
     let stepIndex = steps.findIndex(step => step.path === currentPath);
     if (stepIndex === -1) {
-      if (currentPath.startsWith('/payment/confirm')) {
-        stepIndex = steps.findIndex(s => s.path === '/payment/confirm');
+      // Treat both the confirm route and the final success page as step 5
+      if (currentPath.startsWith('/payment/success')) {
+        stepIndex = steps.findIndex(s => s.path === '/payment/success');
       } else if (currentPath.startsWith('/payment')) {
         stepIndex = steps.findIndex(s => s.path === '/payment');
       }
@@ -123,27 +125,23 @@ const LayoutWithBooking = ({ children }) => {
       // Update selectedService state
       if (bookingFlow.selectedServices && bookingFlow.selectedServices.length > 0) {
         setSelectedService(bookingFlow.selectedServices[0]);
-      } else {
-        setSelectedService(null);
-      }
-
-      // Update selectedProfessional state from bookingFlow for the *first* service
-      if (bookingFlow.selectedServices && bookingFlow.selectedServices.length > 0) {
-        const firstServiceId = bookingFlow.selectedServices[0]._id;
-        if (bookingFlow.selectedProfessionals && bookingFlow.selectedProfessionals[firstServiceId]) {
-          setSelectedProfessional(bookingFlow.selectedProfessionals[firstServiceId]);
-        } else {
-          // If no specific professional is chosen for the current service, default to "Any professional"
-          // This ensures `selectedProfessional` is never null if services are selected.
+        // If no professionals mapped yet, default to 'Any professional'
+        if (!bookingFlow.selectedProfessionals || Object.keys(bookingFlow.selectedProfessionals).length === 0) {
           setSelectedProfessional({
-            id: "any",
-            name: "Any professional",
-            subtitle: "for maximum availability",
-            icon: "👥",
+            id: 'any',
+            name: 'Any professional',
+            subtitle: 'for maximum availability',
+            icon: '👥',
             isAvailable: true,
           });
+        } else {
+          const firstServiceId = bookingFlow.selectedServices[0]?._id;
+          const prof = bookingFlow.selectedProfessionals?.[firstServiceId];
+          if (prof) setSelectedProfessional(prof);
+          else setSelectedProfessional(null);
         }
       } else {
+        setSelectedService(null);
         setSelectedProfessional(null); // No service selected, so no professional context
       }
 
@@ -188,14 +186,25 @@ const LayoutWithBooking = ({ children }) => {
       case 3: // Time selection
         navigate('/payment');
         break;
-      case 4: // Payment -> call handlePayment from Payment component
-        // Find and call the Payment component's handlePayment method
-        // We'll trigger payment processing here
-        const event = new CustomEvent('confirmPayment');
-        window.dispatchEvent(event);
+      case 4: // Payment -> call the orchestrator to create booking and start payment
+        (async () => {
+          try {
+            // Activate the Confirm step in the sidebar immediately
+            navigate('/payment/success');
+            // You can pass clientInfo/method here if available; using defaults for now
+            const result = await confirmBookingAndPay({ method: 'card', clientInfo: null });
+            console.log('confirmBookingAndPay result:', result);
+            // On success navigate directly to the centralized success page and pass the result
+            navigate('/payment/success', { state: { booking: result.booking, payment: result.payment } });
+          } catch (err) {
+            console.error('confirmBookingAndPay failed', err);
+            Swal.fire({ title: 'Payment Failed', text: err.message || 'Unable to confirm booking', icon: 'error' });
+            navigate('/payment/cancel');
+          }
+        })();
         break;
       case 5: // Confirm -> proceed to payment processing or finalization
-        navigate('/payment/process');
+        navigate('/payment/success');
         break;
       default:
         break;
@@ -207,18 +216,17 @@ const LayoutWithBooking = ({ children }) => {
       case 1: 
         navigate('/'); // Go to home if this is the first step
         break;
-      case 2: // Professional selection
-        navigate('/');
-        break;
-      case 3: // Time selection
+      case 2: // Time selection
         navigate('/professionals');
         break;
-      case 4: // Payment
+      case 3: // Payment
         navigate('/time');
         break;
-      case 5: // Confirm
+      case 4: // Confirm
         navigate('/payment');
         break;
+      case 5:
+        navigate('/payment/success');
       default:
         break;
     }
@@ -364,42 +372,73 @@ const LayoutWithBooking = ({ children }) => {
               <h3>Booking Summary</h3>
              
              {/* Date and Time section with icons - only show on payment route */}
-             {bookingFlow.selectedTimeSlot && location.pathname === '/payment' && (
+             {bookingFlow.selectedTimeSlot && location.pathname.startsWith('/payment') && (
                <div className="booking-datetime">
                  <div className="datetime-item">
-                   <span className="datetime-icon"><CiCalendar />
-</span>
+                   <span className="datetime-icon"><CiCalendar /></span>
                    <span className="datetime-text">
                      {(() => {
-                       // Handle both date string (YYYY-MM-DD) and Date object
-                       const dateStr = bookingFlow.selectedTimeSlot.date;
-                       const date = typeof dateStr === 'string' ? new Date(`${dateStr}T12:00:00`) : new Date(dateStr);
-                       const dayName = date.toLocaleDateString('en-US', { weekday: 'long' });
-                       const day = date.getDate();
-                       const month = date.toLocaleDateString('en-US', { month: 'long' });
-                       return `${dayName}, ${day} ${month}`;
+                       // Prefer explicit startTime ISO if present (TimeWithAPI stores startTime/endTime as ISO)
+                       const slot = bookingFlow.selectedTimeSlot;
+                       try {
+                         let dateObj;
+                         if (slot.startTime) {
+                           // startTime is an ISO string (we treat it as local-preserved ISO produced elsewhere)
+                           dateObj = new Date(slot.startTime);
+                         } else if (slot.date) {
+                           dateObj = (typeof slot.date === 'string') ? new Date(`${slot.date}T12:00:00`) : new Date(slot.date);
+                         } else {
+                           dateObj = new Date();
+                         }
+                         const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'long' });
+                         const day = dateObj.getDate();
+                         const month = dateObj.toLocaleDateString('en-US', { month: 'long' });
+                         return `${dayName}, ${day} ${month}`;
+                       } catch (err) {
+                         return '';
+                       }
                      })()}
                    </span>
                  </div>
-                 
+
                  <div className="datetime-item">
-                   <span className="datetime-icon"><IoMdTime />
-  </span>
+                   <span className="datetime-icon"><IoMdTime /></span>
                    <span className="datetime-text">
                      {(() => {
-                       const startTime = bookingFlow.selectedTimeSlot.time?.time || '2:30 PM';
-                       const totalDuration = bookingFlow.getTotalDuration(); // in minutes
-                       const startDate = new Date(`2000-01-01 ${startTime}`);
-                       const endDate = new Date(startDate.getTime() + totalDuration * 60000);
-                       const endTime = endDate.toLocaleTimeString('en-US', { 
-                         hour: 'numeric', 
-                         minute: '2-digit', 
-                         hour12: true 
-                       });
-                       const duration = totalDuration >= 60 
-                         ? `${Math.floor(totalDuration/60)} hr ${totalDuration%60 ? totalDuration%60 + ' min' : ''}`.trim()
-                         : `${totalDuration} min`;
-                       return `${startTime} - ${endTime} (${duration}s duration)`;
+                       const slot = bookingFlow.selectedTimeSlot;
+                       // If precise ISO start/end exist, use them. Otherwise fall back to stored time string + computed end.
+                       try {
+                         let start, end;
+                        if (slot.startTime) {
+                          // Use startTime from stored slot but compute end using total service duration
+                          start = new Date(slot.startTime);
+                          end = new Date(start.getTime() + bookingFlow.getTotalDuration() * 60000);
+                        } else if (slot.time && slot.time.time) {
+                           // slot.time.time is a human string like '09:00' or '2:30 PM'
+                           // create a Date using the slot.date (YYYY-MM-DD) to avoid timezone shifts
+                           const dateStr = slot.date || new Date().toISOString().split('T')[0];
+                           const timeStr = slot.time.time;
+                           // Build a local datetime string preserving the time exactly
+                           const localDateTime = `${dateStr}T${(timeStr.length === 5 && timeStr.indexOf(':') === 2) ? timeStr + ':00' : timeStr}`;
+                           start = new Date(localDateTime);
+                           if (Number.isNaN(start.getTime())) {
+                             // fallback: parse as time only on arbitrary date
+                             start = new Date(`2000-01-01 ${timeStr}`);
+                           }
+                           end = new Date(start.getTime() + bookingFlow.getTotalDuration() * 60000);
+                         } else {
+                           // final fallback: use now + duration
+                           start = new Date();
+                           end = new Date(start.getTime() + bookingFlow.getTotalDuration() * 60000);
+                         }
+
+                         const fmt = (d) => d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+                         const duration = bookingFlow.getTotalDuration();
+                         const durationText = duration >= 60 ? `${Math.floor(duration/60)} hr ${duration%60 ? duration%60 + ' min' : ''}`.trim() : `${duration} min`;
+                         return `${fmt(start)} - ${fmt(end)} (${durationText} duration)`;
+                       } catch (err) {
+                         return '';
+                       }
                      })()}
                    </span>
                  </div>
@@ -464,42 +503,45 @@ const LayoutWithBooking = ({ children }) => {
                     </div>
                   ))}
                 </div>
-                <div className="action-buttons">
-                  {/* Show only Back and Confirm buttons on payment route */}
-                  {location.pathname === '/payment' ? (
-                    <>
-                      <button 
-                        className="btn-back" 
-                        onClick={handleBack}
-                      >
-                        Back
-                      </button>
-                      <button 
-                        className="btn-continue"
-                        onClick={handleContinue}
-                      >
-                        Confirm
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <button 
-                        className="btn-back" 
-                        onClick={handleBack}
-                        disabled={currentStep === 1}
-                      >
-                        Back
-                      </button>
-                      <button 
-                        className={`btn-continue ${!canProceed() ? 'disabled' : ''}`}
-                        onClick={handleContinue}
-                        disabled={false}
-                      >
-                        {currentStep === steps.length ? 'Complete Booking' : 'Continue'}
-                      </button>
-                    </>
-                  )}
-                </div>
+                {/* Hide action buttons when on final confirm/success step */}
+                {currentStep !== 5 && (
+                  <div className="action-buttons">
+                    {/* Show only Back and Confirm buttons on payment route */}
+                    {location.pathname === '/payment' ? (
+                      <>
+                        <button 
+                          className="btn-back" 
+                          onClick={handleBack}
+                        >
+                          Back
+                        </button>
+                        <button 
+                          className="btn-continue"
+                          onClick={handleContinue}
+                        >
+                          Confirm
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button 
+                          className="btn-back" 
+                          onClick={handleBack}
+                          disabled={currentStep === 1}
+                        >
+                          Back
+                        </button>
+                        <button 
+                          className={`btn-continue ${!canProceed() ? 'disabled' : ''}`}
+                          onClick={handleContinue}
+                          disabled={false}
+                        >
+                          {currentStep === steps.length ? 'Complete Booking' : 'Continue'}
+                        </button>
+                      </>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           </div>

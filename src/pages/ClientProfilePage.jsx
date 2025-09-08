@@ -4,6 +4,7 @@ import './ClientProfilePage.css';
 import { authAPI, bookingsAPI, paymentsAPI, feedbackAPI } from '../services/api';
 import StarRating from '../Components/StarRating';
 import FeedbackModal from '../Components/FeedbackModal';
+import PasswordChangeModal from '../Components/PasswordChangeModal';
 import Swal from 'sweetalert2';
 import { FaBars, FaTimes } from 'react-icons/fa';
 import { FaCalendarAlt, FaCreditCard, FaRegStar, FaUser } from "react-icons/fa";
@@ -36,18 +37,22 @@ export default function ClientProfilePage() {
         const fetchData = async () => {
             try {
                 setLoading(true);
-                setError(null);
+                setError(false);
 
-                const [profileData, bookingsData, invoicesData, feedbackData] = await Promise.all([
+                const [profileData, bookingsData, invoicesData] = await Promise.all([
                     authAPI.getCurrentUser(),
                     bookingsAPI.getUserBookings(),
-                    paymentsAPI.getPaymentHistory(),
-                    feedbackAPI.getUserFeedback()
+                    paymentsAPI.getPaymentHistory()
                 ]);
+
+                // Debug logs for fetched data (feedback fetch temporarily disabled)
+                console.log('[ClientProfilePage] Fetched profileData:', profileData);
+                console.log('[ClientProfilePage] Fetched bookingsData:', bookingsData);
+                console.log('[ClientProfilePage] Fetched invoicesData:', invoicesData);
 
                 setProfile(profileData.data.user);
                 setEditProfile(profileData.data.user);
-                
+                console.log("this is your profile data:",profileData.data.user)
                 // Deduplicate bookings by _id and bookingNumber
                 const rawBookings = bookingsData.data.bookings || [];
                 const uniqueBookings = rawBookings.filter((booking, index, self) => {
@@ -58,9 +63,11 @@ export default function ClientProfilePage() {
                     return firstOccurrence;
                 });
                 
+                console.log('[ClientProfilePage] Unique bookings after dedupe:', uniqueBookings);
                 setBookings(uniqueBookings);
                 setInvoices(invoicesData.data.payments || []);
-                setUserFeedback(feedbackData.data.feedback || []);
+                // Temporarily disable loading feedback from API for checking — keep local state empty
+                setUserFeedback([]);
             } catch (err) {
                 setError(err.message);
                 console.error("Failed to fetch data:", err);
@@ -81,6 +88,7 @@ export default function ClientProfilePage() {
         try {
             const updatedData = await authAPI.updateProfile(editProfile);
             setProfile(updatedData.data.user);
+            console.log('[ClientProfilePage] Profile updated:', updatedData.data.user);
             setEditMode(false);
             Swal.fire({
                 title: 'Success!',
@@ -101,8 +109,9 @@ export default function ClientProfilePage() {
     };
 
     const handleRate = async (booking) => {
-        setSelectedBookingForFeedback(booking);
-        setShowFeedbackModal(true);
+    console.log('[ClientProfilePage] Rate called for booking:', booking);
+    setSelectedBookingForFeedback(booking);
+    setShowFeedbackModal(true);
     };
 
     const handleSubmitFeedback = async (feedbackData) => {
@@ -114,6 +123,8 @@ export default function ClientProfilePage() {
                 b._id === feedbackData.bookingId ? { ...b, hasRating: true } : b
             ));
             
+            console.log('[ClientProfilePage] Feedback submitted:', feedbackData);
+
             Swal.fire({
                 title: 'Success!',
                 text: 'Thank you for your feedback!',
@@ -123,10 +134,7 @@ export default function ClientProfilePage() {
             });
             setShowFeedbackModal(false);
             setSelectedBookingForFeedback(null);
-            
-            // Refresh feedback data
-            const feedbackData2 = await feedbackAPI.getUserFeedback();
-            setUserFeedback(feedbackData2.data.feedback || []);
+            // Feedback refresh skipped while checking — do not call feedbackAPI.getUserFeedback()
         } catch (error) {
             console.error("Failed to submit feedback:", error);
             Swal.fire({
@@ -198,6 +206,7 @@ export default function ClientProfilePage() {
         if (error) {
             return (
                 <div className="content-error">
+                    {console.log('[ClientProfilePage] renderContent error state:', error, 'profile=', profile, 'bookings=', bookings)}
                     <p>Something went wrong. Please try again.</p>
                 </div>
             );
@@ -207,6 +216,23 @@ export default function ClientProfilePage() {
             case 'bookings':
                 const upcomingBookings = bookings.filter(b => new Date(b.appointmentDate || b.date) >= new Date());
                 const pastBookings = bookings.filter(b => new Date(b.appointmentDate || b.date) < new Date());
+
+                // If there are no bookings at all, show a clear empty state
+                if (!bookings || bookings.length === 0) {
+                    console.log('[ClientProfilePage] No bookings found for user:', profile);
+                    return (
+                        <div className="no-data-panel">
+                            <div className="no-data-card">
+                                <h3>No bookings yet</h3>
+                                <p>You don't have any bookings right now. Start by booking a service.</p>
+                                <div className="no-data-actions">
+                                    <button className="profile-button-primary" onClick={() => window.location.href = '/'}>Book a Service</button>
+                                    <button className="profile-button-secondary" onClick={() => setActiveTab('profile')}>Edit Profile</button>
+                                </div>
+                            </div>
+                        </div>
+                    );
+                }
 
                 return (
                     <>
@@ -306,37 +332,13 @@ export default function ClientProfilePage() {
                     </div>
                 );
             case 'feedback':
-                const uniqueFeedback = userFeedback.filter((feedback, index, self) => index === self.findIndex(f => f._id === feedback._id));
+                // Feedback listing is temporarily disabled for checking — show a placeholder message
                 return (
                     <div className="profile-card">
                         <h5 className="card-title">My Feedback & Reviews</h5>
-                        <div className="table-wrapper">
-                            <table className="profile-table">
-                                <thead>
-                                    <tr>
-                                        <th>Date</th>
-                                        <th>Service</th>
-                                        <th>Professional</th>
-                                        <th>Rating</th>
-                                        <th>Comments</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {uniqueFeedback.length > 0 ? uniqueFeedback.map(feedback => (
-                                        <tr key={feedback._id}>
-                                            <td>{new Date(feedback.submittedAt).toLocaleDateString()}</td>
-                                            <td>{feedback.service?.name || feedback.booking?.services?.[0]?.service?.name || 'N/A'}</td>
-                                            <td>{feedback.employee?.user ? `${feedback.employee.user.firstName} ${feedback.employee.user.lastName}` : feedback.booking?.services?.[0]?.employee?.user?.firstName || 'N/A'}</td>
-                                            <td>
-                                                <StarRating rating={feedback.ratings?.overall || 0} readOnly size="small" />
-                                            </td>
-                                            <td>
-                                                <p className="feedback-comment">{feedback.comments?.positive || feedback.comments?.improvement || 'No comment'}</p>
-                                            </td>
-                                        </tr>
-                                    )) : <tr><td colSpan="5" className="text-center">No feedback submitted yet.</td></tr>}
-                                </tbody>
-                            </table>
+                        <div className="no-data-card">
+                            <p>Feedback listing is temporarily disabled for testing.</p>
+                            <p>You can still submit feedback from the Past Bookings table using "Rate Experience."</p>
                         </div>
                     </div>
                 );
@@ -347,8 +349,12 @@ export default function ClientProfilePage() {
                         {editMode ? (
                             <form onSubmit={handleProfileSave} className="profile-form profile-form-unique">
                                 <div className="form-group form-group-unique">
-                                    <label className="form-label-unique">Name</label>
-                                    <input className="form-control-unique" name="name" value={editProfile.name || ''} onChange={handleProfileChange} required />
+                                    <label className="form-label-unique">First Name</label>
+                                    <input className="form-control-unique" name="firstName" value={editProfile.firstName || ''} onChange={handleProfileChange} required />
+                                </div>
+                                <div className="form-group form-group-unique">
+                                    <label className="form-label-unique">Last Name</label>
+                                    <input className="form-control-unique" name="lastName" value={editProfile.lastName || ''} onChange={handleProfileChange} />
                                 </div>
                                 <div className="form-group form-group-unique">
                                     <label className="form-label-unique">Email</label>
@@ -367,7 +373,7 @@ export default function ClientProfilePage() {
                             <div className="profile-details profile-details-unique">
                                 <div className="detail-item detail-item-unique">
                                     <strong>Name:</strong>
-                                    <span>{profile.name}</span>
+                                    <span>{profile.fullName || `${profile.firstName || ''} ${profile.lastName || ''}`.trim()}</span>
                                 </div>
                                 <div className="detail-item detail-item-unique">
                                     <strong>Email:</strong>
@@ -383,66 +389,8 @@ export default function ClientProfilePage() {
                                         {showPasswordForm ? 'Hide Password Form' : 'Change Password'}
                                     </button>
                                 </div>
-                                {showPasswordForm && (
-                                    <form className="password-change-form" onSubmit={async (e) => {
-                                        e.preventDefault();
-                                        if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-                                            Swal.fire({
-                                                title: 'Mismatch',
-                                                text: 'New passwords do not match',
-                                                icon: 'warning',
-                                                timer: 3000,
-                                                showConfirmButton: true
-                                            });
-                                            return;
-                                        }
-                                        try {
-                                            setChangingPassword(true);
-                                            await authAPI.updatePassword({
-                                                currentPassword: passwordForm.currentPassword,
-                                                newPassword: passwordForm.newPassword
-                                            });
-                                            Swal.fire({
-                                                title: 'Success',
-                                                text: 'Password updated successfully',
-                                                icon: 'success',
-                                                timer: 3000,
-                                                showConfirmButton: false
-                                            });
-                                            setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
-                                            setShowPasswordForm(false);
-                                        } catch (err) {
-                                            Swal.fire({
-                                                title: 'Error',
-                                                text: err.message || 'Failed to update password',
-                                                icon: 'error',
-                                                timer: 5000,
-                                                showConfirmButton: true
-                                            });
-                                        } finally {
-                                            setChangingPassword(false);
-                                        }
-                                    }}>
-                                        <h6 className="password-form-title">Change Password</h6>
-                                        <p className="password-form-sub">Ensure your new password is at least 6 characters and different from previous.</p>
-                                        <div className="form-group form-group-unique">
-                                            <label className="form-label-unique">Current Password</label>
-                                            <input type="password" className="form-control-unique" value={passwordForm.currentPassword} required onChange={(e) => setPasswordForm(f => ({ ...f, currentPassword: e.target.value }))} />
-                                        </div>
-                                        <div className="form-group form-group-unique">
-                                            <label className="form-label-unique">New Password</label>
-                                            <input type="password" className="form-control-unique" value={passwordForm.newPassword} required minLength={6} onChange={(e) => setPasswordForm(f => ({ ...f, newPassword: e.target.value }))} />
-                                        </div>
-                                        <div className="form-group form-group-unique">
-                                            <label className="form-label-unique">Confirm New Password</label>
-                                            <input type="password" className="form-control-unique" value={passwordForm.confirmPassword} required onChange={(e) => setPasswordForm(f => ({ ...f, confirmPassword: e.target.value }))} />
-                                        </div>
-                                        <div className="form-actions form-actions-unique">
-                                            <button type="submit" className="profile-button-primary" disabled={changingPassword}>{changingPassword ? 'Updating...' : 'Update Password'}</button>
-                                            <button type="button" className="profile-button-secondary" onClick={() => setShowPasswordForm(false)}>Cancel</button>
-                                        </div>
-                                    </form>
-                                )}
+                                {/* Password change is now a modal */}
+                                <PasswordChangeModal show={showPasswordForm} onHide={() => setShowPasswordForm(false)} />
                             </div>
                         )}
                     </div>

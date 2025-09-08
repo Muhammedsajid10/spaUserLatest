@@ -1,8 +1,8 @@
 // API service for spa backend
 // Always use deployed backend
 // const API_BASE_URL = 'https://spabacklat.onrender.com/api/v1';
-const API_BASE_URL = 'http://localhost:5000/api/v1';
-
+const API_BASE_URL = 'https://spabacklat.onrender.com/api/v1';
+const tempAdminToken='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4NjhiODQ0ZTE5MDc2MmNhNjkzZDk0MiIsImlhdCI6MTc1NjkwMjAyMiwiZXhwIjoxNzY0Njc4MDIyfQ.J3HJrJiZ2UhRl4lJgJ79eefh21iAfI_a_FTPHHh9zTY';
 // Helper function to handle API responses
 const handleResponse = async (response) => {
   if (!response.ok) {
@@ -24,6 +24,7 @@ const handleResponse = async (response) => {
 
 const getAuthHeaders = () => {
   const token = localStorage.getItem('token');
+  console.log('Auth Token:', token); // Debug log to check token value
   return {
     'Content-Type': 'application/json',
     ...(token && { Authorization: `Bearer ${token}` })
@@ -68,9 +69,12 @@ export const authAPI = {
 
   // Get current user
   getCurrentUser: async () => {
+    console.log('Fetching current user with token:', localStorage.getItem('token')); // Debug log
     const response = await fetch(`${API_BASE_URL}/auth/me`, {
       headers: getAuthHeaders()
     });
+    console.log("response from get currnet user: ", response)
+
     return handleResponse(response);
   },
 
@@ -178,6 +182,15 @@ export const bookingsAPI = {
     return handleResponse(response);
   },
 
+  getTotalBookingsFromAdminSide: async (formattedDate) => {
+    const response = await fetch(`${API_BASE_URL}/bookings/admin/all?startDate=${formattedDate}&endDate=${formattedDate}`, {
+      headers: {
+        'Content-Type': 'application/json',
+        "Authorization": `Bearer ${tempAdminToken}`
+      }
+    });
+    return handleResponse(response);
+  },
   // Get user bookings
   getUserBookings: async (formattedDate) => {
     const url = formattedDate 
@@ -186,6 +199,8 @@ export const bookingsAPI = {
     const response = await fetch(url, {
       headers: getAuthHeaders()
     });
+    console.log("response from getuser bookings: ", response)
+
     return handleResponse(response);
   },
 
@@ -232,6 +247,7 @@ export const bookingsAPI = {
         'Content-Type': 'application/json'
       }
     });
+    console.log(url)
     console.log('[API] getAvailableProfessionals response:', response.status);
     return handleResponse(response);
   },
@@ -275,15 +291,25 @@ export const bookingsAPI = {
     }
   },
 
-  // Get employee schedule and available time slots (public)
+  // Get employee schedule and available time slots (fallback to admin auth if user not authenticated)
   getEmployeeSchedule: async (employeeId, date) => {
     const params = new URLSearchParams({ employeeId, date });
     const url = `${API_BASE_URL}/bookings/schedule/employee-schedule?${params}`;
     console.log('Calling employee schedule API with URL:', url);
-    console.log('Parameters:', { employeeId, date });
+    console.log('Parameters:', params);
+    
+    // Check if user is authenticated, if not use admin token for public booking access
+    const userToken = localStorage.getItem('token');
+    const headers = userToken ? getAuthHeaders() : {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${tempAdminToken}`
+    };
+    
+    console.log('Using authentication method:', userToken ? 'user token' : 'admin fallback');
     
     try {
       const response = await fetch(url);
+       
       console.log('Employee schedule API response status:', response.status);
       
       if (!response.ok) {
@@ -608,9 +634,12 @@ export const bookingFlow = {
 export const paymentsAPI = {
   // Get payment history
   getPaymentHistory: async () => {
+    console.log('Fetching payment history with token:', localStorage.getItem('token')); // Debug log
     const response = await fetch(`${API_BASE_URL}/payments/history`, {
       headers: getAuthHeaders()
     });
+    console.log("response from payment history: ", response)
+
     return handleResponse(response);
   },
 
@@ -687,6 +716,7 @@ export const feedbackAPI = {
 
   // Get user's feedback
   getUserFeedback: async (page = 1, limit = 10) => {
+    console.log(`[FEEDBACK] Fetching user feedback - page: ${page}, limit: ${limit}`);
     const response = await fetch(`${API_BASE_URL}/feedback/my-feedback?page=${page}&limit=${limit}`, {
       headers: getAuthHeaders()
     });
@@ -698,6 +728,7 @@ export const feedbackAPI = {
     const response = await fetch(`${API_BASE_URL}/feedback/booking/${bookingId}`, {
       headers: getAuthHeaders()
     });
+    console.log("response from getFeedbackByBooking: ", response)
     return handleResponse(response);
   },
 

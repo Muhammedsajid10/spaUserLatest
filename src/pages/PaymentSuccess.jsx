@@ -4,7 +4,11 @@ import { useAuth } from '../Service/Context';
 import { bookingFlow } from '../services/api';
 import './Payment.css';
 import Swal from 'sweetalert2';
+import { SiGmail } from "react-icons/si";
+import { TiTick } from "react-icons/ti";
+import { FaCalendarAlt } from "react-icons/fa";
 
+import { RxDashboard } from "react-icons/rx";
 const PaymentSuccess = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -13,49 +17,81 @@ const PaymentSuccess = () => {
   const [loading, setLoading] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
 
-  // Get data from navigation state and localStorage
-  const { paymentIntent, bookingData } = location.state || {};
-  
-  console.log('PaymentSuccess - Received data:', {
-    paymentIntent,
-    bookingData,
-    locationState: location.state
-  });
+  // Get data from navigation state and localStorage and normalize shapes
+  const navState = location.state || {};
+  // payment might be under several keys
+  const paymentObj = navState.payment || navState.paymentIntent || navState.paymentData || null;
+  // booking payload can be nested (e.g. { booking: { booking: { ... } } }) depending on which caller passed it
+  const rawBooking = navState.booking || navState.bookingData || navState.bookingResult || null;
+
+  console.log('PaymentSuccess - Received navigation state:', { navState });
 
   useEffect(() => {
+    // Do not immediately redirect if user is absent — keep debug info visible so we can inspect state
     if (!user) {
-      navigate('/login');
-      return;
+      console.warn('PaymentSuccess: no authenticated user in context — debug info will still render');
+    } else {
+      console.log('PaymentSuccess - User is authenticated:', user);
     }
 
-    // Get booking details from multiple sources
-    const storedBooking = JSON.parse(localStorage.getItem('currentBooking') || '{}');
-    const finalBookingDetails = bookingData || storedBooking;
-    
-    console.log('PaymentSuccess - Final booking details:', finalBookingDetails);
+    // Normalize booking shape: unwrap nested .booking or .data fields
+    let finalBookingDetails = null;
+    try {
+      if (rawBooking) {
+        finalBookingDetails = rawBooking;
+        // unwrap common nesting patterns
+        if (finalBookingDetails.booking) finalBookingDetails = finalBookingDetails.booking;
+        if (finalBookingDetails.data) finalBookingDetails = finalBookingDetails.data;
+        if (finalBookingDetails.bookingData) finalBookingDetails = finalBookingDetails.bookingData;
+      }
+    } catch (err) {
+      console.error('Error normalizing booking payload:', err);
+    }
+
+    // fallback to localStorage keys
+    if (!finalBookingDetails) {
+      try {
+        const stored = localStorage.getItem('currentBooking') || localStorage.getItem('bookingData');
+        finalBookingDetails = stored ? JSON.parse(stored) : null;
+      } catch (err) {
+        finalBookingDetails = null;
+      }
+    }
+
+    console.log('PaymentSuccess - Final booking details (normalized):', finalBookingDetails);
     setBookingDetails(finalBookingDetails);
 
-    // Clear booking flow data since payment is successful
-    console.log('PaymentSuccess - Clearing booking flow data after successful payment');
-    bookingFlow.reset();
-    localStorage.removeItem('bookingData');
-    localStorage.removeItem('currentBooking');
-
-    // Automatically send confirmation email if we have booking details
-    if (finalBookingDetails?.bookingId || finalBookingDetails?.bookingNumber || finalBookingDetails?._id) {
-      sendConfirmationEmailAuto(finalBookingDetails);
+    // Do NOT clear bookingFlow/localStorage here so the booking summary sidebar keeps showing details.
+    if (finalBookingDetails) {
+      console.log('PaymentSuccess - booking details present; will NOT clear bookingFlow/localStorage to keep sidebar visible');
+      // Still auto-send confirmation email if available
+      if (finalBookingDetails?.bookingId || finalBookingDetails?.bookingNumber || finalBookingDetails?._id) {
+        sendConfirmationEmailAuto(finalBookingDetails);
+      }
+    } else {
+      console.log('PaymentSuccess - no booking details found to send confirmation for');
     }
-    
-    console.log('Payment success - processed booking data and cleared booking flow');
-  }, [bookingData, user, navigate]);
+  }, [location.state, user, navigate]);
 
   const handleViewBookings = () => {
-    navigate('/client-profile');
+    try {
+      localStorage.removeItem('bookingData');
+      localStorage.removeItem('currentBooking');
+    } catch (e) {
+      /* ignore */
+    }
+    bookingFlow.reset();
+    navigate('/dashboard');
   };
 
   const handleNewBooking = () => {
     // Clear booking data and navigate to home
-    localStorage.removeItem('currentBooking');
+    try {
+      localStorage.removeItem('currentBooking');
+      localStorage.removeItem('bookingData');
+    } catch (e) {
+      /* ignore */
+    }
     bookingFlow.reset();
     navigate('/');
   };
@@ -68,8 +104,8 @@ const PaymentSuccess = () => {
   const sendConfirmationEmailAuto = async (bookingDetails) => {
     try {
       console.log('Auto-sending confirmation email for booking:', bookingDetails?.bookingId || bookingDetails?.bookingNumber || bookingDetails?._id);
-      
-      const response = await fetch('https://spabackend-0tko.onrender.com/api/v1/payments/send-confirmation', {
+      const token = localStorage.getItem('token');
+      const response = await fetch('https://spabacklat.onrender.com/api/v1/payments/send-confirmation', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -99,8 +135,9 @@ const PaymentSuccess = () => {
     setLoading(true);
     try {
       console.log('Sending confirmation email for booking:', bookingDetails?.bookingId || bookingDetails?.bookingNumber || bookingDetails?._id);
+      const token = localStorage.getItem('token');
       
-      const response = await fetch('https://spabackend-0tko.onrender.com/api/v1/payments/send-confirmation', {
+      const response = await fetch('https://spabacklat.onrender.com/api/v1/payments/send-confirmation', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -156,15 +193,27 @@ const PaymentSuccess = () => {
           <p>Your payment has been processed successfully.</p>
           
           <div className="payment-summary">
+            {/* Debug panel: show incoming navigation state and localStorage booking keys */}
+            {/* <div className="debug-panel-bw" style={{ marginBottom: 12 }}>
+              <strong>Debug state:</strong>
+              <div style={{ marginTop: 6 }}>
+                <div><strong>location.state:</strong></div>
+                <pre style={{ maxHeight: 120, overflow: 'auto' }}>{JSON.stringify(location.state, null, 2)}</pre>
+                <div><strong>localStorage.bookingData:</strong></div>
+                <pre style={{ maxHeight: 80, overflow: 'auto' }}>{localStorage.getItem('bookingData') || 'null'}</pre>
+                <div><strong>localStorage.currentBooking:</strong></div>
+                <pre style={{ maxHeight: 80, overflow: 'auto' }}>{localStorage.getItem('currentBooking') || 'null'}</pre>
+              </div>
+            </div> */}
             <h3>Payment Summary</h3>
             <div className="summary-details">
               <div className="detail-row">
                 <span>Payment ID:</span>
-                <span>{paymentIntent?.id || paymentIntent?.paymentIntent?.id || 'Processing...'}</span>
+                <span>{paymentObj?.paymentId || paymentObj?.id || paymentObj?.paymentIntent?.id || 'Processing...'}</span>
               </div>
               <div className="detail-row">
                 <span>Amount:</span>
-                <span>AED {bookingDetails?.totalAmount || paymentIntent?.amount || 'N/A'}</span>
+                <span>AED {bookingDetails?.totalAmount || paymentObj?.paymentData?.amount || paymentObj?.amount || 'N/A'}</span>
               </div>
               <div className="detail-row">
                 <span>Booking ID:</span>
@@ -174,29 +223,10 @@ const PaymentSuccess = () => {
                 <span>Booking Number:</span>
                 <span>{bookingDetails?.bookingNumber || 'N/A'}</span>
               </div>
-              <div className="detail-row">
-                <span>Services:</span>
-                <span>{bookingDetails?.serviceNames || bookingDetails?.services?.map(s => s.name).join(', ') || 'N/A'}</span>
-              </div>
-              {bookingDetails?.professionalAssignments && bookingDetails.professionalAssignments.length > 0 && bookingDetails.uniqueProfessionalNames?.length > 1 ? (
-                <div className="detail-row">
-                  <span>Professionals:</span>
-                  <span>{bookingDetails.uniqueProfessionalNames.join(', ')}</span>
-                </div>
-              ) : (
-                <div className="detail-row">
-                  <span>Professional:</span>
-                  <span>{bookingDetails?.professionalName || 'N/A'}</span>
-                </div>
-              )}
-              <div className="detail-row">
-                <span>Date:</span>
-                <span>{bookingDetails?.date || 'N/A'}</span>
-              </div>
-              <div className="detail-row">
-                <span>Time:</span>
-                <span>{bookingDetails?.time || 'N/A'}</span>
-              </div>
+              
+             
+          
+             
             </div>
           </div>
 
@@ -205,7 +235,7 @@ const PaymentSuccess = () => {
             <div className="next-steps">
               <div className="step-item">
                 <div className="step-icon">
-                  {emailSent ? '✅' : '📧'}
+                  {emailSent ? <TiTick /> : <SiGmail />}
                 </div>
                 <div className="step-content">
                   <span>You will receive a confirmation email shortly</span>
@@ -218,12 +248,12 @@ const PaymentSuccess = () => {
                       {loading ? 'Sending...' : 'Resend Email'}
                     </button>
                   )}
-                  {emailSent && <span className="status-text">Email sent! ✅</span>}
+                  {emailSent && <span className="status-text">Email sent! <TiTick /></span>}
                 </div>
               </div>
               
               <div className="step-item">
-                <div className="step-icon">📅</div>
+                <div className="step-icon"><FaCalendarAlt /></div>
                 <div className="step-content">
                   <span>Your appointment is confirmed</span>
                   <button onClick={handleViewBookings} className="action-link">
@@ -233,7 +263,7 @@ const PaymentSuccess = () => {
               </div>
               
               <div className="step-item">
-                <div className="step-icon">📱</div>
+                <div className="step-icon"><RxDashboard /></div>
                 <div className="step-content">
                   <span>You can view your bookings in your dashboard</span>
                   <button onClick={handleViewBookings} className="action-link">

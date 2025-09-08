@@ -58,6 +58,17 @@ export function addMinutesToTime(timeStr, minutes) {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
+// Format time from 24-hour to 12-hour AM/PM format
+export function formatTimeToAMPM(timeStr) {
+  if (!timeStr || typeof timeStr !== 'string') return timeStr;
+  
+  const [hours, minutes] = timeStr.split(':').map(num => parseInt(num) || 0);
+  const period = hours >= 12 ? 'PM' : 'AM';
+  const displayHours = hours === 0 ? 12 : hours > 12 ? hours - 12 : hours;
+  
+  return `${displayHours}:${String(minutes).padStart(2, '0')} ${period}`;
+}
+
 // Round up a time to interval
 export function roundUpTimeToInterval(timeStr, interval) {
   const mins = timeToMinutesFn(timeStr);
@@ -89,9 +100,20 @@ export function isTimeSlotConflicting(startTime, duration, existingBookings = []
 export function getEmployeeShiftHours(employee, date) {
   if (!employee) return [];
   
+  // Check if employee is active - return empty schedule if not active
+  if (employee.isActive === false) {
+    console.log('[SHIFT DEBUG] Employee is inactive, returning no shifts:', {
+      id: employee._id || employee.id,
+      name: employee.name || `${employee.user?.firstName || ''} ${employee.user?.lastName || ''}`.trim(),
+      isActive: employee.isActive
+    });
+    return [];
+  }
+  
   console.log('[SHIFT DEBUG] Employee data:', {
     id: employee._id || employee.id,
     name: employee.name || `${employee.user?.firstName || ''} ${employee.user?.lastName || ''}`.trim(),
+    isActive: employee.isActive,
     workSchedule: employee.workSchedule,
     schedule: employee.schedule,
     shifts: employee.shifts,
@@ -108,9 +130,9 @@ export function getEmployeeShiftHours(employee, date) {
     employee.availability;
   
   if (!schedule) {
-    console.warn('[bookingUtils] No schedule found for employee', employee._id || employee.id, '- using 24/7 availability');
-    // Return 24-hour availability instead of standard business hours
-    return [{ start: '00:00', end: '23:59' }];
+    console.warn('[bookingUtils] No schedule found for employee', employee._id || employee.id, '- using 24-hour availability (00:00-23:59)');
+    // Return 24-hour availability for all active employees without schedules
+    // return [{ start: '00:00', end: '23:59' }];
   }
 
   const dayNames = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
@@ -149,15 +171,26 @@ export function getEmployeeShiftHours(employee, date) {
   }
 
   if (!dayEntry) {
-    console.warn('[bookingUtils] No day entry for', dayKey, 'in schedule', schedule, '- using 24/7 availability');
-    // Return 24-hour availability instead of standard business hours
-    return [{ start: '00:00', end: '23:59' }];
+    console.warn('[bookingUtils] No day entry for', dayKey, 'in schedule', schedule, '- using 24-hour availability (00:00-23:59)');
+    // Return 24-hour availability for employees with schedules but no specific day entry
+    // return [{ start: '00:00', end: '23:59' }];
   }
 
   // Handle single day entry (not array)
   if (dayEntry && !Array.isArray(dayEntry)) {
-    // Check if not working
-    if ('isWorking' in dayEntry && dayEntry.isWorking === false) return [];
+    // NOTE: Do not bail out early when dayEntry.isWorking===false here.
+    // Previously we returned an empty array which hid the fact the
+    // employee was explicitly marked as not working. We prefer to
+    // continue parsing available shift fields so higher-level UI can
+    // surface a clearer message (eg: "professional not working on
+    // this date"). Keep a debug trace for visibility.
+    if ('isWorking' in dayEntry && dayEntry.isWorking === false) {
+      console.debug('[bookingUtils] dayEntry marked not working - continuing to parse shifts to allow explicit UI messaging', dayEntry);
+      // intentionally continue (do not return []). Shift parsing will
+      // still run if shift fields exist. If no shifts are found the
+      // caller will receive an empty list and can use the explicit
+      // marker via helper `isEmployeeMarkedNotWorking` added below.
+    }
     
     // Handle shiftsData array (admin format) - PRIORITY 1
     if (Array.isArray(dayEntry.shiftsData) && dayEntry.shiftsData.length) {
@@ -394,7 +427,9 @@ export function getValidTimeSlotsForProfessional(employee, date, serviceDuration
 export function getAvailableProfessionalsForService(serviceId, date, employees, appointments, services) {
   const svc = services.find(s => s._id === serviceId || s.id === serviceId);
   if (!svc) return [];
+  
   return employees
+    .filter(emp => emp.isActive !== false) // Only include active employees
     .map(emp => {
       const duration = svc.duration || svc.minutes || 30;
       const slots = getValidTimeSlotsForProfessional(emp, date, duration, appointments);
@@ -536,4 +571,23 @@ export async function computeSequentialServiceStartTimes(servicesOrdered = [], p
   }
 
   return sequences;
+}
+
+// Helper: Report whether an employee/day entry is explicitly marked not working
+export function isEmployeeMarkedNotWorking(employee, date) {
+  if (!employee) return false;
+  const schedule = employee.workSchedule || employee.schedule || employee.shifts || employee.work_hours || employee.availability;
+  if (!schedule) return false;
+  const dateStr = localDateKey(date);
+  if (typeof schedule === 'object' && !Array.isArray(schedule)) {
+    const dayEntry = schedule[dateStr] || schedule[dateStr.replace(/\s+/g,'')] || null;
+    if (dayEntry && typeof dayEntry === 'object' && ('isWorking' in dayEntry) && dayEntry.isWorking === false) return true;
+    const dayNames = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
+    const dayIndex = (date instanceof Date ? date : new Date(date)).getDay();
+    const dayKey = dayNames[dayIndex];
+    const shortKey = dayKey.slice(0,3);
+    const entry = schedule[dayKey] ?? schedule[shortKey] ?? schedule[String(dayIndex)];
+    if (entry && typeof entry === 'object' && ('isWorking' in entry) && entry.isWorking === false) return true;
+  }
+  return false;
 }

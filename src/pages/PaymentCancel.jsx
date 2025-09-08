@@ -1,22 +1,66 @@
-import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../Service/Context';
 import './Payment.css';
 
 const PaymentCancel = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
+  const [bookingExists, setBookingExists] = useState(false);
+  const [bookingInfo, setBookingInfo] = useState(null);
+  const [errorDetails, setErrorDetails] = useState(null);
+
+  useEffect(() => {
+    // Check for booking details passed via navigation state
+    if (location && location.state && location.state.booking) {
+      setBookingExists(!!(location.state.booking.bookingId || location.state.booking._id || location.state.booking.bookingNumber));
+      setBookingInfo(location.state.booking);
+    } else {
+      // Fallback to localStorage keys used by the app
+      const currentBooking = JSON.parse(localStorage.getItem('currentBooking') || 'null');
+      const bookingData = JSON.parse(localStorage.getItem('bookingData') || 'null');
+      const found = currentBooking || bookingData;
+      if (found && (found.bookingId || found._id || found.bookingNumber)) {
+        setBookingExists(true);
+        setBookingInfo(found);
+      } else if (found) {
+        // booking object present but not created (no id)
+        setBookingExists(false);
+        setBookingInfo(found);
+      } else {
+        setBookingExists(false);
+        setBookingInfo(null);
+      }
+    }
+
+    // Capture any error details passed in state (e.g., network error info)
+    if (location && location.state && location.state.error) {
+      setErrorDetails(location.state.error);
+    }
+  }, [location]);
 
   const handleRetryPayment = () => {
+    // Navigate back to payment page; Payment component can check localStorage for bookingData
     navigate('/payment');
   };
 
+  const handleRetryCreateBooking = () => {
+    // Suggest user retry by going to payment where orchestration will recreate booking then process payment
+    navigate('/payment', { state: { retryCreate: true } });
+  };
+
   const handleBackToBooking = () => {
-    navigate('/booking');
+    navigate('/');
   };
 
   const handleViewBookings = () => {
     navigate('/dashboard');
+  };
+
+  const handleContactSupport = () => {
+    // Open mail client for support
+    window.location.href = 'mailto:support@spa-booking.com';
   };
 
   return (
@@ -32,43 +76,68 @@ const PaymentCancel = () => {
 
         <div className="cancel-content">
           <h1>Payment Cancelled</h1>
-          <p>Your payment was cancelled. No charges were made to your account.</p>
-          
-          <div className="cancel-info">
-            <h3>What happened?</h3>
-            <ul>
-              <li>❌ Payment process was interrupted</li>
-              <li>💳 No charges were made to your card</li>
-              <li>📅 Your booking is still pending</li>
-              <li>🔄 You can try the payment again</li>
-            </ul>
-          </div>
 
-          <div className="help-section">
-            <h3>Need Help?</h3>
-            <p>If you're experiencing issues with payment, please contact our support team:</p>
-            <div className="contact-info">
-              <p>📧 Email: support@spa-booking.com</p>
-              <p>📞 Phone: +971 4 123 4567</p>
-              <p>💬 Live Chat: Available 24/7</p>
-            </div>
-          </div>
+          {bookingExists ? (
+            <>
+              <p>Your payment was cancelled but your booking was created successfully.</p>
+              <div className="cancel-info">
+                <h3>Booking status</h3>
+                <ul>
+                  <li>✅ Booking created: {bookingInfo?.bookingNumber || bookingInfo?.bookingId || bookingInfo?._id}</li>
+                  <li>💳 Payment was not completed.</li>
+                </ul>
+              </div>
 
-          <div className="action-buttons">
-            <button onClick={handleRetryPayment} className="btn-primary">
-              Try Payment Again
-            </button>
-            <button onClick={handleBackToBooking} className="btn-secondary">
-              Back to Booking
-            </button>
-            <button onClick={handleViewBookings} className="btn-outline">
-              View My Bookings
-            </button>
-          </div>
+              <div className="action-buttons">
+                <button onClick={handleViewBookings} className="btn-primary">
+                  View My Bookings
+                </button>
+                <button onClick={handleRetryPayment} className="btn-secondary">
+                  Try Payment Again
+                </button>
+                <button onClick={handleBackToBooking} className="btn-outline">
+                  Back to Home
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <p>Payment did not complete and booking was not created.</p>
+              <p>Please check your connection or try again. If this persists contact support.</p>
+
+              {errorDetails && (
+                <div className="error-details">
+                  <h4>Error details</h4>
+                  <pre style={{ whiteSpace: 'pre-wrap' }}>{String(errorDetails)}</pre>
+                </div>
+              )}
+
+              <div className="cancel-info">
+                <h3>What happened?</h3>
+                <ul>
+                  <li>❌ Booking could not be created due to a network or API error.</li>
+                  <li>🔄 You can retry creating the booking and payment.</li>
+                </ul>
+              </div>
+
+              <div className="action-buttons">
+                <button onClick={handleRetryCreateBooking} className="btn-primary">
+                  Retry Create Booking
+                </button>
+                <button onClick={handleBackToBooking} className="btn-secondary">
+                  Back to Booking
+                </button>
+                <button onClick={handleContactSupport} className="btn-outline">
+                  Contact Support
+                </button>
+              </div>
+            </>
+          )}
+
         </div>
       </div>
     </div>
   );
 };
 
-export default PaymentCancel; 
+export default PaymentCancel;

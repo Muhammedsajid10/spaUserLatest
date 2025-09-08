@@ -251,6 +251,13 @@ body {
     display: flex;
     gap: 10px;
 }
+.profile-actions, .profile-actions-unique {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 12px;
+}
 .profile-button-primary, .profile-button-secondary {
     padding: 12px 24px;
     border-radius: 8px;
@@ -413,4 +420,61 @@ body {
         margin-left: 0;
         margin-top: 10px;
     }
+}
+
+/* Additional responsive improvements */
+@media (max-width: 1200px) {
+    .client-profile-container {
+        padding: 0 20px;
+        max-width: 1100px;
+    }
+    .client-profile-sidebar {
+        width: 220px;
+    }
+    .profile-details-unique {
+        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    }
+}
+
+@media (max-width: 992px) {
+    /* center action buttons on tablet */
+    .profile-actions, .profile-actions-unique {
+        justify-content: center;
+    }
+    .profile-button-primary, .profile-button-secondary {
+        padding: 10px 18px;
+        font-size: 0.95rem;
+    }
+    .profile-card, .profile-card-unique {
+        padding: 20px;
+    }
+}
+
+/* Ensure tables are easier to read on small screens */
+.table-wrapper {
+    -webkit-overflow-scrolling: touch;
+}
+.profile-table tbody td {
+    word-break: break-word;
+}
+
+/* Small displays: keep buttons stacked and full-width */
+@media (max-width: 560px) {
+    .profile-actions, .profile-actions-unique {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .profile-button-primary, .profile-button-secondary {
+        width: 100%;
+        padding: 12px 16px;
+    }
+}
+
+/* Utility: make inputs and text adapt on very small screens */
+@media (max-width: 360px) {
+    .form-control-unique {
+        padding: 10px;
+        font-size: 0.95rem;
+    }
+    .card-title { font-size: 1.15rem; }
 }

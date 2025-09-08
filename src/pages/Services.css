@@ -1,3 +1,120 @@
+/* Make the booking sidebar transform into a bottom bar on tablet devices */
+@media (min-width: 768px) and (max-width: 1024px) {
+  /* Pin the booking sidebar to the bottom and make it full width */
+  .booking-sidebar {
+    position: fixed !important;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    max-width: none;
+    z-index: 1100;
+    background: #fff;
+    box-shadow: 0 -8px 24px rgba(0,0,0,0.12);
+    border-top-left-radius: 12px;
+    border-top-right-radius: 12px;
+    padding: 12px 16px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+  /* Make the inner booking summary compact and horizontal */
+  .booking-sidebar .booking-summary {
+    width: 100%;
+    max-width: 1100px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin: 0;
+  }
+
+  /* On tablet we don't need the full booking summary; show only the bottom bar */
+  .booking-sidebar .booking-summary h3,
+  .booking-sidebar .selected-services-scroll,
+  .booking-sidebar .progress-steps {
+    display: none;
+  }
+
+  /* Use the existing sidebar bottom block as the visible compact bar */
+  .booking-sidebar .sidebar-bottom-fixed {
+    display: flex;
+    width: 100%;
+    gap: 12px;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 0;
+  }
+
+  .booking-sidebar .sidebar-bottom-fixed .total-summary {
+    flex: 1;
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    justify-content: flex-start;
+  }
+
+  .booking-sidebar .sidebar-bottom-fixed .action-buttons {
+    flex-shrink: 0;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  /* Compact top row: selected services / totals */
+  .booking-sidebar .total-summary {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+  }
+
+  /* Action row (Back / Continue) laid out horizontally */
+  .booking-sidebar .action-buttons {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    align-items: center;
+    width: 100%;
+  }
+
+  /* Ensure the page main content isn't hidden under the bottom bar */
+  .layout-with-booking .main-content {
+    padding-bottom: 120px; /* reserve space for compact bottom booking bar */
+  }
+
+  /* Make selected services scrollable horizontally if needed */
+  .booking-sidebar .selected-services-scroll {
+    max-height: 80px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    padding: 4px 0;
+  }
+
+  /* Tweak typography to fit tablet bottom bar */
+  .booking-sidebar .booking-summary h3 { display:none; }
+  .booking-sidebar .service-row-top h4 { font-size: 14px; margin: 0; }
+  .booking-sidebar .service-price { font-size: 13px; }
+
+  /* Hide the large booking sidebar on tablet; use the simpler service bottom bar instead */
+  .booking-sidebar {
+    display: none !important;
+  }
+
+  /* Ensure the global service bottom bar is visible and fixed for tablets */
+  .service-bottom-bar {
+    display: flex !important;
+    position: fixed !important;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 1200;
+  }
+}
 /* --- Global Styles and Container --- */
 body {
   margin: 0;
@@ -25,66 +142,101 @@ body {
   max-width: 800px; /* default target for 1280w screens */
 }
 
-/* Apply layout for larger desktops (>=1280px) — keep safe defaults */
-@media (min-width: 1280px) {
-  .svc-header-wrapper {
-    /* small adjustment for wider viewports while keeping centered layout */
-    top: 72px;
-    left: 40px;
-    right: 0;
-    max-width: 963px;
-  }
-}
-
-/* Very wide screens (approx 1980px width) */
-@media (min-width: 1900px) {
-  .svc-header-wrapper {
-    position: fixed;
-    top: 67px;
-    left:279px;
-    right: 0;
-    z-index: 1000;
-    background: #fff;
-    /* border-bottom: 1px solid #e0e0e0; */
-    max-width: 1282px; /* use the provided large-screen width */
-  }
-}
-
-/* On large screens, the main content needs padding for the fixed header */
-.svc-container {
-  padding: 20px;
-  padding-top: 170px; /* Adjust this value if header height changes */
-  max-width: 800px;
-  margin: 0 auto;
-  flex-grow: 1;
-}
-
-.svc-header {
-  padding: 20px;
-  /* max-width: 800px; */
-  margin: 0 auto;
-  display: flex;
-  justify-content: space-between;
+/* Exit/back button (hidden on larger desktop by default).
+   On medium/small screens it becomes inline with the header title. */
+.svc-exit-btn {
+  display: none; /* hidden on large/desktop by default */
+  /* When visible on smaller screens it'll participate in the header flex layout */
+  position: relative;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  z-index: 1002;
+  color: #222;
   align-items: center;
+  justify-content: center;
+  margin-right: 8px; /* spacing from title when visible */
 }
 
-.svc-header h2 {
-  font-size: 40px;
-  margin: 0;
-  text-align: start;
-  font-weight: 600;
-}
-
-.svc-cart-indicator {
+/* Exit confirmation overlay + modal */
+.svc-exit-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
   display: flex;
   align-items: center;
-  gap: 8px;
-  background: black;
-  color: white;
-  padding: 8px 16px;
-  border-radius: 20px;
+  justify-content: center;
+  z-index: 1003;
+}
+
+.svc-exit-modal {
+  background: #fff;
+  padding: 20px;
+  width: 92%;
+  max-width: 440px;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.18);
+  text-align: left;
+}
+
+.svc-exit-modal h3 {
+  margin: 0 0 8px 0;
+  font-size: 20px;
+}
+
+.svc-exit-modal p {
+  margin: 0 0 12px 0;
+  color: #444;
   font-size: 14px;
-  font-weight: 600;
+}
+
+.svc-exit-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 16px; }
+.svc-exit-actions .btn-primary { background: #000; color: #fff; border: none; padding: 10px 14px; border-radius: 8px; cursor: pointer; }
+.svc-exit-actions .btn-outline { background: transparent; border: 1px solid #ccc; padding: 10px 14px; border-radius: 8px; cursor: pointer; }
+
+/* Show the exit button on medium and smaller viewports and add safe header padding to avoid overlap */
+@media (max-width: 1280px) {
+  /* Hide the booking sidebar on iPad Air size and make svc-container full width */
+  .booking-sidebar {
+    display: none !important;
+  }
+
+  /* Switch to single-column layout so main content occupies full width */
+  .layout-with-booking {
+    display: block;
+  }
+
+  .layout-with-booking .main-content {
+    width: 100% !important;
+    box-sizing: border-box;
+  }
+
+  .svc-container {
+    max-width: none !important;
+    width: 100% !important;
+    margin: 0;
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+
+  /* Reset header wrapper so it doesn't reserve space for sidebar */
+  .svc-header-wrapper {
+    right: 20px;
+    left: 20px;
+    max-width: none;
+  }
+
+  /* Ensure page wrapper allows full width */
+  .services-page-wrapper {
+    width: 100% !important;
+  }
+
+  .svc-nav { width: auto !important; }
 }
 
 .cart-count {
@@ -439,39 +591,120 @@ body {
   cursor: not-allowed;
 }
 
-@media (max-width:1280) {
+@media (max-width: 1280px) {
+  /* Hide the booking sidebar on iPad Air size and make svc-container full width */
+  .booking-sidebar {
+    display: none !important;
+  }
+
+  /* Switch header into a single horizontal row so exit btn and title align */
+  .svc-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 12px;
+  }
+
+  /* show the exit button inside the header on medium and smaller screens */
+  .svc-exit-btn {
+    display: inline-flex;
+    position: static;
+    margin-right: 8px;
+  }
+
+  /* place header wrapper with comfortable side padding */
   .svc-header-wrapper {
     position: fixed;
     top: 67px;
-    left: 177px;
-    right: 0px;
+    left: 20px;
+    right: 20px;
     z-index: 1000;
     background: #fff;
     border-bottom: 1px solid #e0e0e0;
-    max-width: 1282px;
+    max-width: none;
+  }
 }
-}
+/* iPad Mini / small tablet range: 768px — 1024px */
+@media (min-width: 768px) and (max-width: 1024px) {
+  .svc-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
 
+  .svc-header h2 {
+    font-size: 40px;
+    margin: 0;
+    text-align: start;
+    font-weight: 600;
+    margin-left: 0; /* ensure the title sits next to the exit button */
+    flex: 1 1 auto;
+    min-width: 0; /* allow truncation inside flex */
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .svc-header-wrapper {
+    position: fixed;
+    top: 57px;
+    left: 15px;
+    right: 0;
+    z-index: 1000;
+    background: #fff;
+    /* border-bottom: 1px solid #e0e0e0; */
+    max-width: 800px;
+}
+  /* Ensure wrapper and layout use full width on tablet */
+  .services-page-wrapper { width: 100% !important; max-width: none !important; padding: 0 12px; }
+  .layout-with-booking { margin-right: 0 !important; margin-left: 0 !important; width: 100% !important; }
+}
+@media (max-width: 768px) {
+  .svc-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .svc-header h2 {
+    font-size: 40px;
+    margin: 0;
+    text-align: start;
+    font-weight: 600;
+    margin-left: 0;
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
 /* === MOBILE SPECIFIC STYLES === */
 @media (max-width: 600px) {
-  /* On mobile, the header becomes sticky instead of fixed */
+  /* On mobile, keep header fixed so it stays visible while scrolling */
   .svc-header-wrapper {
-    position: sticky;
-    top: 0;
+    position: fixed;
+    top: 42px;
+    left: 0;
+    right: 0;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
   }
 
-  /* The content no longer needs padding on mobile because of the sticky header */
+  /* Make space for the fixed header on mobile so content doesn't sit under it */
   .svc-container {
-    padding-top: 20px; /* Reset padding-top */
+    padding-top: 120px; /* space for header + nav */
   }
 
   .svc-header {
     padding: 12px 16px;
+    top: 1px;
   }
 
   .svc-header h2 {
-    font-size: 32px;
+  font-size: 32px;
+  margin-left: 0;
   }
 
   .svc-cart-indicator {
@@ -623,4 +856,188 @@ body {
     background: rgba(0,0,0,0.12);
     border-radius: 8px;
   }
+}
+
+/* iPad Air / mid-large tablet range: 820px — 1180px
+   Make svc-container use the remaining width beside the sidebar */
+@media (min-width: 820px) and (max-width: 1180px) {
+  /* assume sidebar ~360px + margin, allocate remaining space to svc-container */
+  /* Use a two-column layout so main content (.svc-container) fills remaining width beside sidebar */
+  .layout-with-booking {
+    display: flex;
+    gap: 24px;
+    align-items: flex-start; 
+  }
+
+  /* allow main content to expand and take remaining space */
+  .layout-with-booking .main-content {
+    flex: 1 1 auto;
+    min-width: 0; /* allow shrinking correctly inside flex */
+  }
+
+  .svc-container { 
+        max-width: none !important;
+        width: 100% !important;
+        margin: 0;
+        padding-left: 20px;
+        padding-right: 20px;
+        min-width: 0; /* ensure it can shrink properly inside flex */
+    }
+
+  /* Sidebar becomes a fixed-width column placed to the right by flex order */
+  .booking-sidebar {
+    display: block !important; /* override the 768-1024 hide rule */
+    width: 360px;
+    flex: 0 0 360px;
+    box-sizing: border-box;
+    position: static; /* allow it to sit in the normal flow beside main-content */
+  }
+
+  /* keep header wrapper from overlapping the sidebar by reserving right space */
+     .svc-header-wrapper {
+        right: 380px;
+        max-width: none;
+        width: 754px;
+    }
+
+
+.svc-nav {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 10px;
+    overflow-x: auto;
+    padding: 10px 20px;
+    /* border-bottom: 1px solid #e0e0e0; */
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+    overflow-y: hidden;
+    white-space: nowrap;
+    width: 746px;
+}
+  /* keep header wrapper from overlapping the sidebar */
+  .svc-header-wrapper {
+    right: 380px;
+    max-width: none;
+  }
+  .services-page-wrapper {
+    display: flex
+;
+    flex-direction: column;
+    min-height: 100vh;
+    width: 800px;
+}
+
+  /* make sure main layout allows the sidebar width (non-intrusive change) */
+  .booking-sidebar {
+    width: 360px;
+    flex-shrink: 0;
+  }
+}
+
+/* Strong overrides: ensure booking sidebar is hidden on the tablet ranges we control */
+@media (min-width: 820px) and (max-width: 1180px) {
+  .services-page-wrapper .booking-sidebar,
+  .layout-with-booking .booking-sidebar,
+  .booking-sidebar {
+    display: none !important;
+    visibility: hidden !important;
+    width: 0 !important;
+    height: 0 !important;
+    overflow: hidden !important;
+  }
+}
+
+/* Also ensure any rule at max-width:900px doesn't force a sidebar width */
+@media (max-width: 900px) {
+  .services-page-wrapper .booking-sidebar,
+  .layout-with-booking .booking-sidebar,
+  .booking-sidebar {
+    display: none !important;
+    visibility: hidden !important;
+    width: 0 !important;
+    height: 0 !important;
+    overflow: hidden !important;
+  }
+}
+
+/* Make the bottom-bar Continue button medium-small on mid-tablet (iPad Air) sizes */
+@media (min-width: 820px) and (max-width: 1180px) {
+  .service-bottom-bar .btn-continue {
+    background: #050506; /* keep provided dark background */
+    color: #fff;
+    border: none;
+    padding: 8px 14px; /* medium-small sizing */
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+  }
+}
+
+/* Compact, light bottom bar used by time and other pages on mobile/tablet */
+.time-bottom-bar,
+.bottom-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: #ffffff;
+  color: #111;
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  box-shadow: 0 -6px 18px rgba(15, 23, 42, 0.06);
+  z-index: 1205;
+  border-top: 1px solid rgba(0,0,0,0.06);
+}
+
+.time-bottom-bar .bar-summary,
+.bottom-bar .bar-summary {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 13px;
+}
+
+.time-bottom-bar .bar-actions .continue-btn,
+.bottom-bar .bar-actions .continue-btn,
+.time-bottom-bar .continue-btn,
+.bottom-bar .continue-btn {
+  background: #050506;
+  color: #fff;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+/* Reserve space so page content doesn't hide behind bottom bars on small screens */
+@media (max-width: 900px) {
+  .time-selector,
+  .svc-container,
+  .layout-with-booking .main-content {
+    padding-bottom: 110px; /* reserve for compact bottom bar */
+  }
+}
+
+/* Ensure header title inside .svc-header is visible on phones/tablets */
+.svc-header .header-title,
+.svc-header h1,
+.svc-header h2 {
+  color: #0b0b0b;
+  flex: 1 1 auto;
+  min-width: 0; /* allow truncation inside flex */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 1280px) {
+  .svc-header .header-title { font-size: 20px; }
 }

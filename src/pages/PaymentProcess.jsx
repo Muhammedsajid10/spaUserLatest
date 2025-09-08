@@ -92,7 +92,7 @@ const PaymentProcess = () => {
 
   const handlePaymentSuccess = (paymentIntent) => {
     console.log('Payment completed successfully:', paymentIntent);
-    navigate('/payment/success', {
+    navigate('/dashboard', {
       state: {
         paymentIntent: paymentIntent,
         bookingData: bookingData

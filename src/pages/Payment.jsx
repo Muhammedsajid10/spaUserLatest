@@ -5,6 +5,8 @@ import { bookingFlow, bookingsAPI, paymentsAPI } from '../services/api';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import Swal from 'sweetalert2';
+import { FaArrowLeft } from 'react-icons/fa';
+import { Spinner } from 'react-bootstrap';
 import './Payment.css';
 
 // Initialize Stripe with environment variable (TEST MODE)
@@ -255,11 +257,13 @@ const Payment = () => {
   }, [user, navigate]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [processing, setProcessing] = useState(false);
   const [availableGateways, setAvailableGateways] = useState([]);
   const [selectedGateway, setSelectedGateway] = useState('stripe');
   const [selectedMethod, setSelectedMethod] = useState('card'); // 'card' | 'upi' | 'cash'
   const [upiVpa, setUpiVpa] = useState('');
   const [paymentIntent, setPaymentIntent] = useState(null);
+  const [successResult, setSuccessResult] = useState(null);
 
   // Get booking data from localStorage
   const bookingData = JSON.parse(localStorage.getItem('bookingData') || '{}');
@@ -484,8 +488,11 @@ const Payment = () => {
                            bookingFlow.selectedDate || 
                            new Date().toISOString().split('T')[0]; // Use date string format
 
-    // Create a proper date object for the appointment date at noon to avoid timezone issues
-    const appointmentDateObj = new Date(`${appointmentDate}T12:00:00.000Z`);
+    // Use the actual start time's date instead of hardcoded noon
+    // This ensures appointmentDate matches the startTime date
+    const appointmentDateObj = bookingFlow.selectedTimeSlot.startTime ? 
+                              new Date(bookingFlow.selectedTimeSlot.startTime) : 
+                              new Date(`${appointmentDate}T12:00:00.000Z`);
 
     const bookingPayload = {
       // Include current logged-in user as client
@@ -566,7 +573,8 @@ const Payment = () => {
   };
 
   const handlePayment = async () => {
-    setLoading(true);
+  setLoading(true);
+  setProcessing(true);
     setError(null);
 
     try {
@@ -710,62 +718,96 @@ const Payment = () => {
       } else {
         // Card payment handled by Stripe component
         setPaymentIntent(paymentData);
+        // stop generic processing spinner so user can enter card details
+        setProcessing(false);
       }
 
-    } catch (error) {
+  } catch (error) {
       console.error('[PAYMENT] Payment error:', error);
       console.error('[PAYMENT] Error details:', {
         message: error.message,
         stack: error.stack,
         name: error.name
       });
-      
+
       let errorMessage = 'Payment failed. Please try again.';
-      
-      if (error.message.includes('User not logged in')) {
+
+      if (error.message && error.message.includes('User not logged in')) {
         errorMessage = 'Please log in to continue with payment.';
-      } else if (error.message.includes('conflicting booking')) {
+      } else if (error.message && error.message.includes('conflicting booking')) {
         errorMessage = 'This time slot is no longer available. Please select a different time.';
-      } else if (error.message.includes('network') || error.message.includes('fetch')) {
+      } else if (error.message && (error.message.includes('network') || error.message.includes('fetch'))) {
         errorMessage = 'Network error. Please check your connection and try again.';
-      } else if (error.message.includes('401') || error.message.includes('Unauthorized')) {
+      } else if (error.message && (error.message.includes('401') || error.message.includes('Unauthorized'))) {
         errorMessage = 'Authentication failed. Please log in again.';
       } else {
-        errorMessage = error.message || 'Payment failed. Please try again.';
+        errorMessage = (error && error.message) ? error.message : 'Payment failed. Please try again.';
       }
-      
-      setError(errorMessage);
-      
+
+  setError(errorMessage);
+
+      // If booking creation failed (network/API or explicit create booking error), navigate to cancel flow
+      try {
+        const msg = (error && error.message) ? String(error.message).toLowerCase() : '';
+        const isBookingCreateError = msg.includes('create booking') || msg.includes('failed to create booking') || msg.includes('failed to create') || msg.includes('booking could not') || msg.includes('no time slot') || msg.includes('network') || msg.includes('fetch');
+        if (isBookingCreateError) {
+          navigate('/payment/cancel', { state: { error: error.message, booking: finalBookingData } });
+          return;
+        }
+      } catch (navErr) {
+        console.warn('[PAYMENT] Failed to navigate to cancel page:', navErr);
+      }
+
     } finally {
       if (selectedMethod !== 'card') {
         setLoading(false);
       }
+      setProcessing(false);
     }
   };
+
+  // Listen for booking-summary confirm event and trigger the payment flow
+  // This ensures booking creation + payment is initiated from the booking summary
+  // (Booking summary dispatches: window.dispatchEvent(new CustomEvent('confirmPayment')) )
+  useEffect(() => {
+    const onConfirm = async (e) => {
+      console.log('[PAYMENT] confirmPayment event received, invoking handlePayment');
+      try {
+        await handlePayment();
+      } catch (err) {
+        console.error('[PAYMENT] Error while handling confirmPayment event:', err);
+      }
+    };
+
+    window.addEventListener('confirmPayment', onConfirm);
+    return () => window.removeEventListener('confirmPayment', onConfirm);
+  }, []);
 
   const handlePaymentSuccess = async (result) => {
     console.log('[PAYMENT] Payment successful:', result);
     
     // Clear booking flow data
     bookingFlow.clear();
-    
-    // Show success message
-    await Swal.fire({
-      title: 'Booking Confirmed!',
-      text: `Your booking has been confirmed. ${result.paymentMethod === 'cash' ? 'Please pay at the venue.' : 'Payment processed successfully.'}`,
-      icon: 'success',
-      confirmButtonText: 'View Booking',
-      timer: 5000
+
+    // Set local success result so UI can render immediately
+    setSuccessResult({
+      paymentData: result.paymentData,
+      paymentMethod: result.paymentMethod,
+      summaryText: result.paymentMethod === 'cash' ? 'Please pay at the venue.' : 'Payment processed successfully.'
     });
 
-    // Navigate to success page
-    navigate('/dashboard', { 
-      state: { 
+    // Navigate to centralized success page and pass data
+    try {
+      navigate('/payment/success', { state: {
         bookingData: finalBookingData,
         paymentData: result.paymentData,
-        paymentMethod: result.paymentMethod
-      } 
-    });
+        paymentMethod: result.paymentMethod,
+        summaryText: result.paymentMethod === 'cash' ? 'Please pay at the venue.' : 'Payment processed successfully.'
+      }});
+    } finally {
+      setLoading(false);
+      setProcessing(false);
+    }
   };
 
   const handlePaymentError = (errorMessage) => {
@@ -810,11 +852,36 @@ const Payment = () => {
 
   // Minimal left-only payment panel.
   // The booking summary will be shown by LayoutWithBooking's sidebar (right side).
+  if (successResult) {
+    return (
+      <div className="payment-success-wrapper">
+        <div className="payment-success-card">
+          <div className="payment-success-tick" aria-hidden>
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M20 6L9 17l-5-5" stroke="#1e8e3e" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </div>
+          <div className="payment-success-title">Booking Confirmed!</div>
+          <div className="payment-success-sub">{successResult.summaryText || 'Your booking has been confirmed.'}</div>
+          <div className="payment-success-actions">
+            <button className="btn-success-primary" onClick={() => handleViewBookings()}>Go to your dashboard</button>
+            <button className="btn-success-secondary" onClick={() => { bookingFlow.clear(); navigate('/'); }}>Add another booking</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <Elements stripe={stripePromise}>
       <div className="payment-page">
         <div className="payment-card-main">
-          <h2 className="payment-title">Review and confirm</h2>
+          <div className="svc-header">
+            <button className="svc-exit-btn" aria-label="Back" onClick={() => { if (window.history && window.history.length > 1) navigate(-1); else navigate('/'); }}>
+              <FaArrowLeft />
+            </button>
+            <h2 className="payment-title">Review and confirm</h2>
+          </div>
           
           <div className="payment-section">
             <h3 className="section-title">Payment method</h3>
@@ -911,17 +978,25 @@ const Payment = () => {
 
           {error && <div className="error-message">{error}</div>}
           
-          {(selectedMethod !== 'card' || !paymentIntent) && (
-            <div className="payment-actions">
-              <button
-                onClick={handlePayment}
-                disabled={loading}
-                className="btn-primary payment-confirm-btn"
-              >
-                {loading ? 'Processing...' : `Confirm ${selectedMethod === 'cash' ? 'Booking' : 'Payment'}`}
-              </button>
-            </div>
-          )}
+       
+        </div>
+        {/* Fixed bottom confirm bar for mobile/tablet to trigger payment */}
+        <div className="service-bottom-bar payment-confirm-bar">
+          <div style={{ color: '#fff' }}>
+            <div>AED {finalBookingData.totalAmount}</div>
+            <div style={{ fontSize: 12 }}>{finalBookingData.serviceNames}</div>
+          </div>
+          <div>
+            <button
+              className="btn-continue"
+              onClick={() => {
+                // Trigger the payment flow; dispatch confirmPayment so other components listen
+                window.dispatchEvent(new CustomEvent('confirmPayment'));
+              }}
+            >
+              Confirm & Pay
+            </button>
+          </div>
         </div>
       </div>
     </Elements>

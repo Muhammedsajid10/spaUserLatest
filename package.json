@@ -5,6 +5,8 @@
   "engines": {
     "node": "^18.17.0 || ^20.9.0 || ^22.0.0"
   },
+  "proxy": "https://spabacklat.onrender.com",
+
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0",

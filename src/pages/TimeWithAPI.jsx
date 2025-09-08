@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { ChevronLeft, ChevronRight, Calendar } from "lucide-react";
+import { FaArrowLeft } from 'react-icons/fa';
 import { useNavigate, useLocation } from "react-router-dom";
 import "./Time.css";
 import Professionals from "./ProfessionalsUpdated";
@@ -12,8 +13,10 @@ import {
   localDateKey,
   getEmployeeShiftHours,
   addMinutesToTime,
-  getAvailableProfessionalsForService
+  getAvailableProfessionalsForService,
+  formatTimeToAMPM
 } from "../bookingUtils";
+import { isEmployeeMarkedNotWorking } from '../bookingUtils';
 import Swal from 'sweetalert2';
 
 // Elegant full-page spinner component
@@ -59,7 +62,7 @@ const Time = (props) => {
   const isInitialLoad = useRef(true);
 
   // compute 7-day array (Sunday -> Saturday) for the current selectedDate
-  const weekDates = (() => {
+  const weekDates = useMemo(() => {
     const start = new Date(selectedDate);
     const day = start.getDay(); // 0 = Sunday
     start.setDate(start.getDate() - day);
@@ -69,7 +72,7 @@ const Time = (props) => {
       d.setDate(start.getDate() + i);
       return d;
     });
-  })();
+  }, [selectedDate.toDateString()]); // Use stable date string
 
   // Load booking flow data and initial page load
   useEffect(() => {
@@ -102,8 +105,19 @@ const Time = (props) => {
       }, 500);
     }
 
-    const handleBookingFlowChange = () => {
-      loadBookingData();
+    const handleBookingFlowChange = (event) => {
+      // Only reload if something other than time slot selection changed
+      const data = bookingFlow.load();
+      const currentSelectedService = selectedService?._id;
+      const currentSelectedProfessional = selectedProfessional?._id || selectedProfessional?.id;
+      const newSelectedService = data.selectedServices?.[0]?._id;
+      const newSelectedProfessional = data.selectedProfessionals?.[data.selectedServices?.[0]?._id]?._id || 
+                                      data.selectedProfessionals ?.[data.selectedServices?.[0]?._id]?.id;
+      
+      // Only reload data if service or professional changed (not just time slot)
+      if (currentSelectedService !== newSelectedService || currentSelectedProfessional !== newSelectedProfessional) {
+        loadBookingData();
+      }
     };
 
     window.addEventListener('bookingFlowChange', handleBookingFlowChange);
@@ -111,7 +125,7 @@ const Time = (props) => {
     return () => {
       window.removeEventListener('bookingFlowChange', handleBookingFlowChange);
     };
-  }, []);
+  }, []); // Remove selectedService and selectedProfessional from dependencies to prevent loops
 
   const getDaysInMonth = (year, month) => new Date(year, month + 1, 0).getDate();
   const getFirstDayOfMonth = (year, month) => new Date(year, month, 1).getDay();
@@ -122,154 +136,506 @@ const Time = (props) => {
     setSelectedDate(newDate);
   };
 
-  // Fetch employees + bookings for a specific date and build appointmentsIndex
-  const fetchDateData = async (date) => {
+  // ENHANCED: Employee-specific booking conflict detection system
+  const fetchEmployeeBookingConflicts = async (date, employeeId) => {
     const formattedDate = apiUtils.formatDate(date);
-    console.log('[Time] fetchDateData start', { formattedDate });
+    console.log('[Time] EMPLOYEE-SPECIFIC: Fetching booking conflicts for specific employee only', { 
+      formattedDate, 
+      employeeId,
+      employeeName: 'Target employee'
+    });
 
-    // 1) Fetch employees using public booking API with selected service
-    let employees = [];
+    // Get ALL bookings from admin side (may contain multiple dates)
+    let allBookings = [];
     try {
-      // Use the public booking API to get available professionals for the selected service
-      if (selectedService && selectedService._id && bookingsAPI && typeof bookingsAPI.getAvailableProfessionals === 'function') {
-        const resp = await bookingsAPI.getAvailableProfessionals(selectedService._id, formattedDate);
-        employees = resp?.data?.professionals ?? resp?.professionals ?? resp?.data ?? resp ?? [];
-        console.log('[Time] fetched professionals for service via public API', { 
-          serviceId: selectedService._id, 
-          count: employees.length,
-          sampleEmployee: employees[0] ? {
-            id: employees[0]._id,
-            name: employees[0].user ? `${employees[0].user.firstName} ${employees[0].user.lastName}` : employees[0].name,
-            hasWorkSchedule: !!employees[0].workSchedule,
-            workScheduleKeys: employees[0].workSchedule ? Object.keys(employees[0].workSchedule) : [],
-            workScheduleSample: employees[0].workSchedule 
-          } : null
-        });
-
-        // Apply fallback workSchedule if the public API doesn't return complete schedule data
-        employees = employees.map(emp => {
-          if (!emp.workSchedule || Object.keys(emp.workSchedule).length === 0) {
-            console.log(`[Time] Applying enhanced default schedule for ${emp.user?.firstName} ${emp.user?.lastName}`);
-            // Use a more flexible default that allows extended hours
-            emp.workSchedule = {
-              sunday: { isWorking: true, startTime: '06:00', endTime: '22:00', shifts: '06:00 - 22:00' },
-              monday: { isWorking: true, startTime: '06:00', endTime: '22:00', shifts: '06:00 - 22:00' },
-              tuesday: { isWorking: true, startTime: '06:00', endTime: '22:00', shifts: '06:00 - 22:00' },
-              wednesday: { isWorking: true, startTime: '06:00', endTime: '22:00', shifts: '06:00 - 22:00' },
-              thursday: { isWorking: true, startTime: '06:00', endTime: '22:00', shifts: '06:00 - 22:00' },
-              friday: { isWorking: true, startTime: '06:00', endTime: '22:00', shifts: '06:00 - 22:00' },
-              saturday: { isWorking: true, startTime: '06:00', endTime: '22:00', shifts: '06:00 - 22:00' }
-            };
-          }
-          return emp;
-        });
-
-        console.log('[Time] Final employees with workSchedule:', {
-          employeesCount: employees.length,
-          employeesWithSchedule: employees.filter(e => e.workSchedule && Object.keys(e.workSchedule).length > 0).length
+      console.log('[Time] EMPLOYEE-SPECIFIC: Fetching ALL bookings from admin side');
+      
+      if (bookingsAPI && typeof bookingsAPI.getTotalBookingsFromAdminSide === 'function') {
+        const resp = await bookingsAPI.getTotalBookingsFromAdminSide(formattedDate);
+        allBookings = resp?.data?.bookings ?? resp?.bookings ?? resp?.data ?? resp ?? [];
+        console.log('[Time] EMPLOYEE-SPECIFIC: Raw bookings fetched:', {
+          totalCount: allBookings.length,
+          requestedDate: formattedDate,
+          targetEmployeeId: employeeId
         });
       } else {
-        console.warn('[Time] no selected service or getAvailableProfessionals API not available');
-        employees = [];
+        console.log('[Time] EMPLOYEE-SPECIFIC: Admin booking API not available');
+        return { appointmentsIndex: {} };
       }
     } catch (err) {
-      console.warn('[Time] failed to fetch professionals for service', selectedService?._id, 'on date', formattedDate, err);
-      employees = [];
+      console.warn('[Time] EMPLOYEE-SPECIFIC: Failed to fetch bookings:', err.message);
+      return { appointmentsIndex: {} };
     }
 
-    // normalize employees (unwrap potential wrappers)
-    employees = (employees || []).map((raw, idx) => {
-      const emp = raw && raw.employee ? raw.employee : raw || {};
-      const resolvedId = emp._id || emp.id || `emp-${idx}`;
-      return { ...emp, _id: emp._id || resolvedId, id: emp.id || resolvedId };
+    // STEP 1: Filter bookings by selected date
+    const selectedDateKey = localDateKey(date);
+    const dateFilteredBookings = allBookings.filter(booking => {
+      if (!booking.appointmentDate) return false;
+      const bookingDateKey = localDateKey(new Date(booking.appointmentDate));
+      return bookingDateKey === selectedDateKey;
     });
 
-    // 2) ENHANCEMENT: Fetch existing bookings for the specific employee to exclude booked times
-    // Only fetch when we have a specific professional selected (not "any")
-    let bookings = [];
-    const flow = bookingFlow.load();
-    const specificProfessional = flow.selectedProfessionals?.[selectedService?._id] || selectedProfessional;
-    const isSpecificProfessional = specificProfessional && specificProfessional.id !== 'any' && specificProfessional._id !== 'any';
+    console.log('[Time] EMPLOYEE-SPECIFIC STEP 1 - Date filtering:', {
+      selectedDate: selectedDateKey,
+      totalBookings: allBookings.length,
+      dateFilteredBookings: dateFilteredBookings.length
+    });
+
+    // STEP 2: Extract ONLY bookings for the specific employee
+    let employeeSpecificBookings = [];
     
-    if (isSpecificProfessional) {
-      try {
-        console.log('[Time] Getting available time slots for specific professional (this will exclude booked times):', {
-          professionalId: specificProfessional._id || specificProfessional.id,
-          professionalName: specificProfessional.user ? `${specificProfessional.user.firstName} ${specificProfessional.user.lastName}` : specificProfessional.name,
-          serviceId: selectedService?._id,
-          date: formattedDate
-        });
-        
-        // Use the getAvailableTimeSlots API which already excludes booked times
-        if (bookingsAPI && typeof bookingsAPI.getAvailableTimeSlots === 'function' && selectedService?._id) {
-          const resp = await bookingsAPI.getAvailableTimeSlots(
-            specificProfessional._id || specificProfessional.id,
-            selectedService._id,
-            formattedDate
-          );
-          // The response contains available time slots, we can infer bookings by missing slots
-          const availableSlots = resp?.data?.timeSlots || resp?.timeSlots || resp || [];
-          console.log('[Time] Got available time slots from API (booked times already excluded):', {
-            availableSlotsCount: availableSlots.length,
-            sampleSlots: availableSlots.slice(0, 3)
-          });
+    dateFilteredBookings.forEach(booking => {
+      if (booking.services && Array.isArray(booking.services)) {
+        booking.services.forEach(service => {
+          const serviceEmployeeId = service.employee?._id || service.employee?.id;
           
-          // Since we have available slots that exclude bookings, we don't need to fetch bookings separately
-          // The backend has already handled booking conflicts
-          bookings = []; // We'll rely on the backend's availability checking
-        } else {
-          console.log('[Time] getAvailableTimeSlots API not available, will rely on backend availability checking');
-          bookings = [];
-        }
-      } catch (err) {
-        console.log('[Time] Failed to fetch available time slots from API:', err.message);
-        console.log('[Time] Will fall back to backend availability checking during slot generation');
-        bookings = [];
+          // CRITICAL: Only include bookings for THIS specific employee
+          if (String(serviceEmployeeId) === String(employeeId)) {
+            employeeSpecificBookings.push({
+              _id: service._id || service.id || `${booking._id}_${service._id}`,
+              bookingId: booking._id,
+              employeeId: serviceEmployeeId,
+              employee: service.employee,
+              startTime: service.startTime,
+              endTime: service.endTime,
+              duration: service.duration || 30,
+              status: service.status || booking.status,
+              appointmentDate: booking.appointmentDate,
+              serviceName: service.service?.name || 'Unknown Service'
+            });
+          }
+        });
       }
+    });
+
+    console.log('[Time] EMPLOYEE-SPECIFIC STEP 2 - Employee filtering:', {
+      targetEmployeeId: employeeId,
+      dateFilteredBookings: dateFilteredBookings.length,
+      totalServiceBookings: dateFilteredBookings.reduce((sum, b) => sum + (b.services?.length || 0), 0),
+      employeeSpecificBookings: employeeSpecificBookings.length,
+      conflictingTimeSlots: employeeSpecificBookings.map(b => ({
+        timeSlot: `${b.startTime}-${b.endTime}`,
+        duration: b.duration,
+        serviceName: b.serviceName,
+        bookingId: b.bookingId,
+        appointmentDate: b.appointmentDate
+      }))
+    });
+
+    // ENHANCED LOGGING: Detailed booking conflicts for the specific chosen employee
+    if (employeeSpecificBookings.length > 0) {
+      console.log('🚫 EMPLOYEE-SPECIFIC BOOKING CONFLICTS for chosen employee on chosen date:', {
+        chosenEmployeeId: employeeId,
+        chosenDate: selectedDateKey,
+        conflictingBookings: employeeSpecificBookings.map(booking => ({
+          bookingId: booking.bookingId,
+          timeSlot: `${booking.startTime} - ${booking.endTime}`,
+          duration: `${booking.duration} minutes`,
+          serviceName: booking.serviceName,
+          status: booking.status,
+          appointmentDate: booking.appointmentDate,
+          rawStartTime: booking.startTime,
+          rawEndTime: booking.endTime,
+          employeeInfo: {
+            id: booking.employee?._id || booking.employee?.id,
+            name: booking.employee?.user ? 
+              `${booking.employee.user.firstName} ${booking.employee.user.lastName}` : 
+              booking.employee?.name
+          }
+        })),
+        totalConflicts: employeeSpecificBookings.length,
+        message: 'These time slots are BLOCKED for the chosen employee on the chosen date'
+      });
+
+      // Convert booking times to readable format for easier debugging
+      const blockedTimeSlots = employeeSpecificBookings.map(booking => {
+        const normalizeTime = (timeStr) => {
+          if (!timeStr) return 'N/A';
+          if (timeStr.includes('T')) {
+            const date = new Date(timeStr);
+            
+            // TIMEZONE DEBUG: Log the conversion
+            console.log('[Time] 🌍 EMPLOYEE-SPECIFIC TIME CONVERSION:', {
+              originalISO: timeStr,
+              utcTime: `${String(date.getUTCHours()).padStart(2, '0')}:${String(date.getUTCMinutes()).padStart(2, '0')}`,
+              localTime: `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`,
+              timezoneOffset: date.getTimezoneOffset()
+            });
+            
+            return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+          }
+          return timeStr;
+        };
+        
+        return {
+          startTime: normalizeTime(booking.startTime),
+          endTime: normalizeTime(booking.endTime),
+          duration: booking.duration,
+          service: booking.serviceName,
+          bookingId: booking.bookingId
+        };
+      });
+
+      console.log('⏰ EMPLOYEE-SPECIFIC BLOCKED TIME SLOTS (normalized format):', {
+        employeeId: employeeId,
+        date: selectedDateKey,
+        blockedSlots: blockedTimeSlots,
+        timeSlotsSummary: blockedTimeSlots.map(slot => `${slot.startTime}-${slot.endTime} (${slot.service})`).join(', '),
+        blockingMessage: 'These time slots should NOT appear as available options for the user'
+      });
     } else {
-      console.log('[Time] Skipping bookings fetch - no specific professional selected or "any" professional mode');
+      console.log('✅ NO EMPLOYEE-SPECIFIC BOOKING CONFLICTS for chosen employee on chosen date:', {
+        chosenEmployeeId: employeeId,
+        chosenDate: selectedDateKey,
+        message: 'All time slots are available for this employee on this date',
+        totalBookingsForDate: dateFilteredBookings.length,
+        totalServiceBookingsForDate: dateFilteredBookings.reduce((sum, b) => sum + (b.services?.length || 0), 0)
+      });
     }
 
-    // build appointmentsIndex: { [employeeId]: { [YYYY-MM-DD]: { key: booking } } }
+    // ENHANCED: Check for overlapping bookings within the same employee
+    console.log('[Time] EMPLOYEE-SPECIFIC: Checking for overlapping bookings within same employee');
+    const overlapWarnings = [];
+    for (let i = 0; i < employeeSpecificBookings.length; i++) {
+      for (let j = i + 1; j < employeeSpecificBookings.length; j++) {
+        const booking1 = employeeSpecificBookings[i];
+        const booking2 = employeeSpecificBookings[j];
+        
+        // Convert times to comparable format
+        const normalizeTime = (timeStr) => {
+          if (!timeStr) return null;
+          if (timeStr.includes('T')) {
+            const date = new Date(timeStr);
+            
+            // TIMEZONE DEBUG: Log the conversion for overlap detection
+            console.log('[Time] 🌍 OVERLAP DETECTION TIME CONVERSION:', {
+              originalISO: timeStr,
+              utcTime: `${String(date.getUTCHours()).padStart(2, '0')}:${String(date.getUTCMinutes()).padStart(2, '0')}`,
+              localTime: `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`,
+              timezoneOffset: date.getTimezoneOffset()
+            });
+            
+            // CRITICAL FIX: Use local time instead of UTC for proper timezone handling
+            return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+          }
+          return timeStr;
+        };
+        
+        const start1 = normalizeTime(booking1.startTime);
+        const end1 = normalizeTime(booking1.endTime);
+        const start2 = normalizeTime(booking2.startTime);
+        const end2 = normalizeTime(booking2.endTime);
+        
+        // Check for overlap: (start1 < end2) AND (end1 > start2)
+        if (start1 < end2 && end1 > start2) {
+          overlapWarnings.push({
+            booking1: { id: booking1.bookingId, time: `${start1}-${end1}`, service: booking1.serviceName },
+            booking2: { id: booking2.bookingId, time: `${start2}-${end2}`, service: booking2.serviceName },
+            overlapType: start1 === start2 ? 'exact-match' : 'partial-overlap'
+          });
+        }
+      }
+    }
+    
+    if (overlapWarnings.length > 0) {
+      console.warn('[Time] EMPLOYEE-SPECIFIC: ⚠️ OVERLAPPING BOOKINGS DETECTED for employee:', {
+        employeeId,
+        overlaps: overlapWarnings,
+        message: 'This employee has conflicting time slots - system should prevent double booking!'
+      });
+    }
+
+    // STEP 3: Build appointmentsIndex ONLY for this employee
     const appointmentsIndex = {};
-    bookings.forEach(b => {
-      let empRef = b.employeeId ?? b.employee ?? b.professionalId ?? null;
-      if (!empRef && b.employee && typeof b.employee === 'object') {
-        empRef = b.employee._id || b.employee.id || null;
+    appointmentsIndex[employeeId] = {};
+    appointmentsIndex[employeeId][selectedDateKey] = {};
+    
+    employeeSpecificBookings.forEach(serviceBooking => {
+      const startTime = serviceBooking.startTime;
+      
+      if (!startTime) {
+        console.warn('[Time] EMPLOYEE-SPECIFIC: Skipping booking with missing time:', serviceBooking);
+        return;
       }
-      const empId = (empRef && typeof empRef === 'object') ? (empRef._id || empRef.id || String(empRef)) : empRef;
-      const start = b.startTime || b.time || b.date || b.slot || b.start;
-      if (!empId || !start) return;
-      const dayKey = localDateKey(new Date(start));
+      
+      // Create unique key for this booking
+      const bookingKey = serviceBooking._id || `${startTime}_${employeeId}_${serviceBooking.bookingId}`;
+      
+      // Store the booking in appointmentsIndex
+      appointmentsIndex[employeeId][selectedDateKey][bookingKey] = {
+        _id: serviceBooking._id,
+        bookingId: serviceBooking.bookingId,
+        employeeId: employeeId,
+        startTime: startTime,
+        endTime: serviceBooking.endTime,
+        duration: serviceBooking.duration,
+        status: serviceBooking.status,
+        serviceName: serviceBooking.serviceName
+      };
+    });
+
+    console.log('[Time] EMPLOYEE-SPECIFIC STEP 3 - appointmentsIndex built:', {
+      selectedDate: selectedDateKey,
+      employeeId: employeeId,
+      bookingsCount: Object.keys(appointmentsIndex[employeeId][selectedDateKey]).length,
+      bookings: Object.values(appointmentsIndex[employeeId][selectedDateKey]).map(b => ({
+        timeSlot: `${b.startTime}-${b.endTime}`,
+        duration: b.duration,
+        service: b.serviceName,
+        bookingId: b.bookingId
+      }))
+    });
+
+    return { appointmentsIndex };
+  };
+
+  // Enhanced booking conflict detection system (FALLBACK for "Any professional" mode)
+  const fetchDateData = async (date) => {
+    const formattedDate = apiUtils.formatDate(date);
+    console.log('[Time] fetchDateData start - Enhanced booking filtering (FALLBACK)', { formattedDate });
+
+    // Get ALL bookings from admin side (may contain multiple dates)
+    let allBookings = [];
+    try {
+      console.log('[Time] Fetching ALL bookings from admin side for enhanced filtering');
+      
+      if (bookingsAPI && typeof bookingsAPI.getTotalBookingsFromAdminSide === 'function') {
+        const resp = await bookingsAPI.getTotalBookingsFromAdminSide(formattedDate);
+        allBookings = resp?.data?.bookings ?? resp?.bookings ?? resp?.data ?? resp ?? [];
+        console.log('[Time] Raw bookings fetched from admin:', {
+          totalCount: allBookings.length,
+          requestedDate: formattedDate,
+          sample: allBookings.slice(0, 2).map(b => ({
+            id: b._id,
+            appointmentDate: b.appointmentDate,
+            servicesCount: b.services?.length || 0
+          }))
+        });
+      } else {
+        console.log('[Time] Admin booking API not available, generating slots without conflict checking');
+        return { appointmentsIndex: {} };
+      }
+    } catch (err) {
+      console.warn('[Time] Failed to fetch bookings from admin side:', err.message);
+      return { appointmentsIndex: {} };
+    }
+
+    // STEP 1: Filter bookings by selected date
+    const selectedDateKey = localDateKey(date);
+    const dateFilteredBookings = allBookings.filter(booking => {
+      if (!booking.appointmentDate) return false;
+      const bookingDateKey = localDateKey(new Date(booking.appointmentDate));
+      return bookingDateKey === selectedDateKey;
+    });
+
+    console.log('[Time] STEP 1 - Date filtering:', {
+      selectedDate: selectedDateKey,
+      totalBookings: allBookings.length,
+      dateFilteredBookings: dateFilteredBookings.length,
+      filteredSample: dateFilteredBookings.slice(0, 2).map(b => ({
+        id: b._id,
+        appointmentDate: b.appointmentDate,
+        servicesCount: b.services?.length || 0
+      }))
+    });
+
+    // STEP 2: Extract individual service bookings and filter by selected employee
+    const flow = bookingFlow.load();
+    const selectedProfessionalForService = flow.selectedProfessionals?.[selectedService?._id] || selectedProfessional;
+    const hasSpecificProfessional = selectedProfessionalForService && 
+      selectedProfessionalForService.id !== 'any' && 
+      selectedProfessionalForService._id !== 'any';
+
+    let relevantServiceBookings = [];
+    
+    // Extract all individual service bookings from date-filtered bookings
+    dateFilteredBookings.forEach(booking => {
+      if (booking.services && Array.isArray(booking.services)) {
+        booking.services.forEach(service => {
+          const serviceEmployeeId = service.employee?._id || service.employee?.id;
+          
+          // If specific professional selected, filter by employee
+          if (hasSpecificProfessional) {
+            const targetEmployeeId = selectedProfessionalForService._id || selectedProfessionalForService.id;
+            if (String(serviceEmployeeId) === String(targetEmployeeId)) {
+              relevantServiceBookings.push({
+                _id: service._id || service.id || `${booking._id}_${service._id}`,
+                bookingId: booking._id,
+                employeeId: serviceEmployeeId,
+                employee: service.employee,
+                startTime: service.startTime,
+                endTime: service.endTime,
+                duration: service.duration || 30,
+                status: service.status || booking.status,
+                appointmentDate: booking.appointmentDate,
+                serviceName: service.service?.name || 'Unknown Service'
+              });
+            }
+          } else {
+            // No specific professional - include all service bookings for "Any professional" mode
+            relevantServiceBookings.push({
+              _id: service._id || service.id || `${booking._id}_${service._id}`,
+              bookingId: booking._id,
+              employeeId: serviceEmployeeId,
+              employee: service.employee,
+              startTime: service.startTime,
+              endTime: service.endTime,
+              duration: service.duration || 30,
+              status: service.status || booking.status,
+              appointmentDate: booking.appointmentDate,
+              serviceName: service.service?.name || 'Unknown Service'
+            });
+          }
+        });
+      }
+    });
+
+    console.log('[Time] STEP 2 - Employee filtering and service extraction:', {
+      hasSpecificProfessional,
+      selectedProfessionalId: hasSpecificProfessional ? (selectedProfessionalForService._id || selectedProfessionalForService.id) : 'any',
+      selectedProfessionalName: hasSpecificProfessional ? 
+        (selectedProfessionalForService.user ? 
+          `${selectedProfessionalForService.user.firstName} ${selectedProfessionalForService.user.lastName}` : 
+          selectedProfessionalForService.name) : 'Any professional',
+      dateFilteredBookings: dateFilteredBookings.length,
+      totalServiceBookings: dateFilteredBookings.reduce((sum, b) => sum + (b.services?.length || 0), 0),
+      relevantServiceBookings: relevantServiceBookings.length,
+      blockedTimeSlots: relevantServiceBookings.map(b => ({
+        employeeId: b.employeeId,
+        timeSlot: `${b.startTime}-${b.endTime}`,
+        duration: b.duration,
+        serviceName: b.serviceName
+      }))
+    });
+
+    // ENHANCED LOGGING: Detailed booking conflicts for chosen employee on chosen date
+    if (hasSpecificProfessional && relevantServiceBookings.length > 0) {
+      const targetEmployeeId = selectedProfessionalForService._id || selectedProfessionalForService.id;
+      const targetEmployeeName = selectedProfessionalForService.user ? 
+        `${selectedProfessionalForService.user.firstName} ${selectedProfessionalForService.user.lastName}` : 
+        selectedProfessionalForService.name;
+      
+      console.log('🚫 BOOKING CONFLICTS DETECTED for chosen employee on chosen date:', {
+        chosenEmployee: {
+          id: targetEmployeeId,
+          name: targetEmployeeName
+        },
+        chosenDate: localDateKey(date),
+        conflictingBookings: relevantServiceBookings.map(booking => ({
+          bookingId: booking.bookingId,
+          timeSlot: `${booking.startTime} - ${booking.endTime}`,
+          duration: `${booking.duration} minutes`,
+          serviceName: booking.serviceName,
+          status: booking.status,
+          appointmentDate: booking.appointmentDate,
+          rawStartTime: booking.startTime,
+          rawEndTime: booking.endTime
+        })),
+        totalConflicts: relevantServiceBookings.length,
+        message: 'These time slots are BLOCKED for the chosen employee on the chosen date'
+      });
+
+      // Convert booking times to readable format for easier debugging
+      const blockedTimeSlots = relevantServiceBookings.map(booking => {
+        const normalizeTime = (timeStr) => {
+          if (!timeStr) return 'N/A';
+          if (timeStr.includes('T')) {
+            const date = new Date(timeStr);
+            
+            // TIMEZONE DEBUG: Log the conversion for general booking conflicts
+            console.log('[Time] 🌍 GENERAL BOOKING CONFLICT TIME CONVERSION:', {
+              originalISO: timeStr,
+              utcTime: `${String(date.getUTCHours()).padStart(2, '0')}:${String(date.getUTCMinutes()).padStart(2, '0')}`,
+              localTime: `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`,
+              timezoneOffset: date.getTimezoneOffset()
+            });
+            
+            return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+          }
+          return timeStr;
+        };
+        
+        return {
+          startTime: normalizeTime(booking.startTime),
+          endTime: normalizeTime(booking.endTime),
+          duration: booking.duration,
+          service: booking.serviceName,
+          bookingId: booking.bookingId
+        };
+      });
+
+      console.log('⏰ BLOCKED TIME SLOTS (normalized format) for chosen employee:', {
+        employeeName: targetEmployeeName,
+        date: localDateKey(date),
+        blockedSlots: blockedTimeSlots,
+        timeSlotsSummary: blockedTimeSlots.map(slot => `${slot.startTime}-${slot.endTime} (${slot.service})`).join(', ')
+      });
+    } else if (hasSpecificProfessional && relevantServiceBookings.length === 0) {
+      const targetEmployeeId = selectedProfessionalForService._id || selectedProfessionalForService.id;
+      const targetEmployeeName = selectedProfessionalForService.user ? 
+        `${selectedProfessionalForService.user.firstName} ${selectedProfessionalForService.user.lastName}` : 
+        selectedProfessionalForService.name;
+      
+      console.log('✅ NO BOOKING CONFLICTS for chosen employee on chosen date:', {
+        chosenEmployee: {
+          id: targetEmployeeId,
+          name: targetEmployeeName
+        },
+        chosenDate: localDateKey(date),
+        message: 'All time slots are available for this employee on this date',
+        totalBookingsForDate: dateFilteredBookings.length,
+        totalServiceBookingsForDate: dateFilteredBookings.reduce((sum, b) => sum + (b.services?.length || 0), 0)
+      });
+    }
+
+    // STEP 3: Build appointmentsIndex from relevant service bookings
+    const appointmentsIndex = {};
+    
+    relevantServiceBookings.forEach(serviceBooking => {
+      const empId = serviceBooking.employeeId;
+      const startTime = serviceBooking.startTime;
+      
+      if (!empId || !startTime) {
+        console.warn('[Time] Skipping service booking with missing employee or time:', serviceBooking);
+        return;
+      }
+      
+      // Ensure appointmentsIndex structure exists
       appointmentsIndex[empId] = appointmentsIndex[empId] || {};
-      appointmentsIndex[empId][dayKey] = appointmentsIndex[empId][dayKey] || {};
-      const key = b._id || b.id || `${start}_${empId}`;
-      appointmentsIndex[empId][dayKey][key] = b;
+      appointmentsIndex[empId][selectedDateKey] = appointmentsIndex[empId][selectedDateKey] || {};
+      
+      // Create unique key for this booking
+      const bookingKey = serviceBooking._id || `${startTime}_${empId}_${serviceBooking.bookingId}`;
+      
+      // Store the booking in appointmentsIndex
+      appointmentsIndex[empId][selectedDateKey][bookingKey] = {
+        _id: serviceBooking._id,
+        bookingId: serviceBooking.bookingId,
+        employeeId: empId,
+        startTime: startTime,
+        endTime: serviceBooking.endTime,
+        duration: serviceBooking.duration,
+        status: serviceBooking.status,
+        serviceName: serviceBooking.serviceName
+      };
     });
 
-    // mirror alternate ids to normalized employee ids
-    const idMap = {};
-    employees.forEach(emp => {
-      if (emp._id) idMap[String(emp._id)] = emp._id;
-      if (emp.id) idMap[String(emp.id)] = emp._id || emp.id;
-    });
-    Object.keys(appointmentsIndex).forEach(rawId => {
-      const normalized = idMap[rawId];
-      if (normalized && normalized !== rawId) {
-        appointmentsIndex[normalized] = { ...(appointmentsIndex[normalized] || {}), ...appointmentsIndex[rawId] };
-      }
+    console.log('[Time] STEP 3 - appointmentsIndex built:', {
+      selectedDate: selectedDateKey,
+      employeesWithBookings: Object.keys(appointmentsIndex).length,
+      employeeBookingDetails: Object.keys(appointmentsIndex).map(empId => ({
+        employeeId: empId,
+        bookingsCount: Object.keys(appointmentsIndex[empId][selectedDateKey] || {}).length,
+        bookings: Object.values(appointmentsIndex[empId][selectedDateKey] || {}).map(b => ({
+          timeSlot: `${b.startTime}-${b.endTime}`,
+          duration: b.duration,
+          service: b.serviceName
+        }))
+      })),
+      conflictDetectionEnabled: relevantServiceBookings.length > 0
     });
 
-    console.log('[Time] fetchDateData done', { employeesCount: employees.length, bookingsCount: bookings.length });
-    console.log('[Time] fetchDateData raw employees sample', employees.slice(0,3));
-    console.log('[Time] fetchDateData raw bookings sample', bookings.slice(0,6));
-    // show mapping of appointmentsIndex keys and date keys inside them
-    Object.keys(appointmentsIndex).forEach(empKey => {
-      console.log('[Time] appointmentsIndex key', empKey, 'dates:', Object.keys(appointmentsIndex[empKey] || {}).slice(0,6));
-    });
-    // also show formattedDate and localDateKey for that date
-    console.log('[Time] formattedDate/localDateKey', { formattedDate, localDateKey: localDateKey(date) });
-    return { employees, appointmentsIndex };
+    return { appointmentsIndex };
   };
 
   const handleDateClick = async (day) => {
@@ -284,7 +650,7 @@ const Time = (props) => {
       const flow = bookingFlow.load();
       const services = (flow.selectedServices && flow.selectedServices.length) ? flow.selectedServices : ([selectedService].filter(Boolean));
 
-      const { employees, appointmentsIndex } = await fetchDateData(newDate);
+      const { appointmentsIndex } = await fetchDateData(newDate);
 
       // single-service -> compute using local slots for the assigned professional (or union if 'any')
       if (!services || services.length <= 1) {
@@ -294,13 +660,30 @@ const Time = (props) => {
         const assigned = flow.selectedProfessionals?.[svc._id] || selectedProfessional;
 
         if (!assigned || assigned.id === 'any' || assigned._id === 'any') {
-          // union across all available employees for the service using employees + appointmentsIndex
-          console.log('[Time] single-service ANY -> union slots from local employees list');
+          // For "Any professional", fetch employees only when needed for union calculation
+          console.log('[Time] single-service ANY -> fetching employees for union slots');
+          let employees = [];
+          try {
+            const resp = await bookingsAPI.getAvailableProfessionals(svc._id, apiUtils.formatDate(newDate));
+            employees = resp?.data?.professionals ?? resp?.professionals ?? resp?.data ?? resp ?? [];
+            employees = employees.filter(emp => emp.isActive !== false);
+          } catch (err) {
+            console.warn('[Time] Failed to fetch professionals for Any selection:', err);
+            employees = [];
+          }
+          
           const avail = getAvailableProfessionalsForService(svc._id, newDate, employees, appointmentsIndex, flow.selectedServices || [svc]);
           const union = [];
           (avail || []).forEach(r => (r.slots || []).forEach(s => union.push(s)));
           const uniq = Array.from(new Set(union)).sort();
-          const slots = uniq.map((t,i) => ({ id:i, time:t, startTime:t, endTime: addMinutesToTime(t, svc.duration||30), available:true }));
+          const slots = uniq.map((t,i) => ({ 
+            id:i, 
+            time: formatTimeToAMPM(t), // Display in AM/PM format
+            timeValue: t, // Keep original 24-hour format for calculations
+            startTime:t, 
+            endTime: addMinutesToTime(t, svc.duration||30), 
+            available:true 
+          }));
           console.log('[Time] union slots count', slots.length);
           setAvailableTimeSlots(slots);
           return;
@@ -312,7 +695,14 @@ const Time = (props) => {
         console.log('[Time] computing local slots for employee', { employeeId: empId, date: localDateKey(newDate), duration });
         const slotsArr = getValidTimeSlotsForProfessional(assigned, new Date(newDate), duration, appointmentsIndex);
         console.log('[Time] local slots computed count', slotsArr.length, slotsArr.slice(0,6));
-        const mapped = slotsArr.map((t, i) => ({ id: i, time: t, startTime: t, endTime: addMinutesToTime(t, duration), available: true }));
+        const mapped = slotsArr.map((t, i) => ({ 
+          id: i, 
+          time: formatTimeToAMPM(t), // Display in AM/PM format
+          timeValue: t, // Keep original 24-hour format for calculations
+          startTime: t, 
+          endTime: addMinutesToTime(t, duration), 
+          available: true 
+        }));
         setAvailableTimeSlots(mapped);
         return;
       }
@@ -341,7 +731,8 @@ const Time = (props) => {
       }
       const slots = sequences.map((s, idx) => ({
         id: idx,
-        time: s.startTime,
+        time: formatTimeToAMPM(s.startTime), // Display in AM/PM format
+        timeValue: s.startTime, // Keep original 24-hour format for calculations
         startTime: s.startTime,
         endTime: s.sequence[s.sequence.length - 1].endTime,
         available: true,
@@ -359,7 +750,12 @@ const Time = (props) => {
 
   useEffect(() => {
     const fetchTimeSlots = async () => {
-      console.log('[Time] useEffect fetchTimeSlots start (local computation with bookings)', { selectedService, selectedProfessional, selectedDate });
+      console.log('[Time] useEffect fetchTimeSlots TRIGGERED - checking dependencies:', { 
+        selectedServiceId: selectedService?._id, 
+        selectedProfessionalId: selectedProfessional?._id || selectedProfessional?.id, 
+        selectedDateString: selectedDate.toDateString(),
+        timestamp: new Date().toISOString()
+      });
 
       if (!selectedService || !selectedDate) {
         console.log('[Time] fetchTimeSlots abort - missing service or date');
@@ -371,46 +767,22 @@ const Time = (props) => {
       setError(null);
 
       try {
-        // Always fetch date-specific data (employees + bookings) and build appointmentsIndex
-        const { employees, appointmentsIndex } = await fetchDateData(selectedDate);
-        console.log('[Time] fetchTimeSlots - fetched date data', {
-          employeesCount: employees.length,
-          appointmentEmployees: Object.keys(appointmentsIndex).length,
+        // FIXED WORKFLOW: Don't fetch ALL bookings upfront
+        // Instead, fetch employee schedule first, then specific booking conflicts
+        console.log('[Time] FIXED WORKFLOW - Starting with employee schedule first', {
+          selectedServiceId: selectedService?._id,
           selectedDate: selectedDate.toDateString(),
-          appointmentsIndex: Object.keys(appointmentsIndex).map(empId => ({
-            empId, 
-            bookingCount: Object.keys(appointmentsIndex[empId] || {}).length
-          }))
+          timestamp: new Date().toISOString()
         });
 
-        // Log shifts for debug (helps find why shifts not detected)
-        employees.forEach(emp => {
-          try {
-            console.log('[Time] ENHANCED: employee workSchedule data', { 
-              id: emp._id || emp.id, 
-              name: emp.name || (emp.user && `${emp.user.firstName} ${emp.user.lastName}`),
-              hasWorkSchedule: !!emp.workSchedule,
-              workScheduleKeys: emp.workSchedule ? Object.keys(emp.workSchedule) : [],
-              dayOfWeek: selectedDate.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase(),
-              todaySchedule: emp.workSchedule ? emp.workSchedule[selectedDate.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase()] : null
-            });
-            const shifts = getEmployeeShiftHours(emp, selectedDate);
-            console.log('[Time] ENHANCED: employee computed shifts', { 
-              id: emp._id || emp.id, 
-              name: emp.name || (emp.user && `${emp.user.firstName} ${emp.user.lastName}`), 
-              shifts,
-              isNinaKowalski: emp.user?.firstName === 'Nina' && emp.user?.lastName === 'Kowalski'
-            });
-          } catch (e) {
-            console.warn('[Time] failed to get shifts for employee', emp._id || emp.id, e);
-          }
-        });
+        // Note: Employee schedules now fetched via getEmployeeSchedule API for specific professionals
 
         const flow = bookingFlow.load();
         const services = flow.selectedServices && flow.selectedServices.length ? flow.selectedServices : [selectedService];
 
-        // Multi-service flow
+        // Multi-service flow - FIXED WORKFLOW 
         if (services.length > 1) {
+          console.log('[Time] FIXED WORKFLOW - Multi-service flow starting');
           const missing = services.filter(s => !flow.selectedProfessionals?.[s._id]);
           if (missing.length) {
             console.log('[Time] multi-service abort - missing assignments', missing.map(m=>m._id));
@@ -427,6 +799,10 @@ const Time = (props) => {
             const id = emp?._id || emp?.id;
             if (id) employeeIds.push(id);
           });
+
+          console.log('[Time] FIXED WORKFLOW - Multi-service: Fetching booking conflicts after professional assignment');
+          // Now fetch booking conflicts for these specific employees
+          const { appointmentsIndex } = await fetchDateData(selectedDate);
 
           // Ensure appointmentsIndex keys match employee ids used by professionalsMap
           employeeIds.forEach(id => {
@@ -452,7 +828,8 @@ const Time = (props) => {
           }
           const slots = sequences.map((s, idx) => ({
             id: idx,
-            time: s.startTime,
+            time: formatTimeToAMPM(s.startTime), // Display in AM/PM format
+            timeValue: s.startTime, // Keep original 24-hour format for calculations
             startTime: s.startTime,
             endTime: s.sequence[s.sequence.length - 1].endTime,
             available: true,
@@ -463,11 +840,11 @@ const Time = (props) => {
           return;
         }
 
-        // Single-service flow
+        // Single-service flow - FIXED WORKFLOW
         const svc = services[0];
         const assigned = flow.selectedProfessionals?.[svc._id] || selectedProfessional;
         
-        console.log('[Time] Single-service assignment check:', {
+        console.log('[Time] FIXED WORKFLOW - Single-service assignment check:', {
           serviceId: svc._id,
           assignedFromFlow: flow.selectedProfessionals?.[svc._id],
           assignedFromState: selectedProfessional,
@@ -478,56 +855,496 @@ const Time = (props) => {
         });
         
         if (!assigned || assigned.id === 'any' || assigned._id === 'any') {
-          console.log('[Time] single-service ANY -> using local week scan for union slots');
-          const profsResult = await fetchAvailableProfessionalsForServiceByWeek(svc._id, selectedDate, services);
+          console.log('[Time] single-service ANY -> using old workflow (fetch bookings first)');
+          // For "Any professional", use old workflow - fetch bookings first
+          const { appointmentsIndex } = await fetchDateData(selectedDate);
+          
+          let availableEmployees = [];
+          try {
+            const resp = await bookingsAPI.getAvailableProfessionals(svc._id, apiUtils.formatDate(selectedDate));
+            availableEmployees = resp?.data?.professionals ?? resp?.professionals ?? resp?.data ?? resp ?? [];
+            availableEmployees = availableEmployees.filter(emp => emp.isActive !== false);
+          } catch (err) {
+            console.warn('[Time] Failed to fetch professionals for Any selection:', err);
+            availableEmployees = [];
+          }
+          
+          const profsResult = getAvailableProfessionalsForService(svc._id, selectedDate, availableEmployees, appointmentsIndex, services);
           const union = [];
           (profsResult || []).forEach(r => (r.slots || []).forEach(s => union.push(s)));
           const uniq = Array.from(new Set(union)).sort();
-          const slots = uniq.map((t,i) => ({ id:i, time:t, startTime:t, endTime:addMinutesToTime(t, svc.duration||30), available:true }));
+          const slots = uniq.map((t,i) => ({ 
+            id:i, 
+            time: formatTimeToAMPM(t), // Display in AM/PM format
+            timeValue: t, // Keep original 24-hour format for calculations
+            startTime:t, 
+            endTime:addMinutesToTime(t, svc.duration||30), 
+            available:true 
+          }));
           console.log('[Time] union slots count', slots.length);
           setAvailableTimeSlots(slots);
           setLoadingTimeSlots(false);
           return;
         }
 
-        // assigned is a specific employee -> use new public API to get scheduled and available time slots
+        // FIXED WORKFLOW: Specific professional selected - fetch their schedule FIRST
         const duration = svc.duration || 30;
         const empId = assigned._id || assigned.id;
         const formattedDate = apiUtils.formatDate(selectedDate);
         
-        console.log('[Time] DETAILED: About to call new API with employee details:', {
+        console.log('[Time] FIXED WORKFLOW - Fetching employee schedule FIRST (before bookings):', {
           assignedEmployee: assigned,
           employeeId: empId,
           employeeName: assigned?.user ? `${assigned.user.firstName} ${assigned.user.lastName}` : assigned?.name,
           formattedDate,
-          selectedDate: selectedDate.toString(),
-          isNinaKowalski: assigned?.user?.firstName === 'Nina' && assigned?.user?.lastName === 'Kowalski'
+          selectedDate: selectedDate.toString()
         });
         
         try {
-          console.log('[Time] calling getEmployeeSchedule API for admin-configured schedule', { employeeId: empId, date: formattedDate });
+          console.log('[Time] STEP 1 - Fetching employee schedule template first', { employeeId: empId, date: formattedDate });
           const response = await bookingsAPI.getEmployeeSchedule(empId, formattedDate);
           const scheduleData = response?.data || response;
           
-          console.log('[Time] Employee schedule data:', {
+          console.log('[Time] STEP 1 - Employee schedule template fetched:', {
             scheduledShifts: scheduleData.scheduledShifts,
-            bookedSlots: scheduleData.bookedSlots,
-            availableSlots: scheduleData.availableTimeSlots
+            rawAvailableSlots: scheduleData.availableTimeSlots?.length || 0
           });
           
-          // Use available time slots from the API (already excludes booked times)
-          const slotsArr = scheduleData.availableTimeSlots || [];
-          console.log('[Time] Available time slots from admin schedule:', { count: slotsArr.length, sample: slotsArr.slice(0,6) });
+          // STEP 2: Now fetch booking conflicts for THIS specific employee only  
+          console.log('[Time] STEP 2 - Fetching booking conflicts for specific employee using new method');
+          const { appointmentsIndex } = await fetchEmployeeBookingConflicts(selectedDate, empId);
           
-          const mapped = slotsArr.map((slot, i) => ({ 
+          const rawScheduleSlots = scheduleData.availableTimeSlots || [];
+          console.log('[Time] STEP 2 - Raw schedule slots from API:', { count: rawScheduleSlots.length, sample: rawScheduleSlots.slice(0,6) });
+          
+          // STEP 3: Apply booking conflict filtering AND shift boundary validation
+          const dateKey = localDateKey(selectedDate);
+          const employeeBookings = appointmentsIndex[empId]?.[dateKey] || {};
+          const bookingCount = Object.keys(employeeBookings).length;
+          
+          // 🔍 CRITICAL DEBUG: Verify time format consistency
+          console.log('🔍 TIME FORMAT DEBUGGING - Before filtering slots:', {
+            employeeId: empId,
+            selectedDate: dateKey,
+            totalBookings: bookingCount,
+            rawScheduleSlotsPreview: rawScheduleSlots.slice(0, 3).map(s => ({
+              time: s.time || s.startTime,
+              endTime: s.endTime,
+              rawSlot: s
+            })),
+            bookingsPreview: Object.values(employeeBookings).map(b => ({
+              startTime: b.startTime,
+              endTime: b.endTime,
+              serviceName: b.serviceName,
+              bookingId: b.bookingId
+            })),
+            timeFormatAnalysis: {
+              slotTimeExample: rawScheduleSlots[0]?.time || rawScheduleSlots[0]?.startTime,
+              bookingTimeExample: Object.values(employeeBookings)[0]?.startTime,
+              slotTimeFormat: (rawScheduleSlots[0]?.time || rawScheduleSlots[0]?.startTime)?.includes('T') ? 'ISO DateTime' : 'HH:mm',
+              bookingTimeFormat: Object.values(employeeBookings)[0]?.startTime?.includes('T') ? 'ISO DateTime' : 'HH:mm'
+            }
+          });
+
+          // 🚨 CRITICAL TIMEZONE TEST: Let's manually convert the first booking time
+          if (Object.values(employeeBookings).length > 0) {
+            const firstBooking = Object.values(employeeBookings)[0];
+            const testDate = new Date(firstBooking.startTime);
+            console.log('🚨 CRITICAL TIMEZONE TEST for first booking:', {
+              originalBookingTime: firstBooking.startTime,
+              serviceName: firstBooking.serviceName,
+              parsedDate: testDate.toString(),
+              utcHours: testDate.getUTCHours(),
+              utcMinutes: testDate.getUTCMinutes(),
+              localHours: testDate.getHours(),
+              localMinutes: testDate.getMinutes(),
+              utcTime: `${String(testDate.getUTCHours()).padStart(2, '0')}:${String(testDate.getUTCMinutes()).padStart(2, '0')}`,
+              localTime: `${String(testDate.getHours()).padStart(2, '0')}:${String(testDate.getMinutes()).padStart(2, '0')}`,
+              timezoneOffset: testDate.getTimezoneOffset(),
+              expectedRealTime: '09:00 AM (from user perspective)',
+              actualConvertedTime: 'See localTime above - should be 09:00'
+            });
+          }
+          
+          // ENHANCED: Extract shift end time from schedule data for boundary validation
+          const employeeShifts = scheduleData.scheduledShifts || [];
+          let shiftEndTime = null;
+          
+          console.log('[Time] DEBUG - Schedule data structure:', {
+            scheduledShifts: scheduleData.scheduledShifts,
+            shiftsCount: employeeShifts.length,
+            firstShift: employeeShifts[0],
+            allShiftData: employeeShifts,
+            scheduleDataKeys: Object.keys(scheduleData),
+            fullScheduleData: scheduleData
+          });
+          
+          if (employeeShifts.length > 0 && employeeShifts[0] && employeeShifts[0].endTime) {
+            // Method 1: Extract from scheduled shifts (preferred)
+            shiftEndTime = employeeShifts[0].endTime;
+            console.log('[Time] ✅ METHOD 1 - Shift end time from scheduledShifts:', {
+              shiftEndTime,
+              shiftData: employeeShifts[0],
+              method: 'scheduledShifts[0].endTime'
+            });
+          } else if (scheduleData.workingHours && scheduleData.workingHours.endTime) {
+            // Method 2: Extract from workingHours (alternative)
+            shiftEndTime = scheduleData.workingHours.endTime;
+            console.log('[Time] ✅ METHOD 2 - Shift end time from workingHours:', {
+              shiftEndTime,
+              workingHours: scheduleData.workingHours,
+              method: 'workingHours.endTime'
+            });
+          } else if (scheduleData.shift && scheduleData.shift.endTime) {
+            // Method 3: Extract from shift object (alternative)
+            shiftEndTime = scheduleData.shift.endTime;
+            console.log('[Time] ✅ METHOD 3 - Shift end time from shift object:', {
+              shiftEndTime,
+              shift: scheduleData.shift,
+              method: 'shift.endTime'
+            });
+          } else if (rawScheduleSlots.length > 0) {
+            // Method 4: FALLBACK - Estimate from last available slot
+            const lastSlot = rawScheduleSlots[rawScheduleSlots.length - 1];
+            if (lastSlot) {
+              const lastSlotTime = lastSlot.time || lastSlot.startTime;
+              // Add service duration to get when the last service would end
+              shiftEndTime = addMinutesToTime(lastSlotTime, duration);
+              console.log('[Time] ⚠️ METHOD 4 FALLBACK - Estimated shift end from last slot:', {
+                lastSlotTime,
+                serviceDuration: duration,
+                estimatedShiftEnd: shiftEndTime,
+                method: 'lastSlot + serviceDuration',
+                warningMessage: 'Using fallback estimation - may not be accurate!'
+              });
+            }
+          } else {
+            // Method 5: EMERGENCY FALLBACK - Use a default end time
+            shiftEndTime = "18:00"; // Default 6 PM
+            console.error('[Time] 🚨 METHOD 5 EMERGENCY - Using default shift end time:', {
+              defaultShiftEnd: shiftEndTime,
+              method: 'hardcoded default',
+              errorMessage: 'Could not determine shift end time from any source!',
+              availableData: {
+                hasScheduledShifts: !!scheduleData.scheduledShifts,
+                hasWorkingHours: !!scheduleData.workingHours,
+                hasShift: !!scheduleData.shift,
+                hasSlots: rawScheduleSlots.length > 0,
+                scheduleDataStructure: Object.keys(scheduleData)
+              }
+            });
+          }
+          
+          console.log('[Time] STEP 3 - Applying conflict filtering AND shift boundary validation:', {
+            employeeId: empId,
+            dateKey,
+            rawScheduleSlots: rawScheduleSlots.length,
+            employeeBookings: bookingCount,
+            shiftEndTime: shiftEndTime,
+            serviceDuration: duration,
+            bookingTimes: Object.values(employeeBookings).map(b => `${b.startTime}-${b.endTime}`)
+          });
+          
+          // Apply booking conflict detection AND shift boundary validation
+          const filteredSlots = rawScheduleSlots.filter(slot => {
+            const slotStartTime = slot.time || slot.startTime;
+            const slotEndTime = slot.endTime || addMinutesToTime(slotStartTime, duration);
+            
+            // Convert times to comparable format (24-hour HH:mm)
+            const normalizeTime = (timeStr) => {
+              if (!timeStr) return null;
+              
+              console.log('[Time] 🕐 NORMALIZING TIME:', {
+                inputTime: timeStr,
+                inputType: timeStr.includes('T') ? 'ISO DateTime' : 'HH:mm format'
+              });
+              
+              // If it's an ISO date string, extract time part
+              if (timeStr.includes('T')) {
+                // CRITICAL FIX: For booking times, we need to handle the timezone properly
+                // The booking times are stored in UTC, but we need to compare them in the same timezone as slots
+                
+                // If the time ends with 'Z', it's UTC time
+                if (timeStr.endsWith('Z')) {
+                  // Extract just the time part from ISO string: "2025-09-08T09:00:00.000Z" -> "09:00"
+                  const timePart = timeStr.split('T')[1].substring(0, 5); // Gets "09:00"
+                  console.log('[Time] 🌍 UTC TIME EXTRACTION (FIXED):', {
+                    originalISOString: timeStr,
+                    extractedTime: timePart,
+                    method: 'Direct extraction from UTC ISO string',
+                    reason: 'Avoids timezone conversion issues'
+                  });
+                  return timePart;
+                } else {
+                  // Handle other ISO formats
+                  const date = new Date(timeStr);
+                  const localTime = `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+                  console.log('[Time] 🌍 LOCAL TIME CONVERSION:', {
+                    originalISOString: timeStr,
+                    localTime: localTime,
+                    timezoneOffset: date.getTimezoneOffset()
+                  });
+                  return localTime;
+                }
+              }
+              
+              // If it's already HH:mm format, return as-is
+              if (timeStr.includes(':') && timeStr.length <= 5) {
+                console.log('[Time] ✅ TIME ALREADY NORMALIZED:', {
+                  inputTime: timeStr,
+                  outputTime: timeStr,
+                  format: 'HH:mm'
+                });
+                return timeStr;
+              }
+              
+              console.log('[Time] ⚠️ UNKNOWN TIME FORMAT:', {
+                inputTime: timeStr,
+                fallbackOutput: timeStr
+              });
+              return timeStr;
+            };
+            
+            const normalizedSlotStart = normalizeTime(slotStartTime);
+            const normalizedSlotEnd = normalizeTime(slotEndTime);
+            
+            // CRITICAL FIX: Calculate the actual service end time based on service duration
+            const actualServiceEndTime = addMinutesToTime(normalizedSlotStart, duration);
+            
+            // ENHANCED VALIDATION 1: Check if service duration fits within shift end time
+            let exceedsShiftBoundary = false;
+            if (shiftEndTime) {
+              const normalizedShiftEnd = normalizeTime(shiftEndTime);
+              
+              console.log('[Time] DEBUGGING - Shift boundary check for slot:', {
+                slotStartTime: normalizedSlotStart,
+                slotEndTime: normalizedSlotEnd, // Raw 15-min slot end
+                actualServiceEndTime: actualServiceEndTime, // Real service end (start + duration)
+                shiftEndTime: normalizedShiftEnd,
+                serviceDuration: `${duration} minutes`,
+                wouldExceed: actualServiceEndTime > normalizedShiftEnd
+              });
+              
+              // CRITICAL FIX: Compare ACTUAL service end time with shift end time
+              // Service should COMPLETE before or exactly at shift end
+              exceedsShiftBoundary = actualServiceEndTime > normalizedShiftEnd;
+              
+              if (exceedsShiftBoundary) {
+                console.log('[Time] ❌ SHIFT BOUNDARY VIOLATION - Removing slot:', {
+                  slotTime: `${normalizedSlotStart}-${actualServiceEndTime}`,
+                  shiftEndTime: normalizedShiftEnd,
+                  serviceDuration: `${duration} minutes`,
+                  violation: `Service ends at ${actualServiceEndTime}, but shift ends at ${normalizedShiftEnd}`,
+                  reason: 'Service would extend beyond employee shift end time',
+                  example: 'If shift ends at 08:00 and service needs 1 hour, 07:45 slot would end at 08:45 → REJECTED'
+                });
+              } else {
+                console.log('[Time] ✅ SHIFT BOUNDARY OK - Slot fits within shift:', {
+                  slotTime: `${normalizedSlotStart}-${actualServiceEndTime}`,
+                  shiftEndTime: normalizedShiftEnd,
+                  margin: `Service ends at ${actualServiceEndTime}, shift ends at ${normalizedShiftEnd}`
+                });
+              }
+            } else {
+              console.warn('[Time] ⚠️ SHIFT BOUNDARY WARNING - No shift end time available for validation:', {
+                slotTime: `${normalizedSlotStart}-${actualServiceEndTime}`,
+                serviceDuration: `${duration} minutes`,
+                warningMessage: 'Cannot validate shift boundaries - allowing slot (POTENTIALLY UNSAFE!)',
+                recommendation: 'Check employee schedule configuration in admin panel',
+                possibleCauses: [
+                  'scheduledShifts array is empty',
+                  'scheduledShifts[0].endTime is missing',
+                  'workingHours.endTime is missing',
+                  'shift.endTime is missing',
+                  'No slots available for fallback estimation'
+                ]
+              });
+              // If no shift end time, allow the slot but log warning
+              exceedsShiftBoundary = false;
+            }
+            
+            // ENHANCED VALIDATION 2: Check for conflicts with existing bookings
+            const hasBookingConflict = Object.values(employeeBookings).some(booking => {
+              const normalizedBookingStart = normalizeTime(booking.startTime);
+              const normalizedBookingEnd = normalizeTime(booking.endTime);
+              
+              // ENHANCED DEBUG: Show detailed time comparison for EVERY slot check
+              console.log('[Time] 🔍 DETAILED BOOKING CONFLICT CHECK - Slot vs Booking:', {
+                slotBeingChecked: {
+                  startTime: normalizedSlotStart,
+                  endTime: normalizedSlotEnd,
+                  actualServiceEndTime: actualServiceEndTime,
+                  duration: `${duration} minutes`,
+                  rawSlotData: slot
+                },
+                existingBooking: {
+                  startTime: normalizedBookingStart,
+                  endTime: normalizedBookingEnd,
+                  serviceName: booking.serviceName,
+                  bookingId: booking.bookingId,
+                  duration: `${booking.duration} minutes`,
+                  rawBookingStartTime: booking.startTime,
+                  rawBookingEndTime: booking.endTime
+                },
+                overlapCalculation: {
+                  condition1: `${normalizedSlotStart} < ${normalizedBookingEnd}`,
+                  condition1Result: normalizedSlotStart < normalizedBookingEnd,
+                  condition2: `${actualServiceEndTime} > ${normalizedBookingStart}`,
+                  condition2Result: actualServiceEndTime > normalizedBookingStart,
+                  overlapFormula: 'slot_start < booking_end AND service_end > booking_start'
+                }
+              });
+              
+              // Enhanced overlap detection: Two time ranges overlap if:
+              // (slot_start < booking_end) AND (service_end > booking_start)
+              // Using actualServiceEndTime instead of slot end time for accurate conflict detection
+              const overlap = (normalizedSlotStart < normalizedBookingEnd && actualServiceEndTime > normalizedBookingStart);
+              
+              if (overlap) {
+                console.log('🚫 BOOKING CONFLICT DETECTED - This slot WILL BE REMOVED:', {
+                  conflictedSlot: `${normalizedSlotStart}-${actualServiceEndTime}`,
+                  conflictsWith: `${normalizedBookingStart}-${normalizedBookingEnd}`,
+                  bookingService: booking.serviceName,
+                  bookingId: booking.bookingId,
+                  overlapType: normalizedSlotStart === normalizedBookingStart ? 'exact-match' : 'partial-overlap',
+                  reason: 'Time slot overlaps with existing booking',
+                  conflictDetails: {
+                    slotStart: normalizedSlotStart,
+                    serviceWouldEnd: actualServiceEndTime,
+                    bookingStart: normalizedBookingStart,
+                    bookingEnd: normalizedBookingEnd,
+                    overlapStart: Math.max(normalizedSlotStart, normalizedBookingStart),
+                    overlapEnd: Math.min(actualServiceEndTime, normalizedBookingEnd)
+                  }
+                });
+              } else {
+                console.log('✅ NO CONFLICT - Slot is clear of this booking:', {
+                  slotTime: `${normalizedSlotStart}-${actualServiceEndTime}`,
+                  bookingTime: `${normalizedBookingStart}-${normalizedBookingEnd}`,
+                  bookingService: booking.serviceName,
+                  reason: normalizedSlotStart >= normalizedBookingEnd ? 
+                    'Slot starts after booking ends' : 
+                    'Service ends before booking starts'
+                });
+              }
+              return overlap;
+            });
+            
+            // FINAL VALIDATION: Log the decision for this slot
+            const isValidSlot = !exceedsShiftBoundary && !hasBookingConflict;
+            
+            if (isValidSlot) {
+              console.log('✅ SLOT APPROVED for chosen employee on chosen date:', {
+                employeeId: empId,
+                date: dateKey,
+                approvedSlot: `${normalizedSlotStart}-${actualServiceEndTime}`,
+                duration: `${duration} minutes`,
+                shiftBoundaryCheck: shiftEndTime ? '✅ Valid' : '⚠️ Unchecked',
+                bookingConflictCheck: '✅ No conflicts',
+                message: 'This slot will be shown as available to the user',
+                slotDisplayTime: formatTimeToAMPM(normalizedSlotStart)
+              });
+            } else {
+              console.log('❌ SLOT REJECTED for chosen employee on chosen date:', {
+                employeeId: empId,
+                date: dateKey,
+                rejectedSlot: `${normalizedSlotStart}-${actualServiceEndTime}`,
+                duration: `${duration} minutes`,
+                rejectionReasons: {
+                  shiftBoundaryViolation: exceedsShiftBoundary,
+                  bookingConflict: hasBookingConflict
+                },
+                message: 'This slot will NOT be shown to the user',
+                slotDisplayTime: formatTimeToAMPM(normalizedSlotStart)
+              });
+            }
+            
+            // Slot is valid only if it doesn't exceed shift boundary AND has no booking conflicts
+            return isValidSlot;
+          });
+          
+          console.log('[Time] STEP 3 - ENHANCED WORKFLOW RESULT after conflict + shift boundary validation:', {
+            beforeFilter: rawScheduleSlots.length,
+            afterFilter: filteredSlots.length,
+            removedConflicts: rawScheduleSlots.length - filteredSlots.length,
+            shiftEndTime: shiftEndTime,
+            serviceDuration: duration,
+            validationTypes: ['booking conflicts', 'shift boundary violations'],
+            finalSlots: filteredSlots.slice(0,6).map(s => s.time || s.startTime)
+          });
+
+          // 📋 SUMMARY: Show exactly what was filtered out
+          console.log('📋 BOOKING CONFLICT FILTERING SUMMARY:', {
+            employeeId: empId,
+            selectedDate: dateKey,
+            originalSlots: rawScheduleSlots.length,
+            finalSlots: filteredSlots.length,
+            removedSlots: rawScheduleSlots.length - filteredSlots.length,
+            bookingConflicts: Object.keys(employeeBookings).length,
+            conflictingTimes: Object.values(employeeBookings).map(b => {
+              const startTime = b.startTime.includes('T') ? b.startTime.split('T')[1].substring(0, 5) : b.startTime;
+              const endTime = b.endTime.includes('T') ? b.endTime.split('T')[1].substring(0, 5) : b.endTime;
+              return `${startTime}-${endTime} (${b.serviceName})`;
+            }),
+            message: filteredSlots.length === 0 ? 
+              'NO SLOTS AVAILABLE - All blocked by conflicts or shift boundaries' :
+              `${filteredSlots.length} slots available after filtering conflicts`
+          });
+
+          // 📋 SUMMARY: Final booking conflict report for chosen employee on chosen date
+          console.log('📋 FINAL BOOKING CONFLICT SUMMARY for chosen employee on chosen date:', {
+            employeeInfo: {
+              id: empId,
+              name: assigned?.user ? `${assigned.user.firstName} ${assigned.user.lastName}` : assigned?.name
+            },
+            dateInfo: {
+              selectedDate: dateKey,
+              formattedDate: formattedDate
+            },
+            conflictAnalysis: {
+              totalScheduleSlots: rawScheduleSlots.length,
+              blockedByBookings: Object.keys(employeeBookings).length,
+              blockedTimeSlots: Object.values(employeeBookings).map(b => {
+                const normalizeTime = (timeStr) => {
+                  if (!timeStr) return 'N/A';
+                  if (timeStr.includes('T')) {
+                    const date = new Date(timeStr);
+                    return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+                  }
+                  return timeStr;
+                };
+                return `${normalizeTime(b.startTime)}-${normalizeTime(b.endTime)} (${b.serviceName})`;
+              }),
+              finalAvailableSlots: filteredSlots.length,
+              slotsRemoved: rawScheduleSlots.length - filteredSlots.length
+            },
+            availableSlotsPreview: filteredSlots.slice(0, 10).map(s => {
+              const slotTime = s.time || s.startTime;
+              const normalizeTime = (timeStr) => {
+                if (!timeStr) return 'N/A';
+                if (timeStr.includes('T')) {
+                  const date = new Date(timeStr);
+                  return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+                }
+                return timeStr;
+              };
+              return normalizeTime(slotTime);
+            }),
+            message: filteredSlots.length > 0 ? 
+              `${filteredSlots.length} time slots are available for booking` : 
+              'NO time slots available - all blocked by conflicts or shift boundaries'
+          });
+          
+          const mapped = filteredSlots.map((slot, i) => ({ 
             id: i, 
-            time: slot.time, 
-            startTime: slot.startTime, 
-            endTime: slot.endTime, 
+            time: formatTimeToAMPM(slot.time || slot.startTime), // Display in AM/PM format
+            timeValue: slot.time || slot.startTime, // Keep original 24-hour format for calculations
+            startTime: slot.startTime || slot.time, 
+            endTime: slot.endTime || addMinutesToTime(slot.time || slot.startTime, duration), 
             available: true 
           }));
           setAvailableTimeSlots(mapped);
-          console.log('[Time] SUCCESS: Using admin-scheduled time slots for', assigned?.user?.firstName, assigned?.user?.lastName);
+          console.log('[Time] SUCCESS: Using FIXED WORKFLOW filtered time slots for', assigned?.user?.firstName, assigned?.user?.lastName);
         } catch (apiError) {
           console.error('[Time] DETAILED ERROR: getEmployeeSchedule API failed', {
             error: apiError,
@@ -541,7 +1358,14 @@ const Time = (props) => {
           // Fallback to local computation with enhanced workSchedule
           const slotsArr = getValidTimeSlotsForProfessional(assigned, selectedDate, duration, appointmentsIndex);
           console.log('[Time] fallback local slots computed count', slotsArr.length, slotsArr.slice(0,6));
-          const mapped = slotsArr.map((t, i) => ({ id: i, time: t, startTime: t, endTime: addMinutesToTime(t, duration), available: true }));
+          const mapped = slotsArr.map((t, i) => ({ 
+            id: i, 
+            time: formatTimeToAMPM(t), // Display in AM/PM format
+            timeValue: t, // Keep original 24-hour format for calculations
+            startTime: t, 
+            endTime: addMinutesToTime(t, duration), 
+            available: true 
+          }));
           setAvailableTimeSlots(mapped);
         }
       } catch (err) {
@@ -553,14 +1377,15 @@ const Time = (props) => {
       }
     };
     fetchTimeSlots();
-  }, [selectedService, selectedProfessional, selectedDate]);
+  }, [selectedService?._id, selectedProfessional?._id, selectedDate.toDateString()]); // Use stable identifiers
 
-  const handleTimeSelect = (timeSlot) => {
+  const handleTimeSelect = async (timeSlot) => {
     setSelectedTime(timeSlot);
 
     // Create proper date-time strings for startTime and endTime
     const selectedDateStr = `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}`; // YYYY-MM-DD in local timezone
-    const startTimeStr = timeSlot.time || timeSlot.startTime; // e.g., "09:00" or "2025-09-03T09:00:00.000Z"
+    // Use timeValue (24-hour format) for calculations, fallback to original fields for backward compatibility
+    const startTimeStr = timeSlot.timeValue || timeSlot.startTime || timeSlot.time; // e.g., "09:00" or "2025-09-03T09:00:00.000Z"
     const endTimeStr = timeSlot.endTime;
 
     // If the time is in ISO format, extract just the time part
@@ -602,12 +1427,24 @@ const Time = (props) => {
       timezoneOffset: startDateTimeLocal.getTimezoneOffset()
     });
 
+    // Get the current professional assignment (should already be set from professional page)
+    const flow = bookingFlow.load();
+    const currentProfessional = flow.selectedProfessionals?.[selectedService?._id] || selectedProfessional;
+
+    console.log('[Time] Using already assigned professional:', {
+      serviceId: selectedService?._id,
+      professionalId: currentProfessional?._id,
+      professionalName: currentProfessional?.user ? 
+        `${currentProfessional.user.firstName} ${currentProfessional.user.lastName}` : 
+        currentProfessional?.name
+    });
+
     const timeData = {
       date: selectedDateStr, // Store as YYYY-MM-DD string to avoid timezone shifts
       time: formattedStartTime, // Store simple time format like "09:00"
       startTime: startDateTimeLocal.toISOString(), // Proper UTC conversion from local time
       endTime: endDateTimeLocal.toISOString(), // Proper UTC conversion from local time
-      professional: selectedProfessional,
+      professional: currentProfessional, // Use the already assigned professional
       service: selectedService
     };
 
@@ -686,15 +1523,40 @@ const Time = (props) => {
     return <FullPageLoader />;
   }
 
+  // If a specific professional is selected and they are explicitly marked
+  // not working on the selected date, show a clear message so the user can
+  // choose another date or professional.
+  const selectedFlow = bookingFlow.load();
+  const assignedForService = selectedFlow.selectedProfessionals?.[selectedService?._id];
+  const chosenProfessional = assignedForService || selectedProfessional;
+  const professionalMarkedNotWorking = chosenProfessional && isEmployeeMarkedNotWorking(chosenProfessional, selectedDate);
+
+  if (professionalMarkedNotWorking) {
+    return (
+      <div className="time-selector">
+        {/* <button className="back-to-professionals" onClick={handleBackToProfessionals} aria-label="Back to Professionals">
+          ← Back to professionals
+        </button> */}
+        <h1 className="header-title">Select time</h1>
+        <div className="info-container error-state">
+          <p>The selected professional is not working on this date. Please choose another date or select a different professional.</p>
+          <div style={{ marginTop: 12 }}>
+            <button className="btn btn-primary" onClick={() => navigate('/professionals')}>Choose another professional</button>
+            <button className="btn btn-secondary" style={{ marginLeft: 8 }} onClick={() => setSelectedDate(new Date())}>Pick another date</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="time-selector">
-      {from === 'professionals' && (
-        <button className="back-to-professionals" onClick={handleBackToProfessionals} aria-label="Back to Professionals">
-          ← Back to professionals
+      <div className="svc-header" role="banner">
+        <button className="svc-exit-btn" aria-label="Back to professionals" onClick={handleBackToProfessionals}>
+          <FaArrowLeft />
         </button>
-      )}
-
-      <h1 className="header-title">Select time</h1>
+        <h1 className="header-title">Select time</h1>
+      </div>
 
       <div className="profile-section">
         <div className="profile-info" onClick={() => setShowPopup(!showPopup)}>
@@ -789,7 +1651,12 @@ const Time = (props) => {
             </button>
 
             <div className="popup-scroll-view">
-              <Professionals />
+              <Professionals onProfessionalSelected={() => {
+                // Auto-close popup after 2 seconds when professional is selected
+                setTimeout(() => {
+                  setShowPopup(false);
+                }, 2000);
+              }} />
             </div>
           </div>
         </div>
@@ -802,14 +1669,22 @@ const Time = (props) => {
         <div className="nav-buttons">
           <button
             className="nav-btn"
-            onClick={() => setSelectedDate(new Date(selectedDate.setDate(selectedDate.getDate() - 7)))}
+            onClick={() => {
+              const newDate = new Date(selectedDate);
+              newDate.setDate(newDate.getDate() - 7);
+              setSelectedDate(newDate);
+            }}
             aria-label="Previous week"
           >
             <ChevronLeft className="nav-icon" />
           </button>
           <button
             className="nav-btn nav-btn-active"
-            onClick={() => setSelectedDate(new Date(selectedDate.setDate(selectedDate.getDate() + 7)))}
+            onClick={() => {
+              const newDate = new Date(selectedDate);
+              newDate.setDate(newDate.getDate() + 7);
+              setSelectedDate(newDate);
+            }}
             aria-label="Next week"
           >
             <ChevronRight className="nav-icon" />
