@@ -128,6 +128,7 @@ body {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+  padding-top: 53px;
 }
 
 /* === Header Wrapper - Desktop Fixed by Default === */
@@ -974,70 +975,4 @@ body {
     cursor: pointer;
     transition: background-color 0.2s ease;
   }
-}
-
-/* Compact, light bottom bar used by time and other pages on mobile/tablet */
-.time-bottom-bar,
-.bottom-bar {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  background: #ffffff;
-  color: #111;
-  padding: 10px 12px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  box-shadow: 0 -6px 18px rgba(15, 23, 42, 0.06);
-  z-index: 1205;
-  border-top: 1px solid rgba(0,0,0,0.06);
-}
-
-.time-bottom-bar .bar-summary,
-.bottom-bar .bar-summary {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  font-size: 13px;
-}
-
-.time-bottom-bar .bar-actions .continue-btn,
-.bottom-bar .bar-actions .continue-btn,
-.time-bottom-bar .continue-btn,
-.bottom-bar .continue-btn {
-  background: #050506;
-  color: #fff;
-  border: none;
-  padding: 8px 12px;
-  border-radius: 8px;
-  font-weight: 600;
-  font-size: 14px;
-  cursor: pointer;
-}
-
-/* Reserve space so page content doesn't hide behind bottom bars on small screens */
-@media (max-width: 900px) {
-  .time-selector,
-  .svc-container,
-  .layout-with-booking .main-content {
-    padding-bottom: 110px; /* reserve for compact bottom bar */
-  }
-}
-
-/* Ensure header title inside .svc-header is visible on phones/tablets */
-.svc-header .header-title,
-.svc-header h1,
-.svc-header h2 {
-  color: #0b0b0b;
-  flex: 1 1 auto;
-  min-width: 0; /* allow truncation inside flex */
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-@media (max-width: 1280px) {
-  .svc-header .header-title { font-size: 20px; }
 }

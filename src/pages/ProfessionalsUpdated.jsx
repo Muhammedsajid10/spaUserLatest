@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import "./ProfessionalsUpdated.css"; // This CSS file for SelectProfessional
 import { FaStar } from "react-icons/fa";
-import { FaArrowLeft } from 'react-icons/fa';
 import { bookingsAPI, bookingFlow } from "../services/api";
 import { useNavigate, useLocation } from "react-router-dom";
 import Skeleton from 'react-loading-skeleton';
@@ -454,12 +453,7 @@ const SelectProfessional = ({ onProfessionalSelected }) => {
 
   return (
     <div className="select-professional-container">
-      <div className="svc-header" role="banner">
-        <button className="svc-exit-btn" aria-label="Back to services" onClick={() => { if (window.history && window.history.length > 1) navigate(-1); else navigate('/'); }}>
-          <FaArrowLeft />
-        </button>
-        <h2 className="header-title">Select professional</h2>
-      </div>
+      <h2>Select professional</h2>
 
       {/* show either the professional grid OR the per-service summary panels (never both) */}
       {showPerServiceAssignmentOnly ? (

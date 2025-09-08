@@ -110,6 +110,10 @@ const LayoutWithBooking = ({ children }) => {
         stepIndex = steps.findIndex(s => s.path === '/payment/success');
       } else if (currentPath.startsWith('/payment')) {
         stepIndex = steps.findIndex(s => s.path === '/payment');
+
+
+
+         
       }
     }
     setCurrentStep(stepIndex >= 0 ? stepIndex + 1 : 1);
@@ -214,7 +218,7 @@ const LayoutWithBooking = ({ children }) => {
   const handleBack = () => {
     switch (currentStep) {
       case 1: 
-        navigate('/'); // Go to home if this is the first step
+  navigate('/'); // Go to home if this is the first step
         break;
       case 2: // Time selection
         navigate('/professionals');
@@ -230,6 +234,31 @@ const LayoutWithBooking = ({ children }) => {
       default:
         break;
     }
+  };
+
+  // Exit confirmation modal state & handlers for sidebar back on first step
+  const [showExitConfirm, setShowExitConfirm] = useState(false);
+
+  const onSidebarBackClick = () => {
+    // If we're on the first step, ask user to confirm exit (deletes bookingFlow)
+    if (currentStep === 1) {
+      setShowExitConfirm(true);
+      return;
+    }
+    // Otherwise behave like normal back
+    handleBack();
+  };
+
+  const confirmExit = () => {
+    try {
+      bookingFlow.clear();
+      // Notify other parts of app
+      window.dispatchEvent(new CustomEvent('bookingFlowChange'));
+    } catch (err) {
+      console.warn('Failed to clear bookingFlow', err);
+    }
+    setShowExitConfirm(false);
+    navigate('/');
   };
 
   // Pure check without side effects to control disabled state
@@ -342,7 +371,6 @@ const LayoutWithBooking = ({ children }) => {
 
   return (
     <HeaderTitleProvider>
-      <>
         <GlobalHeader />
         <div className="layout-with-booking">
           <div className="main-content">
@@ -511,7 +539,7 @@ const LayoutWithBooking = ({ children }) => {
                       <>
                         <button 
                           className="btn-back" 
-                          onClick={handleBack}
+                          onClick={onSidebarBackClick}
                         >
                           Back
                         </button>
@@ -526,8 +554,8 @@ const LayoutWithBooking = ({ children }) => {
                       <>
                         <button 
                           className="btn-back" 
-                          onClick={handleBack}
-                          disabled={currentStep === 1}
+                          onClick={onSidebarBackClick}
+                          // disabled={currentStep === 1}
                         >
                           Back
                         </button>
@@ -546,9 +574,20 @@ const LayoutWithBooking = ({ children }) => {
             </div>
           </div>
         </div>
-      </>
+      {showExitConfirm && (
+        <div className="svc-exit-overlay" role="dialog" aria-modal="true">
+          <div className="svc-exit-modal">
+            <h3>Exit booking?</h3>
+            <p>Your selected services and other details will be deleted.</p>
+            <div className="actions">
+              <button className="btn btn-secondary" onClick={() => setShowExitConfirm(false)}>Cancel</button>
+              <button className="btn btn-danger" onClick={confirmExit}>Exit</button>
+            </div>
+          </div>
+        </div>
+      )}
     </HeaderTitleProvider>
   );
-};
+}
 
 export default LayoutWithBooking;

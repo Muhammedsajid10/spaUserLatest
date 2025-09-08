@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import { ChevronLeft, ChevronRight, Calendar } from "lucide-react";
-import { FaArrowLeft } from 'react-icons/fa';
 import { useNavigate, useLocation } from "react-router-dom";
 import "./Time.css";
 import Professionals from "./ProfessionalsUpdated";
@@ -16,7 +15,6 @@ import {
   getAvailableProfessionalsForService,
   formatTimeToAMPM
 } from "../bookingUtils";
-import { isEmployeeMarkedNotWorking } from '../bookingUtils';
 import Swal from 'sweetalert2';
 
 // Elegant full-page spinner component
@@ -1523,40 +1521,15 @@ const Time = (props) => {
     return <FullPageLoader />;
   }
 
-  // If a specific professional is selected and they are explicitly marked
-  // not working on the selected date, show a clear message so the user can
-  // choose another date or professional.
-  const selectedFlow = bookingFlow.load();
-  const assignedForService = selectedFlow.selectedProfessionals?.[selectedService?._id];
-  const chosenProfessional = assignedForService || selectedProfessional;
-  const professionalMarkedNotWorking = chosenProfessional && isEmployeeMarkedNotWorking(chosenProfessional, selectedDate);
-
-  if (professionalMarkedNotWorking) {
-    return (
-      <div className="time-selector">
-        {/* <button className="back-to-professionals" onClick={handleBackToProfessionals} aria-label="Back to Professionals">
-          ← Back to professionals
-        </button> */}
-        <h1 className="header-title">Select time</h1>
-        <div className="info-container error-state">
-          <p>The selected professional is not working on this date. Please choose another date or select a different professional.</p>
-          <div style={{ marginTop: 12 }}>
-            <button className="btn btn-primary" onClick={() => navigate('/professionals')}>Choose another professional</button>
-            <button className="btn btn-secondary" style={{ marginLeft: 8 }} onClick={() => setSelectedDate(new Date())}>Pick another date</button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="time-selector">
-      <div className="svc-header" role="banner">
-        <button className="svc-exit-btn" aria-label="Back to professionals" onClick={handleBackToProfessionals}>
-          <FaArrowLeft />
+      {/* {from === 'professionals' && (
+        <button className="back-to-professionals" onClick={handleBackToProfessionals} aria-label="Back to Professionals">
+          ← Back to professionals
         </button>
-        <h1 className="header-title">Select time</h1>
-      </div>
+      )} */}
+
+      <h1 className="header-title">Select time</h1>
 
       <div className="profile-section">
         <div className="profile-info" onClick={() => setShowPopup(!showPopup)}>

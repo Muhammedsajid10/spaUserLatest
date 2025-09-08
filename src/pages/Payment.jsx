@@ -5,7 +5,6 @@ import { bookingFlow, bookingsAPI, paymentsAPI } from '../services/api';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import Swal from 'sweetalert2';
-import { FaArrowLeft } from 'react-icons/fa';
 import { Spinner } from 'react-bootstrap';
 import './Payment.css';
 
@@ -876,12 +875,7 @@ const Payment = () => {
     <Elements stripe={stripePromise}>
       <div className="payment-page">
         <div className="payment-card-main">
-          <div className="svc-header">
-            <button className="svc-exit-btn" aria-label="Back" onClick={() => { if (window.history && window.history.length > 1) navigate(-1); else navigate('/'); }}>
-              <FaArrowLeft />
-            </button>
-            <h2 className="payment-title">Review and confirm</h2>
-          </div>
+          <h2 className="payment-title">Review and confirm</h2>
           
           <div className="payment-section">
             <h3 className="section-title">Payment method</h3>
@@ -979,24 +973,6 @@ const Payment = () => {
           {error && <div className="error-message">{error}</div>}
           
        
-        </div>
-        {/* Fixed bottom confirm bar for mobile/tablet to trigger payment */}
-        <div className="service-bottom-bar payment-confirm-bar">
-          <div style={{ color: '#fff' }}>
-            <div>AED {finalBookingData.totalAmount}</div>
-            <div style={{ fontSize: 12 }}>{finalBookingData.serviceNames}</div>
-          </div>
-          <div>
-            <button
-              className="btn-continue"
-              onClick={() => {
-                // Trigger the payment flow; dispatch confirmPayment so other components listen
-                window.dispatchEvent(new CustomEvent('confirmPayment'));
-              }}
-            >
-              Confirm & Pay
-            </button>
-          </div>
         </div>
       </div>
     </Elements>
