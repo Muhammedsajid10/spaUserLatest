@@ -212,22 +212,35 @@ const LayoutWithBooking = ({ children }) => {
   };
 
   const handleBack = () => {
+    // On Services (step 1) we intentionally do nothing (user requested no navigation)
+    if (currentStep === 1) return;
+
+    // Prefer native history back when available (user-friendly)
+    try {
+      if (window.history && window.history.length > 1) {
+        window.history.back();
+        return;
+      }
+    } catch (err) {
+      // ignore and fallback to route-based navigation
+    }
+
+    // Fallback to step-based navigation when history.back isn't helpful
     switch (currentStep) {
-      case 1: 
-        navigate('/'); // Go to home if this is the first step
+      case 2:
+        navigate('/'); // from Professional back to Services
         break;
-      case 2: // Time selection
-        navigate('/professionals');
+      case 3:
+        navigate('/professionals'); // from Time back to Professionals
         break;
-      case 3: // Payment
-        navigate('/time');
-        break;
-      case 4: // Confirm
-        navigate('/payment');
+      case 4:
+        navigate('/time'); // from Payment back to Time
         break;
       case 5:
-        navigate('/payment/success');
+        navigate('/payment'); // from Confirm back to Payment
+        break;
       default:
+        navigate('/');
         break;
     }
   };

@@ -97,7 +97,7 @@ export function isTimeSlotConflicting(startTime, duration, existingBookings = []
  * Parse employee shift/schedule objects into array of { start: "HH:MM", end: "HH:MM" }
  * Enhanced to handle 24-hour shifts and complex admin schedule formats
  */
-export function getEmployeeShiftHours(employee, date) {
+export function  getEmployeeShiftHours(employee, date) {
   if (!employee) return [];
   
   // Check if employee is active - return empty schedule if not active

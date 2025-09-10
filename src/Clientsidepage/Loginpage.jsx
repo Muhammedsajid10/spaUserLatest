@@ -55,17 +55,17 @@ const LoginPage = () => {
   const handleSignupClick = () => navigate('/signup');
 
   return (
-    <div className="auth-layout">
+    <>
+      <header className="auth-topbar" role="banner">
+        <div className="auth-topbar-inner">
+          <img src={alloraLogo} alt="Allora Spa" className="topbar-logo" />
+        </div>
+      </header>
+
+      <div className="auth-layout">
       <div className="auth-hero">
         <div className="hero-inner">
           <img src={alloraLogo} alt="Allora Spa" className="hero-logo" />
-          <h1 className="hero-brand" aria-hidden="true">Allora</h1>
-          <p className="hero-tag">Wellness & Spa Excellence</p>
-          <ul className="hero-points">
-            <li>Award‑winning therapists</li>
-            <li>Premium curated treatments</li>
-            <li>Secure & seamless bookings</li>
-          </ul>
         </div>
       </div>
       <div className="auth-panel">
@@ -131,7 +131,8 @@ const LoginPage = () => {
           <footer className="auth-footer">© {new Date().getFullYear()} Allora Spa. All rights reserved.</footer>
         </div>
       </div>
-    </div>
+      </div>
+    </>
   );
 };
 

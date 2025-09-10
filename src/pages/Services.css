@@ -124,6 +124,53 @@ body {
   background: #f4f4f4;
 }
 
+/* Ensure the booking sidebar is visible on mid-desktop widths (1025px - 1280px)
+   so the summary sits to the right and the header doesn't overlap it. */
+@media (min-width: 1025px) and (max-width: 1280px) {
+  .layout-with-booking {
+    display: flex;
+    gap: 24px;
+    align-items: flex-start;
+  }
+
+  .layout-with-booking .main-content {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .booking-sidebar {
+    display: block !important;
+    width: 360px;
+    flex: 0 0 360px;
+    box-sizing: border-box;
+    position: static; /* sit beside main content */
+    z-index: 1105; /* keep above header when necessary */
+    background: #fff;
+  }
+
+  /* Reserve space for the sidebar so the fixed header doesn't cover it */
+  .svc-header-wrapper {
+    right: 400px; /* sidebar width + margin */
+    max-width: none;
+    background: #fff;
+  }
+
+  /* Ensure main svc-container uses remaining width */
+  .svc-container {
+    max-width: none !important;
+    width: 100% !important;
+    margin: 0;
+    padding-left: 20px;
+    padding-right: 20px;
+    margin-top: 45px;
+    min-width: 0;
+  }
+
+  .services-page-wrapper {
+    width: auto !important;
+  }
+}
+
 .services-page-wrapper {
   display: flex;
   flex-direction: column;
@@ -194,6 +241,14 @@ body {
   color: #444;
   font-size: 14px;
 }
+  .svc-container {
+    max-width: none !important;
+    width: 100% !important;
+    margin: 0;
+    padding-left: 20px;
+    padding-right: 20px;
+    margin-top: 50px;
+  }
 
 .svc-exit-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 16px; }
 .svc-exit-actions .btn-primary { background: #000; color: #fff; border: none; padding: 10px 14px; border-radius: 8px; cursor: pointer; }
@@ -222,6 +277,8 @@ body {
     margin: 0;
     padding-left: 20px;
     padding-right: 20px;
+            margin-top: 45px;
+
   }
 
   /* Reset header wrapper so it doesn't reserve space for sidebar */
@@ -619,7 +676,7 @@ body {
     top: 67px;
     left: 20px;
     right: 20px;
-    z-index: 1000;
+    /* z-index: 1000; */
     background: #fff;
     border-bottom: 1px solid #e0e0e0;
     max-width: none;
@@ -858,6 +915,143 @@ body {
   }
 }
 
+/* =====================
+   Strong two-column layout rules for booking flow
+   Ensures services list (left) and booking sidebar (right) are visible and non-overlapping
+   Applies on mid-large screens (>=820px) and up. These rules are appended last to take precedence.
+   Tweak `--sidebar-width` if your sidebar width differs.
+   ===================== */
+:root { --sidebar-width: 520px; --sidebar-gap: 4px; }
+
+@media (min-width: 820px) {
+  /* Layout container becomes two-column */
+  .layout-with-booking {
+    display: flex !important;
+    gap: var(--sidebar-gap) !important;
+    align-items: flex-start !important;
+    box-sizing: border-box;
+    width: 100%;
+  }
+
+  /* Main content flexes to remaining space */
+  .layout-with-booking .main-content {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    box-sizing: border-box;
+  }
+
+  /* Booking sidebar is a fixed-width column on the right */
+  .layout-with-booking .booking-sidebar,
+  .services-page-wrapper .booking-sidebar,
+  .booking-sidebar {
+    display: block !important;
+    width: var(--sidebar-width) !important;
+    flex: 0 0 var(--sidebar-width) !important;
+    box-sizing: border-box !important;
+    position: static !important; /* sit in normal flow beside main content */
+    background: #fff !important;
+    z-index: 1110 !important; /* above header when needed */
+  }
+
+  /* Reserve header right space so fixed header doesn't overlap the sidebar */
+  .layout-with-booking .svc-header-wrapper,
+  .services-page-wrapper .svc-header-wrapper {
+    right: calc(var(--sidebar-width) + var(--sidebar-gap)) !important;
+    max-width: none !important;
+    background: #fff !important;
+    box-sizing: border-box !important;
+    z-index: 1100 !important;
+  }
+
+  /* Ensure svc-container uses remaining width and has correct top margin */
+  .layout-with-booking .svc-container,
+  .svc-container {
+    max-width: none !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding-left: 20px !important;
+    padding-right: 20px !important;
+    margin-top: 45px !important;
+    min-width: 0 !important;
+  }
+
+  /* If there are any earlier rules hiding the sidebar for this range, override them */
+  .layout-with-booking .booking-sidebar[style],
+  .layout-with-booking .booking-sidebar {
+    visibility: visible !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  /* Keep bottom-fixed compact booking bar hidden on wide screens */
+  .service-bottom-bar {
+    display: none !important;
+  }
+}
+
+/* Desktop-first: explicit rules for large screens (>=1181px)
+   Show a wider booking sidebar on the right and reserve header space. */
+@media (min-width: 1181px) {
+  .layout-with-booking {
+    display: flex !important;
+    gap: var(--sidebar-gap) !important;
+    align-items: flex-start !important;
+  }
+
+  .layout-with-booking .main-content {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    box-sizing: border-box;
+  }
+
+  .booking-sidebar,
+  .layout-with-booking .booking-sidebar,
+  .services-page-wrapper .booking-sidebar {
+    display: block !important;
+    width: var(--sidebar-width) !important;
+    flex: 0 0 var(--sidebar-width) !important;
+    position: static !important;
+    box-sizing: border-box !important;
+    background: #fff !important;
+    z-index: 1110 !important;
+  }
+
+  /* Reserve header right space so fixed header doesn't overlap the sidebar */
+  .svc-header-wrapper {
+    right: calc(var(--sidebar-width) + var(--sidebar-gap)) !important;
+  }
+
+  /* Hide mobile bottom bar on large screens */
+  .service-bottom-bar { display: none !important; }
+}
+
+/* Tablet and below: hide the right booking-sidebar and use the bottom bar instead */
+@media (max-width: 1180px) {
+  .booking-sidebar,
+  .layout-with-booking .booking-sidebar,
+  .services-page-wrapper .booking-sidebar {
+    display: none !important;
+    visibility: hidden !important;
+    width: 0 !important;
+    height: 0 !important;
+    overflow: hidden !important;
+  }
+
+  /* Ensure bottom bar is visible on tablet/mobile */
+  .service-bottom-bar {
+    display: flex !important;
+    position: fixed !important;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 1200 !important;
+  }
+
+  /* Reset header right reservation so header spans full width */
+  .svc-header-wrapper { right: 20px !important; left: 20px !important; }
+}
+
+
 /* iPad Air / mid-large tablet range: 820px — 1180px
    Make svc-container use the remaining width beside the sidebar */
 @media (min-width: 820px) and (max-width: 1180px) {
@@ -881,6 +1075,7 @@ body {
         margin: 0;
         padding-left: 20px;
         padding-right: 20px;
+        margin-top: 45px;
         min-width: 0; /* ensure it can shrink properly inside flex */
     }
 
@@ -1019,8 +1214,12 @@ body {
 
 /* Reserve space so page content doesn't hide behind bottom bars on small screens */
 @media (max-width: 900px) {
+    .svc-container{
+              margin-top: 45px;
+
+    }
   .time-selector,
-  .svc-container,
+
   .layout-with-booking .main-content {
     padding-bottom: 110px; /* reserve for compact bottom bar */
   }
