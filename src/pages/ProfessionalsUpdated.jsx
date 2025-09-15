@@ -715,7 +715,7 @@ function ServiceBottomBar({ currentStep = 2, navigate, setShowSummary, selection
     <div className="service-bottom-bar">
       <span>{totalDuration} min</span>
       <span>{selectedServices.length} services</span>
-      <span>{assignedCount}/{selectedServices.length} assigned</span>
+      {/* <span>{assignedCount}/{selectedServices.length} assigned</span> */}
       <span>AED {totalRate}</span>
       <button
         className={`btn-continue ${!canContinue() ? "disabled" : ""}`}

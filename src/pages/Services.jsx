@@ -18,6 +18,7 @@ function Services() {
   const [selectedOption, setSelectedOption] = useState(null);
   const [selectedServicesCount, setSelectedServicesCount] = useState(0);
   const [currentStep, setCurrentStep] = useState(1);
+  const [isNarrow, setIsNarrow] = useState(typeof window !== 'undefined' ? window.innerWidth <= 1024 : true);
   const navigate = useNavigate();
   // exit confirmation for small/medium screens
   const [showExitConfirm, setShowExitConfirm] = useState(false);
@@ -182,9 +183,27 @@ function Services() {
       bookingFlow.load();
       handleCloseModal();
       const newCount = bookingFlow.selectedServices.length;
+      // update local count immediately so bottom bar appears without waiting for external events
+      setSelectedServicesCount(newCount);
+      // notify other listeners (ServiceBottomBar, layout) that booking changed
+      try {
+        window.dispatchEvent(new CustomEvent('bookingFlowChange'));
+      } catch (e) {
+        // ignore in non-browser environments
+      }
       // (optional) show toast / confirmation here
     }
   };
+
+  // track viewport width so bottom bar renders reactively
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handleResize = () => setIsNarrow(window.innerWidth <= 1024);
+    // initialize
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   useEffect(() => {
     const loadSelectedServicesCount = () => {
@@ -229,14 +248,7 @@ function Services() {
         {/* Exit arrow visible on small/medium screens */}
        
         <div className="svc-header">
-           <button
-          className="svc-exit-btn"
-          aria-label="Back"
-          style={{ color:'black',width:'30px',fontSize:'20px',fontWeight:'bold' }}
-          onClick={() => setShowExitConfirm(true)}
-        >
-          <FaArrowLeft />
-        </button>
+        
           <h2>Services</h2>
           {selectedServicesCount > 0 && (
             <div className="svc-cart-indicator">
@@ -434,7 +446,7 @@ function Services() {
         </div>
       )}
 
-      {typeof window !== "undefined" && window.innerWidth <= 1024 && selectedServicesCount > 0 && (
+      {isNarrow && selectedServicesCount > 0 && (
         <ServiceBottomBar currentStep={currentStep} navigate={navigate} />
       )}
     </div>

@@ -39,6 +39,8 @@
     color: var(--text-color);
     margin-bottom: 20px;
     margin-top: 0;
+            margin-top: 34px;
+
 }
 
 /* --- Profile Section --- */
@@ -531,4 +533,64 @@
   .time-bottom-bar {
     display: none !important;
   }
+}
+
+/* Polished bottom bar layout matching Services/Professionals styles */
+.time-bottom-bar .bar-summary {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    color: var(--text-color);
+    font-weight: 700;
+    font-size: 0.95rem;
+}
+
+.time-bottom-bar .bar-summary span {
+    display: inline-block;
+    min-width: 60px;
+    text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.time-bottom-bar .bar-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.time-bottom-bar .continue-btn {
+    background: #050506;
+    color: #fff;
+    border: none;
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 0.95rem;
+    cursor: pointer;
+    min-width: 100px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+    transition: transform 0.12s ease, background 0.12s ease, box-shadow 0.12s ease;
+}
+
+.time-bottom-bar .continue-btn:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.12);
+}
+
+.time-bottom-bar .continue-btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    background: #888;
+}
+
+/* Ensure content above the fixed bottom bar has enough bottom padding on small screens */
+@media (max-width: 720px) {
+    .time-selector {
+        padding-bottom: 88px; /* reserve space for bottom bar */
+    }
 }

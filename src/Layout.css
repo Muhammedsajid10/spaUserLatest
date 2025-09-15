@@ -81,7 +81,7 @@
   background: white;
   border-radius: 12px;
   padding: 1.5rem;
-  margin-top: 1rem;
+    margin-top: 3rem;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   /* border: 1px solid #222; */
   color: #fff;
@@ -577,7 +577,7 @@
 .global-header {
   width: 100%;
   height: 72px;
-  background: whitesmoke;
+  background: rgb(255, 255, 255);
   box-shadow: 0 2px 8px rgba(0,0,0,0.08);
   position: sticky;
   top: 0;
@@ -624,6 +624,7 @@
   .global-header {
     padding: 0 16px;
     height: 60px;
+    position: fixed;
   }
   
   .header-logo {
@@ -640,6 +641,7 @@
 @media (max-width: 480px) {
   .global-header {
     padding: 0 12px;
+    position: fixed;
   }
   
   .header-logo {
@@ -647,455 +649,280 @@
     max-width: 100px;
   }
   
+  /* Keep header title visible on small phones (e.g., iPhone XR 375x667).
+     Use truncation and constrained max-width to prevent layout overflow. */
   .header-title {
-    font-size: 14px;
-    display: none; /* Hide title on very small screens to save space */
-  }
-}
-
-.action-buttons .btn-back,
-.action-buttons .btn-continue {
-  background: #111;
-  color: #fff;
-  border: none;
-  border-radius: 6px;
-  padding: 0.6em 1.4em;
-  font-size: 1rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 0.2s, color 0.2s, transform 0.2s, box-shadow 0.2s;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-}
-
-.action-buttons .btn-back:hover,
-.action-buttons .btn-continue:hover {
-  background: #222;
-  color: #fff;
-  transform: scale(1.06) translateY(-2px);
-  box-shadow: 0 4px 16px rgba(0,0,0,0.10);
-}
-
-.action-buttons .btn-back:active,
-.action-buttons .btn-continue:active {
-  background: #000;
-  color: #fff;
-  transform: scale(0.97);
-}
-
-.booking-summary {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-}
-
-.selected-services-scroll {
-  flex: 1 1 auto;
-  min-height: 200px; /* Ensure minimum height to always show scrollbar */
-  max-height: 40vh;
-  margin-bottom: 1rem;
-  /* Force scrollbar to always be visible */
-  overflow-y: scroll !important;
-  scrollbar-width: thin !important; /* Firefox - force thin scrollbar */
-  -ms-overflow-style: scrollbar !important; /* IE and Edge - force scrollbar */
-}
-
-/* Force webkit scrollbar to always be visible for selected services scroll */
-.selected-services-scroll::-webkit-scrollbar {
-  display: block !important; /* Force show scrollbar */
-  width: 12px !important; /* Slightly wider for better visibility */
-  background: #f1f1f1; /* Always show track background */
-}
-
-.selected-services-scroll::-webkit-scrollbar-track {
-  background: #f1f1f1 !important; /* Always visible track */
-  border-radius: 6px;
-  border: 1px solid #e0e0e0; /* Add border for better visibility */
-}
-
-.selected-services-scroll::-webkit-scrollbar-thumb {
-  background: #888 !important; /* Always visible thumb */
-  border-radius: 6px;
-  border: 1px solid #666; /* Add border for definition */
-  min-height: 20px; /* Ensure minimum thumb size */
-}
-
-.selected-services-scroll::-webkit-scrollbar-thumb:hover {
-  background: #555 !important; /* Darker on hover */
-}
-
-/* Force scrollbar corner to be visible */
-.selected-services-scroll::-webkit-scrollbar-corner {
-  background: #f1f1f1;
-}
-
-.sidebar-bottom-fixed {
-  flex-shrink: 0;
-  position: sticky;
-  bottom: 0;
-  left: 0;
-  background: white;
-  z-index: 2;
-  padding-top: 0.5rem;
-  padding-bottom: 1rem;
-  box-shadow: 0 -2px 8px rgba(0,0,0,0.08);
-  margin-top: auto;
-}
-
-.svc-cart-indicator {
-  margin: 16px 0;
-  padding: 10px 20px;
-  background: #000;
-  color: #fff;
-  border-radius: 20px;
-  font-weight: bold;
-  text-align: center;
-  /* Remove position, top, right */
-  display: none;
-}
-
-@media (max-width: 600px) {
-  .navbar, .nav-categories {
-    display: flex;
-    flex-direction: row;
-    overflow-x: auto;
+    font-size: 24px;
+    display: inline-block;
+    max-width: calc(100% - 140px); /* leave room for logo and actions */
     white-space: nowrap;
-    gap: 8px; /* optional: space between items */
-    -webkit-overflow-scrolling: touch; /* smooth scrolling on iOS */
-    scrollbar-width: thin; /* optional: thinner scrollbar on Firefox */
-  }
-  .navbar > *, .nav-categories > * {
-    flex: 0 0 auto; /* prevent shrinking/wrapping */
-  }
-  .sidebar {
-    display: none;
-  }
-  .service-bottom-bar {
-    position: fixed;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: #fff;
-    border-top: 1px solid #eee;
-    display: flex;
-    justify-content: space-around;
-    align-items: center;
-    padding: 12px 0;
-    z-index: 2000;
-    box-shadow: 0 -2px 8px rgba(0,0,0,0.08);
-  }
-  .service-bottom-bar span {
-    font-weight: bold;
-    font-size: 1rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    vertical-align: middle;
+    margin-top: 54px;
   }
 }
 
-/* User profile dropdown styles */
-.user-profile-dropdown {
-  position: relative;
-  margin-left: auto;
-  display: flex;
-  align-items: center;
-}
+/* Profile trigger / dropdown responsive styling */
+.user-profile-dropdown { position: relative; display: inline-block; }
+
 .profile-trigger {
-  cursor: pointer;
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 12px;
-  border-radius: 20px;
-  transition: background 0.2s;
+  padding: 6px 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  background: transparent;
+  transition: background .12s ease, box-shadow .12s ease, transform .08s ease;
+  min-width: 0;
+  max-width: 220px;
+  overflow: hidden;
+  -webkit-tap-highlight-color: transparent;
 }
-.profile-trigger:hover {
-  background: #f5f5f5;
+
+.profile-trigger:hover,
+.profile-trigger:focus {
+  background: rgba(0,0,0,0.04);
+  box-shadow: 0 1px 6px rgba(0,0,0,0.06);
+  outline: none;
 }
-.profile-avatar {
-  width: 36px;
-  height: 36px;
+
+.profile-trigger span {
+  display: inline-block;
+  font-size: 14px;
+  font-weight: 600;
+  color: #111;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 120px;
+}
+
+/* Avatar / icon sizing inside trigger */
+.profile-trigger .profile-avatar,
+.profile-trigger svg {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
   border-radius: 50%;
   object-fit: cover;
-  border: 2px solid #eee;
-  background: #fff;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
 }
-.dropdown-content {
+
+/* Dropdown panel (hidden by default) */
+.user-profile-dropdown .dropdown-content {
   position: absolute;
   right: 0;
-  top: 120%;
+  top: calc(100% + 8px);
   background: #fff;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.15);
-  border-radius: 12px;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+  padding: 8px;
   min-width: 160px;
-  z-index: 1000;
-  padding: 8px 0;
+  max-width: 320px;
+  visibility: hidden;
   opacity: 0;
-  transform: translateY(-10px);
-  pointer-events: none;
-  transition: opacity 0.25s cubic-bezier(.4,0,.2,1), transform 0.25s cubic-bezier(.4,0,.2,1);
+  transform: translateY(-6px);
+  transition: opacity .16s ease, transform .16s ease, visibility .16s;
+  z-index: 1600;
 }
+
+/* Visible state */
 .user-profile-dropdown.open .dropdown-content {
+  visibility: visible;
   opacity: 1;
   transform: translateY(0);
-  pointer-events: auto;
-}
-.dropdown-content a, .dropdown-content button {
-  display: block;
-  width: 100%;
-  padding: 10px 20px;
-  background: none;
-  border: none;
-  text-align: left;
-  color: #222;
-  text-decoration: none;
-  font-size: 1rem;
-  cursor: pointer;
-  transition: background 0.18s;
-}
-.dropdown-content a:hover, .dropdown-content button:hover {
-  background: #f0f0f0;
 }
 
-/* --- Professionals Page Container --- */
-.professionals-container {
-  padding: 40px 20px;
-  background-color: #f8f9fa; /* Light gray background */
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  color: #212529; /* Dark gray text */
+/* Small responsive tweaks */
+@media (max-width: 1024px) {
+  .profile-trigger span { max-width: 88px; font-size: 13px; }
+  .user-profile-dropdown .dropdown-content { right: 8px; min-width: 140px; }
 }
 
-.professionals-title {
-  font-size: 2.5rem;
-  font-weight: 600;
-  text-align: center;
-  margin-bottom: 2rem;
-  color: #000;
+@media (max-width: 480px) {
+  .profile-trigger { padding: 4px 6px; gap: 6px; }
+  .profile-trigger span { display: none; } /* show only avatar on very small screens */
+  .profile-trigger .profile-avatar { width: 30px; height: 30px; }
+  .global-header .dropdown-content { right: 6px; top: 60px; }
 }
 
-/* --- Professionals List Grid --- */
-.professionals-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 2rem;
-  margin-top: 2rem;
-}
-
-/* --- Professional Card --- */
-.professional-card {
-  background-color: #fff;
-  border: 1px solid #e0e0e0;
-  border-radius: 12px;
-  padding: 20px;
-  text-align: center;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-  cursor: pointer;
-}
-
-.professional-card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
-  border-color: #000;
-}
-
-.professional-card.selected {
-  border-color: #000;
-  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.1);
-  transform: translateY(-2px);
-}
-
-.professional-card.selected:hover {
-  transform: translateY(-2px);
-}
-
-/* --- Professional Avatar --- */
-.professional-avatar-wrapper {
-  margin-bottom: 1rem;
-}
-
-.professional-avatar {
-  width: 100px;
-  height: 100px;
-  border-radius: 50%;
-  object-fit: cover;
-  border: 3px solid #eee;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-  transition: border-color 0.2s ease;
-}
-
-.professional-card.selected .professional-avatar {
-  border-color: #000;
-}
-
-/* --- Professional Info --- */
-.professional-name {
-  font-size: 1.25rem;
-  font-weight: 600;
-  margin-bottom: 0.25rem;
-  color: #000;
-}
-
-.professional-position {
-  font-size: 0.9rem;
-  color: #6c757d;
-  margin-bottom: 1.5rem;
-}
-
-/* --- Select Button --- */
-.professional-select-btn {
-  width: 100%;
-  padding: 12px 20px;
-  border: 1px solid #000;
-  background-color: #000;
-  color: #fff;
-  border-radius: 8px;
-  font-size: 1rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
-}
-
-.professional-select-btn:hover {
-  background-color: #333;
-  border-color: #333;
-}
-
-.professional-select-btn.selected-btn {
-  background-color: #fff;
-  color: #000;
-  border-color: #000;
-}
-
-.professional-select-btn.selected-btn:hover {
-  background-color: #f8f9fa;
-}
-
-/* --- "Any Professional" Card (if applicable) --- */
-.any-professional-card {
-  background-color: #f0f0f0;
-  border: 2px dashed #999;
-}
-
-.any-professional-card:hover {
-  background-color: #e9ecef;
-  border-color: #000;
-  transform: translateY(-5px);
-}
-
-.any-professional-card .professional-avatar-wrapper {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  width: 100px;
-  height: 100px;
-  border-radius: 50%;
-  background-color: #fff;
-  border: 2px solid #ccc;
-  margin: 0 auto 1rem;
-}
-
-.any-professional-icon {
-  font-size: 3rem;
-  color: #6c757d;
-}
-
-.any-professional-name {
-  font-weight: 700;
-  color: #000;
-}
-
-/* --- Mobile Responsiveness --- */
-@media (max-width: 600px) {
-  .professionals-container {
-    padding: 20px 16px;
+/* Ensure bottom bars show on tablet (768px - 1024px) and reserve content space */
+@media (min-width: 768px) and (max-width: 1024px) {
+  /* Stable fixed top header for tablet */
+  .global-header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 64px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 16px;
+    gap: 12px;
+    background: rgba(255,255,255,0.98);
+    backdrop-filter: blur(6px);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    z-index: 1400;
+    -webkit-tap-highlight-color: transparent;
   }
 
-  .professionals-title {
-    font-size: 2rem;
-    margin-bottom: 1.5rem;
+  .global-header .header-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0; /* allow children to shrink */
   }
 
-  .professionals-list {
-    gap: 1.5rem;
-    grid-template-columns: 1fr; /* Stack cards on mobile */
+  .global-header .header-logo {
+    height: 36px;
+    width: auto;
+    max-width: 160px;
+    flex: 0 0 auto;
   }
 
-  .professional-card {
-    padding: 16px;
+  /* Ensure title shows and truncates instead of wrapping/vanishing */
+  .global-header .header-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: #101010;
+    margin: 0;
+    line-height: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: inline-block;
+    max-width: calc(100vw - 240px); /* leave space for logo and profile */
   }
 
-  .professional-name {
-    font-size: 1.15rem;
+  /* Profile area: show compact avatar/name; collapse long text */
+  .global-header .user-profile-dropdown,
+  .global-header .profile-trigger {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 0 0 auto;
+    max-width: 120px;
+  }
+  .global-header .user-profile-dropdown .profile-trigger span {
+    display: inline-block;
+    max-width: 72px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 14px;
+  }
+  .global-header .profile-avatar {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    flex: 0 0 auto;
   }
 
-  .professional-position {
-    font-size: 0.85rem;
+  /* If dropdown content would overflow, keep it positioned under header */
+  .global-header .dropdown-content {
+    position: absolute;
+    right: 16px;
+    top: 64px;
+    z-index: 1500;
+  }
+
+  /* Make sure page main content isn't hidden under fixed header */
+  .layout-with-booking .main-content,
+  .main-content,
+  .svc-container,
+  .services-page-wrapper {
+    padding-top: calc(64px + 16px) !important;
+  }
+
+  /* Prevent header from reserving extra right space (sidebar hidden on tablets) */
+  .svc-header-wrapper {
+    right: 0 !important;
+  }
+
+  /* -------- tablet: improved profile dropdown styling -------- */
+  .global-header .dropdown-content,
+  .user-profile-dropdown .dropdown-content {
+    right: 16px;
+    left: auto;
+    top: 64px;
+    min-width: 160px;
+    width: min(320px, 28vw);
+    max-width: 360px;
+    max-height: 60vh;
+    overflow: auto;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.12);
+    border-radius: 8px;
+    padding: 8px;
+    background: #fff;
+    z-index: 1600;
+  }
+
+  /* small caret/arrow pointing to trigger (visual nicety) */
+  .global-header .dropdown-content::before {
+    content: "";
+    position: absolute;
+    right: 28px;
+    top: -8px;
+    width: 12px;
+    height: 12px;
+    background: #fff;
+    transform: rotate(45deg);
+    box-shadow: -2px -2px 4px rgba(0,0,0,0.04);
+    border-radius: 2px;
+  }
+
+  .global-header .dropdown-content a,
+  .global-header .dropdown-content button {
+    display: block;
+    padding: 8px 12px;
+    color: #111;
+    text-decoration: none;
+    font-size: 14px;
+    border-radius: 6px;
+    text-align: left;
+    width: 100%;
+    background: transparent;
+    border: none;
+  }
+
+  .global-header .dropdown-content a:hover,
+  .global-header .dropdown-content button:hover {
+    background: rgba(0,0,0,0.04);
   }
 }
 
-/* Increase font sizes for selected service items */
-.selected-service.simple .service-row-top h4 {
-  font-size: 16px; /* increased from default small size */
-  font-weight: 600;
-  margin: 0;
-  color: #1a1a1a;
-}
+/* Force booking sidebar visible and hide service bottom bar for larger tablet/desktop sizes */
+@media (min-width: 1024px) and (min-height: 600px) {
+  /* Use high specificity to override page CSS */
+  body .layout-with-booking .booking-sidebar,
+  .layout-with-booking .booking-sidebar {
+    display: block !important;
+    position: fixed !important;
+    right: 22px !important;
+    top: 19px !important;
+    width: 360px !important;
+    min-width: 260px !important;
+    max-width: 420px !important;
+    padding: 20px !important;
+    height: 100vh !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+    overflow: auto !important;
+  }
 
-.selected-service.simple .service-price {
-  font-size: 15px; /* increased for better readability */
-  font-weight: 600;
-  color: #1976d2;
-}
+  /* reserve layout space so main content doesn't float under sidebar */
+  body .layout-with-booking,
+  .layout-with-booking {
+    margin-right: 360px !important;
+  }
 
-.selected-service.simple .service-row-sub {
-  font-size: 14px; /* increased from very small default */
-  color: #666;
-  margin-top: 4px;
-}
-
-.selected-service.simple .service-row-sub span {
-  font-size: 14px; /* ensure professional name is also readable */
-}
-
-/* Overall service item spacing */
-.selected-service.simple {
-  padding: 12px 0;
-  border-bottom: none; /* Remove border if you want completely seamless */
-}
-
-/* Booking date/time section styling */
-.booking-datetime {
-  margin-bottom: 20px;
-  padding: 16px;
-  background: #ffffff;
-  /* border: 1px solid #e0e0e0; */
-  border-radius: 8px;
-}
-
-.datetime-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 8px;
-}
-
-.datetime-item:last-child {
-  margin-bottom: 0;
-}
-
-.datetime-icon {
-  font-size: 18px;
-  color: #000000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 20px;
-  height: 20px;
-}
-
-.datetime-text {
-  font-size: 17px;
-  font-weight: 500;
-  color: #000000;
-  line-height: 1.4;
+  /* Hide mobile bottom bar when sidebar is present */
+  body .service-bottom-bar,
+  .service-bottom-bar {
+    display: none !important;
+  }
 }
 
 

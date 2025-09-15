@@ -279,6 +279,59 @@ body {
   .btn-confirm { width:100%; }
 }
 
+/* Mobile fixed bottom confirm bar for Payment page */
+.payment-bottom-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px;
+  background: #fff;
+  border-top: 1px solid rgba(0,0,0,0.06);
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 2200;
+  box-shadow: 0 -6px 20px rgba(0,0,0,0.06);
+}
+
+.payment-bottom-bar .bar-summary {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  font-weight: 700;
+  color: white;
+  font-size: 0.95rem;
+}
+
+.payment-bottom-bar .bar-summary span {
+  min-width: 60px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.payment-bottom-bar .payment-bottom-btn {
+  background: #ffffff;
+  color: #fff;
+  border: none;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-weight: 700;
+  cursor: pointer;
+  min-width: 120px;
+}
+
+.payment-bottom-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+@media (min-width: 901px) {
+  .payment-bottom-bar { display: none !important; }
+}
+
 /* --- Global Styles & Variables --- */
 :root {
     --primary-color: #6a1b9a;
@@ -798,6 +851,7 @@ body {
         padding: 20px;
         max-width: 100%;
         border-radius: 14px;
+        top: 14px;
     }
     
     .payment-header h2 {
@@ -933,13 +987,39 @@ body {
 }
 
 .form-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+  /* Use flex so children align to top consistently */
+  display: flex;
   gap: 12px;
+  align-items: flex-start; /* align the top of each column */
 }
 
 .form-group.half {
   margin-bottom: 16px;
+  /* ensure two halves align horizontally for expiry + cvv */
+  flex: 1 1 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Make labels and inputs consistent so the tops align */
+.form-group label {
+  display: block;
+  margin: 0 0 6px 0;
+  line-height: 1.2;
+}
+
+.form-input {
+  box-sizing: border-box;
+  min-height: 42px;
+}
+
+.card-element-container {
+  box-sizing: border-box;
+}
+
+/* Stronger small-screen breakpoint: keep two columns until very narrow phones */
+@media (max-width: 420px) {
+  .form-row { flex-direction: column; }
 }
 
 .payment-icons {
@@ -1129,7 +1209,7 @@ body {
   
   .payment-card-main {
     padding: 20px;
-    margin: 10px;
+    margin: 45px;
   }
 }
 
@@ -1212,40 +1292,143 @@ body {
   font-style: italic;
 }
 
-/* === Black & White Light Theme Overrides for Payment Success === */
-.bw-theme .payment-card, .bw-theme .payment-card-main, .bw-theme .success-card {
-  background: #ffffff !important;
-  color: #000000 !important;
-  border-color: #00000010 !important;
+/* === Black & White (Light) Theme Overrides === */
+/* Purpose: provide a clean black & white theme for Payment page elements
+   - dark mobile bottom bar (near-black) with white text
+   - high-contrast buttons (black background, white text) and inverted CTA in bottom bar
+   - neutral form and banner backgrounds (white/very light gray) with dark text */
+
+:root {
+  --bw-bg: #ffffff;
+  --bw-surface: #ffffff;
+  --bw-border: #e9e9e9;
+  --bw-ink: #0b0b0b; /* near-black */
+  --bw-muted: #6b6b6b;
+  --bw-contrast: #111111; /* used for dark bars */
 }
 
-.bw-theme .success-icon {
-  background: #ffffff !important;
-  border: 2px solid #000000 !important;
+body {
+  background: var(--bw-bg) !important;
+  color: var(--bw-ink) !important;
+}
+
+/* Cards and main panels */
+.payment-card, .payment-card-main, .payment-card.success-card, .payment-success-card, .payment-left, .payment-right, .summary-card {
+  background: var(--bw-surface) !important;
+  color: var(--bw-ink) !important;
+  border-color: var(--bw-border) !important;
+}
+
+.payment-title, .section-title, .payment-header p, .service-info strong, .service-info p {
+  color: var(--bw-ink) !important;
+}
+
+/* Gateway buttons */
+.gateway-button {
+  background: var(--bw-surface);
+  border: 1px solid var(--bw-border);
+  color: var(--bw-ink);
+}
+.gateway-button.selected {
+  background: var(--bw-contrast);
+  color: #fff;
+  border-color: var(--bw-contrast);
+}
+
+/* Forms and inputs */
+.form-input, .upi-input, .card-element-container, .stripe-form, .card-payment-section {
+  background: var(--bw-surface);
+  border: 1px solid var(--bw-border);
+  color: var(--bw-ink);
+}
+.form-input:focus, .card-element-container:focus-within {
+  border-color: var(--bw-contrast);
+  box-shadow: 0 0 0 3px rgba(0,0,0,0.04);
+}
+
+/* Test / Offline banners */
+.test-mode-banner {
+  background: var(--bw-contrast);
+  color: #fff;
+  padding: 12px 20px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  text-align: center;
+  font-weight: 600;
+}
+
+.test-card-info {
+  background: #f6f6f6;
+  border: 1px solid var(--bw-border);
+  color: var(--bw-ink);
+}
+
+/* Success icon and summary */
+.success-icon {
+  background: #fff;
+  border: 2px solid var(--bw-ink);
   box-shadow: none !important;
 }
+.success-icon svg { stroke: var(--bw-ink); }
 
-.bw-theme .success-icon svg { stroke: #000 !important; fill: none !important; }
-
-.bw-theme .success-content h1,
-.bw-theme .success-content p,
-.bw-theme .payment-summary,
-.bw-theme .summary-details,
-.bw-theme .step-content,
-.bw-theme .detail-row span { color: #000 !important; }
-
-.bw-theme .btn-primary, .bw-theme .payment-confirm-btn, .bw-theme .pay-button, .bw-theme .resend-btn {
-  background: #000 !important;
+/* Buttons: primary = dark bar, secondary = white outline */
+.btn-primary, .payment-confirm-btn, .pay-button, .resend-btn, .btn-success-primary {
+  background: var(--bw-contrast) !important;
   color: #fff !important;
-  border-color: #000 !important;
+  border-color: var(--bw-contrast) !important;
+}
+.btn-primary:hover, .payment-confirm-btn:hover, .pay-button:hover {
+  background: #222 !important;
 }
 
-.bw-theme .btn-secondary, .bw-theme .action-link, .bw-theme .btn-outline {
+.btn-secondary, .btn-outline, .action-link, .btn-success-secondary {
   background: #fff !important;
-  color: #000 !important;
-  border-color: #000 !important;
+  color: var(--bw-ink) !important;
+  border: 1px solid var(--bw-ink) !important;
 }
 
-.bw-theme .step-item { background: #fff !important; border-color: #00000010 !important; }
+/* Error and notice styles: keep readable (soft red on pale background) */
+.error-message, .card-error {
+  background: #fff1f1 !important;
+  color: #7a1919 !important;
+  border-left: 4px solid #e74c3c !important;
+}
 
-.debug-panel-bw { background: #f7f7f7; border: 1px dashed #00000020; padding: 8px; border-radius: 6px; font-size: 12px; color: #000; }
+/* Mobile fixed bottom confirm bar: dark with inverted CTA */
+.payment-bottom-bar {
+  background:white;
+  color: #fff !important;
+  border-top: 1px solid rgba(255,255,255,0.06) !important;
+  box-shadow: 0 -8px 30px rgba(0,0,0,0.18) !important;
+}
+.payment-bottom-bar .bar-summary {
+  color: #fff !important;
+  font-weight: 700;
+}
+.payment-bottom-bar .bar-summary span { color: #000000; }
+
+.payment-bottom-bar .payment-bottom-btn {
+  background: #000000 !important;
+  color: white !important;
+  border: none !important;
+  padding: 10px 14px !important;
+  border-radius: 10px !important;
+  min-width: 120px !important;
+  font-weight: 700 !important;
+}
+.payment-bottom-bar .payment-bottom-btn:disabled {
+  opacity: 0.65 !important;
+}
+
+/* Hide bottom bar on larger screens (keep earlier rule precedence) */
+@media (min-width: 901px) {
+  .payment-bottom-bar { display: none !important; }
+}
+
+.debug-panel-bw { background: #fbfbfb; border: 1px dashed #00000010; padding: 8px; border-radius: 6px; font-size: 12px; color: #000; }
+
+/* Small tweaks for contrast-heavy elements */
+.summary-row, .summary-divider, .summary-item, .summary-service-item { border-color: var(--bw-border) !important; }
+
+/* Ensure links and small accents use muted black */
+a, .method-text, .method-icon { color: var(--bw-ink) !important; }

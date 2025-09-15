@@ -975,6 +975,24 @@ const Payment = () => {
        
         </div>
       </div>
+      {/* Mobile bottom confirm bar */}
+      <div className="payment-bottom-bar">
+        <div className="bar-summary">
+          <span>{finalBookingData.duration ? `${finalBookingData.duration} min` : `${bookingFlow.getTotalDuration()} min`}</span>
+          <span>{finalBookingData.services ? `${finalBookingData.services.length} services` : `${bookingFlow.selectedServices?.length || 0} services`}</span>
+          <span>AED {finalBookingData.totalAmount ?? bookingFlow.getTotalPrice()}</span>
+        </div>
+        <div className="bar-actions">
+          <button
+            className="payment-bottom-btn"
+            onClick={() => { if (!processing) handlePayment(); }}
+            disabled={processing || loading}
+            aria-label="Confirm and pay"
+          >
+            {processing || loading ? 'Processing...' : ( 'Confirm')}
+          </button>
+        </div>
+      </div>
     </Elements>
   );
 };

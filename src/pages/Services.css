@@ -53,7 +53,7 @@ body {
 /* On large screens, the main content needs padding for the fixed header */
 .svc-container {
   padding: 20px;
-  padding-top: 170px; /* Adjust this value if header height changes */
+  padding-top: 74px; /* Adjust this value if header height changes */
   max-width: 800px;
   margin: 0 auto;
   flex-grow: 1;
@@ -424,13 +424,16 @@ body {
 }
 
 .btn-continue {
-  padding: 0.75rem 1.5rem;
+  padding: 0.5rem 0.9rem; /* reduced padding */
   border: none;
   border-radius: 8px;
   font-weight: 600;
   background-color: #fff;
   color: #000;
   cursor: pointer;
+  min-width: 120px;
+  max-width: 220px;
+  flex: 0 0 auto; /* prevent growing to fill the bar */
 }
 
 .btn-continue.disabled {
@@ -451,19 +454,38 @@ body {
     max-width: 1282px;
 }
 }
+@media (min-width: 768px) and (max-width: 1024px) {
+    .svc-header-wrapper {
+        position: fixed;
+        top: 56px;
+        left: 12px;
+        right: 0px;
+        z-index: 1000;
+        background: #fff;
+        border-bottom: 1px solid #e0e0e0;
+        max-width: 1282px;
+    }
+        .svc-container, .main-content {
+        max-width: 100% !important;
+        padding-right: 16px;
+        padding-top: 172px;
+    }
+  
+}
 
 /* === MOBILE SPECIFIC STYLES === */
 @media (max-width: 600px) {
   /* On mobile, the header becomes sticky instead of fixed */
   .svc-header-wrapper {
-    position: sticky;
-    top: 0;
+    position: fixed;
+    top: 54px;
+    left: 0;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
   }
 
   /* The content no longer needs padding on mobile because of the sticky header */
   .svc-container {
-    padding-top: 20px; /* Reset padding-top */
+    padding-top: 152px; /* Reset padding-top */
   }
 
   .svc-header {
@@ -622,5 +644,137 @@ body {
   .svc-nav::-webkit-scrollbar-thumb {
     background: rgba(0,0,0,0.12);
     border-radius: 8px;
+  }
+}
+
+/* Ensure booking sidebar is visible on larger tablets / small desktops and hide mobile bottom bar */
+@media (min-width: 1024px) and (max-width: 600px) {
+  /* Restore sidebar sizing so right column appears */
+  .booking-sidebar {
+    width: 360px ;
+    min-width: 260px !important;
+    max-width: 420px !important;
+    padding: 16px !important;
+    overflow: auto !important;
+    pointer-events: auto ;
+    visibility: visible ;
+  }
+
+  /* Reserve space for sidebar so main content doesn't overlap */
+  .layout-with-booking {
+    margin-right: 360px !important;
+  }
+
+  /* Hide mobile bottom bar when sidebar is present */
+  .service-bottom-bar {
+    display: none !important;
+  }
+
+  /* Ensure main content fits nicely when sidebar present */
+  .svc-container, .main-content {
+    max-width: calc(100% - 380px) !important;
+    padding-right: 24px !important;
+  }
+}
+
+/* tablet: hide right booking sidebar and show service-bottom-bar (768px - 1024px) */
+@media (min-width: 768px) and (max-width: 1024px) {
+  /* Hide booking sidebar visually but keep it in DOM (use strong overrides) */
+  .layout-with-booking .booking-sidebar {
+    display: none !important;
+    visibility: hidden !important;
+    width: 0 !important;
+    max-width: 0 !important;
+    min-width: 0 !important;
+    padding: 0 !important;
+    pointer-events: none !important;
+    border: 0 !important;
+  }
+
+  /* Remove right-side reserved space so main content can expand */
+  .layout-with-booking {
+    margin-right: 0 !important;
+  }
+
+  /* Make main content / svc-container take full available width */
+  .layout-with-booking .main-content,
+  .svc-container,
+  .services-page-wrapper {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding-right: 16px !important; /* small inner gutter */
+  }
+
+  /* Ensure header doesn't reserve space on the right at this breakpoint */
+  .layout-with-booking .svc-header-wrapper,
+  .svc-header-wrapper {
+    right: 0 !important;
+  }
+
+  /* Show the service bottom bar as a fixed, compact control */
+  .service-bottom-bar {
+    display: flex !important;
+    position: fixed !important;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1200 !important;
+    background: #ffffff; /* light background */
+    border-top: 1px solid rgba(0,0,0,0.08);
+    box-shadow: 0 -6px 18px rgba(0,0,0,0.06);
+    padding: 10px 14px;
+    gap: 12px;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  /* compact summary area */
+  .service-bottom-bar > span,
+  .service-bottom-bar .bar-summary {
+    color: #111;
+    font-weight: 600;
+    font-size: 13px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* compact continue button styling for tablet */
+  .service-bottom-bar .btn-continue,
+  .service-bottom-bar .continue-btn,
+  .service-bottom-bar .payment-bottom-btn {
+    background: #050506;
+    color: #fff;
+    border: none;
+    padding: 8px 14px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 14px;
+    min-width: 110px;
+    max-width: 200px;
+    flex: 0 0 auto;
+  }
+
+  .service-bottom-bar .btn-continue.disabled,
+  .service-bottom-bar .continue-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  /* Hide the sidebar's fixed bottom action area when sidebar is hidden */
+  .booking-sidebar .sidebar-bottom-fixed,
+  .sidebar-bottom-fixed {
+    display: none !important;
+  }
+
+  /* Give main content room above the fixed bottom bar */
+  .layout-with-booking .main-content,
+  .svc-container {
+    padding-bottom: calc(64px + 16px) !important; /* bottom bar height + gap */
+  }
+
+  /* if any modal/backdrop overlaps, ensure bottom bar stays above */
+  .service-bottom-bar {
+    pointer-events: auto;
   }
 }

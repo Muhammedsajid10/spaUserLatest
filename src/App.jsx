@@ -75,7 +75,7 @@ function App() {
 
           {/* Non-booking routes */}
           {/* Authentication routes */}
-          <Route path="/login" element={<LoginPage />} />
+          <Route path="/login" element={<Signuppage />} />
           <Route path="/signup" element={<Signuppage />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password/:token" element={<ResetPassword />} />

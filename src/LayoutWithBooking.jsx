@@ -217,19 +217,19 @@ const LayoutWithBooking = ({ children }) => {
 
   const handleBack = () => {
     switch (currentStep) {
-      case 1: 
+      case 2: 
   navigate('/'); // Go to home if this is the first step
         break;
-      case 2: // Time selection
+      case 3: // Time selection
         navigate('/professionals');
         break;
-      case 3: // Payment
+      case 4: // Payment
         navigate('/time');
         break;
-      case 4: // Confirm
+      case 5: // Confirm
         navigate('/payment');
         break;
-      case 5:
+      case 6:
         navigate('/payment/success');
       default:
         break;
