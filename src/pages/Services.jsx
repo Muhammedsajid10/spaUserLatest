@@ -250,12 +250,7 @@ function Services() {
         <div className="svc-header">
         
           <h2>Services</h2>
-          {selectedServicesCount > 0 && (
-            <div className="svc-cart-indicator">
-              <span className="cart-count">{selectedServicesCount}</span>
-              <span className="cart-text">services selected</span>
-            </div>
-          )}
+      
         </div>
         <nav className="svc-nav">
           {Object.keys(services).map((category) => (

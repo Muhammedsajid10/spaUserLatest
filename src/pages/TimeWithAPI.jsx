@@ -1709,7 +1709,7 @@ const Time = (props) => {
       </div>
 
       {/* Fixed bottom bar for mobile: summary + continue */}
-      <div className=" time-bottom-bar">
+  <div className="time-bottom-bar">
         <div className="bar-summary">
           <span>{bookingFlow.getTotalDuration()} min</span>
           <span>{(bookingFlow.selectedServices?.length || 0)} services</span>

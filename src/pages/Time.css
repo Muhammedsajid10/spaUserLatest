@@ -526,13 +526,27 @@
   right: 0;
   bottom: 0;
   z-index: 1200;
+  height: 68px;
 }
 
-/* Hide the bottom bar on tablet / desktop */
-@media (min-width: 721px) {
-  .time-bottom-bar {
-    display: none !important;
-  }
+/* Hide the bottom bar on large desktop (>=1025px) */
+@media (min-width: 1025px) {
+    .time-bottom-bar {
+        display: none !important;
+    }
+}
+
+/* Show bottom bar on tablet widths (768px - 1024px) and reserve space for it */
+@media (min-width: 768px) and (max-width: 1024px) {
+    .time-bottom-bar { display: flex !important; }
+    /* reserve same space as mobile so content isn't covered */
+    .time-selector { padding-bottom: 88px; }
+}
+
+/* Small gap (721-767) keep hidden and minimal padding */
+@media (min-width: 721px) and (max-width: 767px) {
+    .time-bottom-bar { display: none !important; }
+    .time-selector { padding-bottom: 30px; }
 }
 
 /* Polished bottom bar layout matching Services/Professionals styles */

@@ -36,7 +36,7 @@ const GlobalHeader = () => {
   }, [dropdownOpen]);
 
   return (
-    <div className="global-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+    <div className="global-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'fixed'}}>
       <div className="header-left" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
         <Link to="/" className="logo-link" style={{ textDecoration: 'none' }}>
           <img 
@@ -73,7 +73,7 @@ const GlobalHeader = () => {
             )}
           </div>
           <div className="dropdown-content">
-            <Link to="/dashboard" onClick={() => setDropdownOpen(false)}>Profile</Link>
+            <Link to="/dashboard" onClick={() => setDropdownOpen(false)}>Bookings</Link>
             
             <button onClick={() => { logout(); setDropdownOpen(false); }}>Logout</button>
           </div>
@@ -395,7 +395,7 @@ const LayoutWithBooking = ({ children }) => {
             {/* Render routed child via Outlet. child components can call useOutletContext() to get selectedService/selectedProfessional */}
             <Outlet context={{ selectedService, selectedProfessional }} />
           </div>
-          <div className="booking-sidebar">
+          <div className="booking-sidebar" style={{height: '842px'}}>
             <div className="booking-summary" key={summaryKey}>
               <h3>Booking Summary</h3>
              

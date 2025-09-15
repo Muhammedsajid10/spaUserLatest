@@ -8,6 +8,8 @@ import PasswordChangeModal from '../Components/PasswordChangeModal';
 import Swal from 'sweetalert2';
 import { FaBars, FaTimes } from 'react-icons/fa';
 import { FaCalendarAlt, FaCreditCard, FaRegStar, FaUser } from "react-icons/fa";
+import { useNavigate } from 'react-router-dom';
+import { FaPlus } from 'react-icons/fa';
 
 export default function ClientProfilePage() {
     // Track window width for responsive UI
@@ -158,6 +160,14 @@ export default function ClientProfilePage() {
         { key: 'feedback', label: 'My Feedback', icon: FaRegStar },
         { key: 'profile', label: 'Profile', icon: FaUser },
     ];
+
+    const navigate = useNavigate();
+
+    const handleBookServiceClick = () => {
+        // Close mobile sidebar if open, then navigate to services page
+        if (window.innerWidth <= 992) setSidebarOpen(false);
+        navigate('/');
+    };
 
     const handleSidebarTabClick = (key) => {
         setActiveTab(key);
@@ -434,6 +444,16 @@ export default function ClientProfilePage() {
                             </button>
                         ))}
                     </nav>
+                    <div style={{ marginTop: 12, paddingTop: 8, borderTop: '1px solid var(--border-color)' }}>
+                        <button
+                            className="sidebar-link cta"
+                            onClick={handleBookServiceClick}
+                            aria-label="Book a Service"
+                        >
+                            <span className="icon"><FaPlus /></span>
+                            Book a Service
+                        </button>
+                    </div>
                 </aside>
                 <main className="client-profile-content">
                     {renderContent()}

@@ -332,6 +332,12 @@ body {
   .payment-bottom-bar { display: none !important; }
 }
 
+/* Make payment bottom bar visible for larger tablets / small laptops
+   when the user requested the bar to appear between 912px and 1368px */
+@media (min-width: 912px) and (max-width: 1368px) {
+  .payment-bottom-bar { display: flex !important; }
+}
+
 /* --- Global Styles & Variables --- */
 :root {
     --primary-color: #6a1b9a;
@@ -1432,3 +1438,20 @@ body {
 
 /* Ensure links and small accents use muted black */
 a, .method-text, .method-icon { color: var(--bw-ink) !important; }
+
+/* Final override: ensure payment-bottom-bar is visible between 912px and 1368px
+   This comes after other "hide on large screens" rules so it can reliably show
+   on those tablet / small-laptop widths. */
+@media (min-width: 912px) and (max-width: 1368px) {
+  /* Strong final override to ensure visibility on specified tablet widths */
+  body .payment-bottom-bar {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    position: fixed !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    z-index: 99999 !important;
+  }
+}

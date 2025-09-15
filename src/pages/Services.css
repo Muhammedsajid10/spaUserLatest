@@ -32,7 +32,7 @@ body {
     top: 72px;
     left: 40px;
     right: 0;
-    max-width: 963px;
+    max-width: 1246px;
   }
 }
 
@@ -46,14 +46,15 @@ body {
     z-index: 1000;
     background: #fff;
     /* border-bottom: 1px solid #e0e0e0; */
-    max-width: 1282px; /* use the provided large-screen width */
+          max-width: 1603px;
+ /* use the provided large-screen width */
   }
 }
 
 /* On large screens, the main content needs padding for the fixed header */
 .svc-container {
   padding: 20px;
-  padding-top: 74px; /* Adjust this value if header height changes */
+  padding-top: 174px; /* Adjust this value if header height changes */
   max-width: 800px;
   margin: 0 auto;
   flex-grow: 1;
@@ -451,7 +452,7 @@ body {
     z-index: 1000;
     background: #fff;
     border-bottom: 1px solid #e0e0e0;
-    max-width: 1282px;
+    max-width: 1246px;
 }
 }
 @media (min-width: 768px) and (max-width: 1024px) {
