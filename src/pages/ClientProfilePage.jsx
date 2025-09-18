@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Spinner } from 'react-bootstrap';
 import './ClientProfilePage.css';
-import { authAPI, bookingsAPI, paymentsAPI, feedbackAPI } from '../services/api';
+import { authAPI, bookingsAPI, paymentsAPI, feedbackAPI, bookingFlow } from '../services/api';
 import StarRating from '../Components/StarRating';
 import FeedbackModal from '../Components/FeedbackModal';
 import PasswordChangeModal from '../Components/PasswordChangeModal';
@@ -14,6 +14,18 @@ import { FaPlus } from 'react-icons/fa';
 export default function ClientProfilePage() {
     // Track window width for responsive UI
     const [windowWidth, setWindowWidth] = useState(window.innerWidth);
+    // One-time cleanup: clear any booking flow data when entering dashboard
+    useEffect(() => {
+        try {
+            localStorage.removeItem('bookingData');
+            localStorage.removeItem('currentBooking');
+        } catch (e) {
+            /* ignore */
+        }
+        if (bookingFlow && typeof bookingFlow.reset === 'function') {
+            bookingFlow.reset();
+        }
+    }, []);
     useEffect(() => {
         const handleResize = () => setWindowWidth(window.innerWidth);
         window.addEventListener('resize', handleResize);

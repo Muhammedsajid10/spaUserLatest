@@ -193,18 +193,7 @@ const PaymentSuccess = () => {
           <p>Your payment has been processed successfully.</p>
           
           <div className="payment-summary">
-            {/* Debug panel: show incoming navigation state and localStorage booking keys */}
-            {/* <div className="debug-panel-bw" style={{ marginBottom: 12 }}>
-              <strong>Debug state:</strong>
-              <div style={{ marginTop: 6 }}>
-                <div><strong>location.state:</strong></div>
-                <pre style={{ maxHeight: 120, overflow: 'auto' }}>{JSON.stringify(location.state, null, 2)}</pre>
-                <div><strong>localStorage.bookingData:</strong></div>
-                <pre style={{ maxHeight: 80, overflow: 'auto' }}>{localStorage.getItem('bookingData') || 'null'}</pre>
-                <div><strong>localStorage.currentBooking:</strong></div>
-                <pre style={{ maxHeight: 80, overflow: 'auto' }}>{localStorage.getItem('currentBooking') || 'null'}</pre>
-              </div>
-            </div> */}
+       
             <h3>Payment Summary</h3>
             <div className="summary-details">
               <div className="detail-row">

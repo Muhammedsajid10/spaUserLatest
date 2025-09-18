@@ -877,6 +877,86 @@ const Payment = () => {
         <div className="payment-card-main">
           <h2 className="payment-title">Review and confirm</h2>
           
+          {/* Mobile/Tablet Booking Summary */}
+          <div className="mobile-booking-summary">
+            <div className="booking-summary-section">
+              <h3 className="summary-title">Booking Summary</h3>
+              
+              {/* Services */}
+              <div className="summary-item">
+                <div className="summary-label">Services</div>
+                <div className="summary-services">
+                  {finalBookingData.services ? 
+                    finalBookingData.services.map((service, index) => (
+                      <div key={index} className="service-item">
+                        <span className="service-name">{service.name}</span>
+                        <span className="service-duration">{service.duration} min</span>
+                        <span className="service-price">AED {service.price}</span>
+                      </div>
+                    )) :
+                    bookingFlow.selectedServices?.map((service, index) => (
+                      <div key={index} className="service-item">
+                        <span className="service-name">{service.name}</span>
+                        <span className="service-duration">{service.duration} min</span>
+                        <span className="service-price">AED {service.price}</span>
+                      </div>
+                    ))
+                  }
+                </div>
+              </div>
+
+              {/* Professional */}
+              <div className="summary-item">
+                <div className="summary-label">Professional</div>
+                <div className="summary-value">
+                  {finalBookingData.professionalAssignments ? 
+                    finalBookingData.professionalAssignments.map((assignment, index) => (
+                      <div key={index} className="professional-assignment">
+                        <span className="service-name">{assignment.serviceName}:</span>
+                        <span className="professional-name">{assignment.professionalName}</span>
+                      </div>
+                    )) :
+                    Object.keys(bookingFlow.selectedProfessionals || {}).map((serviceId, index) => {
+                      const prof = bookingFlow.selectedProfessionals[serviceId];
+                      const service = bookingFlow.selectedServices?.find(s => s._id === serviceId);
+                      const profName = prof?.user?.firstName ? 
+                        `${prof.user.firstName} ${prof.user.lastName}` : 
+                        prof?.name || 'Any professional';
+                      return (
+                        <div key={index} className="professional-assignment">
+                          <span className="service-name">{service?.name}:</span>
+                          <span className="professional-name">{profName}</span>
+                        </div>
+                      );
+                    })
+                  }
+                </div>
+              </div>
+
+              {/* Date & Time */}
+              <div className="summary-item">
+                <div className="summary-label">Date & Time</div>
+                <div className="summary-value">
+                  <div className="datetime-info">
+                    <span className="date">{finalBookingData.date || bookingFlow.selectedTimeSlot?.date}</span>
+                    <span className="time">{finalBookingData.time || bookingFlow.selectedTimeSlot?.time}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Total */}
+              <div className="summary-item summary-total">
+                <div className="summary-label">Total</div>
+                <div className="summary-value">
+                  <div className="total-info">
+                    <span className="duration">{finalBookingData.duration ? `${finalBookingData.duration} min` : `${bookingFlow.getTotalDuration()} min`}</span>
+                    <span className="price">AED {finalBookingData.totalAmount ?? bookingFlow.getTotalPrice()}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          
           <div className="payment-section">
             <h3 className="section-title">Payment method</h3>
             

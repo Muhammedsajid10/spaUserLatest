@@ -674,7 +674,32 @@ const Time = (props) => {
           const union = [];
           (avail || []).forEach(r => (r.slots || []).forEach(s => union.push(s)));
           const uniq = Array.from(new Set(union)).sort();
-          const slots = uniq.map((t,i) => ({ 
+          
+          // Filter out past times if selected date is today
+          const now = new Date();
+          const isToday = newDate.toDateString() === now.toDateString();
+          const currentTime = isToday ? `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}` : null;
+          
+          const futureFilteredUniq = isToday ? uniq.filter(slotTime => {
+            const isCurrentOrFuture = slotTime >= currentTime;
+            console.log('[Time] handleDateClick Any professional slot time comparison:', {
+              slotTime,
+              currentTime,
+              isCurrentOrFuture,
+              action: isCurrentOrFuture ? 'KEEP' : 'REMOVE'
+            });
+            return isCurrentOrFuture;
+          }) : uniq;
+          
+          console.log('[Time] handleDateClick Any professional past time filtering:', {
+            isToday,
+            currentTime,
+            beforeFilter: uniq.length,
+            afterFilter: futureFilteredUniq.length,
+            removedPastSlots: uniq.length - futureFilteredUniq.length
+          });
+          
+          const slots = futureFilteredUniq.map((t,i) => ({ 
             id:i, 
             time: formatTimeToAMPM(t), // Display in AM/PM format
             timeValue: t, // Keep original 24-hour format for calculations
@@ -693,7 +718,32 @@ const Time = (props) => {
         console.log('[Time] computing local slots for employee', { employeeId: empId, date: localDateKey(newDate), duration });
         const slotsArr = getValidTimeSlotsForProfessional(assigned, new Date(newDate), duration, appointmentsIndex);
         console.log('[Time] local slots computed count', slotsArr.length, slotsArr.slice(0,6));
-        const mapped = slotsArr.map((t, i) => ({ 
+        
+        // Filter out past times if selected date is today
+        const now = new Date();
+        const isToday = newDate.toDateString() === now.toDateString();
+        const currentTime = isToday ? `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}` : null;
+        
+        const futureFilteredSlotsArr = isToday ? slotsArr.filter(slotTime => {
+          const isCurrentOrFuture = slotTime >= currentTime;
+          console.log('[Time] handleDateClick specific professional slot time comparison:', {
+            slotTime,
+            currentTime,
+            isCurrentOrFuture,
+            action: isCurrentOrFuture ? 'KEEP' : 'REMOVE'
+          });
+          return isCurrentOrFuture;
+        }) : slotsArr;
+        
+        console.log('[Time] handleDateClick specific professional past time filtering:', {
+          isToday,
+          currentTime,
+          beforeFilter: slotsArr.length,
+          afterFilter: futureFilteredSlotsArr.length,
+          removedPastSlots: slotsArr.length - futureFilteredSlotsArr.length
+        });
+        
+        const mapped = futureFilteredSlotsArr.map((t, i) => ({ 
           id: i, 
           time: formatTimeToAMPM(t), // Display in AM/PM format
           timeValue: t, // Keep original 24-hour format for calculations
@@ -871,7 +921,32 @@ const Time = (props) => {
           const union = [];
           (profsResult || []).forEach(r => (r.slots || []).forEach(s => union.push(s)));
           const uniq = Array.from(new Set(union)).sort();
-          const slots = uniq.map((t,i) => ({ 
+          
+          // Filter out past times if selected date is today
+          const now = new Date();
+          const isToday = selectedDate.toDateString() === now.toDateString();
+          const currentTime = isToday ? `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}` : null;
+          
+          const futureFilteredUniq = isToday ? uniq.filter(slotTime => {
+            const isCurrentOrFuture = slotTime >= currentTime;
+            console.log('[Time] Any professional slot time comparison:', {
+              slotTime,
+              currentTime,
+              isCurrentOrFuture,
+              action: isCurrentOrFuture ? 'KEEP' : 'REMOVE'
+            });
+            return isCurrentOrFuture;
+          }) : uniq;
+          
+          console.log('[Time] Any professional past time filtering:', {
+            isToday,
+            currentTime,
+            beforeFilter: uniq.length,
+            afterFilter: futureFilteredUniq.length,
+            removedPastSlots: uniq.length - futureFilteredUniq.length
+          });
+          
+          const slots = futureFilteredUniq.map((t,i) => ({ 
             id:i, 
             time: formatTimeToAMPM(t), // Display in AM/PM format
             timeValue: t, // Keep original 24-hour format for calculations
@@ -1333,7 +1408,38 @@ const Time = (props) => {
               'NO time slots available - all blocked by conflicts or shift boundaries'
           });
           
-          const mapped = filteredSlots.map((slot, i) => ({ 
+          // Filter out past times if selected date is today
+          const now = new Date();
+          const isToday = selectedDate.toDateString() === now.toDateString();
+          const currentTime = isToday ? `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}` : null;
+          
+          const futureFilteredSlots = isToday ? filteredSlots.filter(slot => {
+            const slotTime = slot.time || slot.startTime;
+            const normalizedSlotTime = slotTime.includes('T') ? 
+              slotTime.split('T')[1].substring(0, 5) : slotTime;
+            
+            // Compare times properly: slot time should be >= current time
+            const isCurrentOrFuture = normalizedSlotTime >= currentTime;
+            
+            console.log('[Time] Slot time comparison:', {
+              slotTime: normalizedSlotTime,
+              currentTime,
+              isCurrentOrFuture,
+              action: isCurrentOrFuture ? 'KEEP' : 'REMOVE'
+            });
+            
+            return isCurrentOrFuture;
+          }) : filteredSlots;
+          
+          console.log('[Time] Past time filtering:', {
+            isToday,
+            currentTime,
+            beforeFilter: filteredSlots.length,
+            afterFilter: futureFilteredSlots.length,
+            removedPastSlots: filteredSlots.length - futureFilteredSlots.length
+          });
+
+          const mapped = futureFilteredSlots.map((slot, i) => ({ 
             id: i, 
             time: formatTimeToAMPM(slot.time || slot.startTime), // Display in AM/PM format
             timeValue: slot.time || slot.startTime, // Keep original 24-hour format for calculations
@@ -1356,7 +1462,32 @@ const Time = (props) => {
           // Fallback to local computation with enhanced workSchedule
           const slotsArr = getValidTimeSlotsForProfessional(assigned, selectedDate, duration, appointmentsIndex);
           console.log('[Time] fallback local slots computed count', slotsArr.length, slotsArr.slice(0,6));
-          const mapped = slotsArr.map((t, i) => ({ 
+          
+          // Filter out past times if selected date is today
+          const now = new Date();
+          const isToday = selectedDate.toDateString() === now.toDateString();
+          const currentTime = isToday ? `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}` : null;
+          
+          const futureFilteredSlotsArr = isToday ? slotsArr.filter(slotTime => {
+            const isCurrentOrFuture = slotTime >= currentTime;
+            console.log('[Time] Fallback slot time comparison:', {
+              slotTime,
+              currentTime,
+              isCurrentOrFuture,
+              action: isCurrentOrFuture ? 'KEEP' : 'REMOVE'
+            });
+            return isCurrentOrFuture;
+          }) : slotsArr;
+          
+          console.log('[Time] Fallback past time filtering:', {
+            isToday,
+            currentTime,
+            beforeFilter: slotsArr.length,
+            afterFilter: futureFilteredSlotsArr.length,
+            removedPastSlots: slotsArr.length - futureFilteredSlotsArr.length
+          });
+          
+          const mapped = futureFilteredSlotsArr.map((t, i) => ({ 
             id: i, 
             time: formatTimeToAMPM(t), // Display in AM/PM format
             timeValue: t, // Keep original 24-hour format for calculations

@@ -65,6 +65,13 @@
 .professional-card:hover{ transform: translateY(-4px); box-shadow: var(--shadow-strong); }
 .professional-card.selected{ border-color: var(--accent); background: linear-gradient(180deg, #ffffff, #fbfbfb); }
 .professional-card.mode-card{ background: linear-gradient(180deg,#fffefe,#fcfcfc); }
+/* Disabled state for non-clickable cards (e.g., Any professional in grid) */
+.professional-card.disabled{
+  pointer-events: none;
+  cursor: default;
+  opacity: 0.6;
+  box-shadow: var(--shadow);
+}
 
 /* Avatar */
 .letter-circle, .icon-circle{

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../Service/Context';
+import { bookingFlow } from '../services/api';
 import './Payment.css';
 
 const PaymentCancel = () => {
@@ -55,6 +56,14 @@ const PaymentCancel = () => {
   };
 
   const handleViewBookings = () => {
+    // Clear booking-related storage and booking flow before going to dashboard
+    try {
+      localStorage.removeItem('bookingData');
+      localStorage.removeItem('currentBooking');
+    } catch (e) {
+      /* ignore */
+    }
+    bookingFlow.reset();
     navigate('/dashboard');
   };
 

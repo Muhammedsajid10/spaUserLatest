@@ -332,11 +332,9 @@ body {
   .payment-bottom-bar { display: none !important; }
 }
 
-/* Make payment bottom bar visible for larger tablets / small laptops
-   when the user requested the bar to appear between 912px and 1368px */
-@media (min-width: 912px) and (max-width: 1368px) {
-  .payment-bottom-bar { display: flex !important; }
-}
+/* Removed override that forced the bottom bar to appear on larger viewports.
+   The bottom bar should only be visible on small screens; see the rule above
+   that hides it at min-width: 901px. */
 
 /* --- Global Styles & Variables --- */
 :root {
@@ -850,8 +848,7 @@ body {
 
 @media (max-width: 768px) {
     .payment-container {
-        padding: 20px 10px;
-    }
+      padding: 47px 12px;    }
     
     .payment-card {
         padding: 20px;
@@ -1453,5 +1450,350 @@ a, .method-text, .method-icon { color: var(--bw-ink) !important; }
     right: 0 !important;
     bottom: 0 !important;
     z-index: 99999 !important;
+  }
+}
+
+/* === Mobile/Tablet Booking Summary Styles === */
+.mobile-booking-summary {
+  display: block;
+  width: calc(100% + 50px);
+  max-width: none;
+  margin: 0 -25px 24px -25px;
+  background: var(--card-bg);
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+}
+
+.booking-summary-section {
+  padding: 24px 30px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.summary-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-color-primary);
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 12px;
+}
+
+.summary-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.summary-item:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+.summary-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-color-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.summary-value {
+  font-size: 16px;
+  color: var(--text-color-primary);
+}
+
+/* Services Section */
+.summary-services {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+}
+
+.service-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+  width: 100%;
+  min-height: 60px;
+}
+
+.service-name {
+  font-weight: 500;
+  color: var(--text-color-primary);
+  flex: 1;
+}
+
+.service-duration {
+  font-size: 14px;
+  color: var(--text-color-secondary);
+  margin: 0 12px;
+}
+
+.service-price {
+  font-weight: 600;
+  color: var(--primary-color);
+}
+
+/* Professional Section */
+.professional-assignment {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+  margin-bottom: 8px;
+  width: 100%;
+  min-height: 50px;
+}
+
+.professional-assignment .service-name {
+  font-size: 14px;
+  color: var(--text-color-secondary);
+  flex: 0 0 auto;
+  margin-right: 12px;
+}
+
+.professional-name {
+  font-weight: 500;
+  color: var(--text-color-primary);
+  text-align: right;
+  flex: 1;
+}
+
+/* Date & Time Section */
+.datetime-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+  width: 100%;
+  min-height: 60px;
+}
+
+.datetime-info .date {
+  font-weight: 500;
+  color: var(--text-color-primary);
+}
+
+.datetime-info .time {
+  font-weight: 600;
+  color: var(--primary-color);
+}
+
+/* Total Section */
+.summary-total {
+  background: #f0f8ff;
+  border: 1px solid var(--primary-color);
+  border-radius: 8px;
+  padding: 20px;
+  margin-top: 8px;
+  width: 100%;
+}
+
+.summary-total .summary-label {
+  color: var(--primary-color);
+  font-weight: 600;
+  font-size: 16px;
+}
+
+.total-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  margin-top: 8px;
+}
+
+.total-info .duration {
+  font-size: 14px;
+  color: var(--text-color-secondary);
+}
+
+.total-info .price {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--primary-color);
+}
+
+/* Hide mobile summary on desktop where sidebar is visible */
+@media (min-width: 1024px) {
+  .mobile-booking-summary {
+    display: none;
+  }
+}
+
+/* Tablet adjustments for better width */
+@media (min-width: 769px) and (max-width: 1023px) {
+  .mobile-booking-summary {
+    width: calc(100% + 80px);
+    margin: 0 -40px 24px -40px;
+    max-width: none;
+  }
+  
+  .booking-summary-section {
+    padding: 28px 40px;
+  }
+  
+  .service-item {
+    padding: 20px 24px;
+    min-height: 70px;
+  }
+  
+  .professional-assignment {
+    padding: 16px 24px;
+    min-height: 60px;
+  }
+  
+  .datetime-info {
+    padding: 20px 24px;
+    min-height: 70px;
+  }
+  
+  .summary-total {
+    padding: 24px 28px;
+  }
+  
+  .summary-title {
+    font-size: 20px;
+  }
+  
+  .total-info .price {
+    font-size: 26px;
+  }
+}
+
+/* Mobile adjustments */
+@media (max-width: 768px) {
+  .mobile-booking-summary {
+    width: calc(100% + 60px);
+    margin: 0 -30px 24px -30px;
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+  }
+  
+  .booking-summary-section {
+    padding: 20px 24px;
+  }
+  
+  .service-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 16px;
+  }
+  
+  .service-item .service-duration,
+  .service-item .service-price {
+    margin: 0;
+  }
+  
+  .datetime-info {
+    flex-direction: column;
+    gap: 8px;
+    text-align: center;
+    padding: 16px;
+  }
+  
+  .professional-assignment {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    padding: 12px 16px;
+  }
+  
+  .professional-assignment .service-name {
+    margin-right: 0;
+  }
+  
+  .total-info .price {
+    font-size: 20px;
+  }
+}
+
+/* Large Mobile / Small Tablet (481px - 768px) */
+@media (min-width: 481px) and (max-width: 768px) {
+  .mobile-booking-summary {
+    width: calc(100% + 70px);
+    margin: 0 -35px 24px -35px;
+  }
+  
+  .booking-summary-section {
+    padding: 22px 28px;
+  }
+  
+  .service-item {
+    padding: 18px 20px;
+    min-height: 65px;
+  }
+  
+  .professional-assignment {
+    padding: 14px 20px;
+    min-height: 55px;
+  }
+  
+  .datetime-info {
+    padding: 18px 20px;
+    min-height: 65px;
+  }
+  
+  .summary-total {
+    padding: 22px 24px;
+  }
+}
+
+/* Small Mobile (≤480px) */
+@media (max-width: 480px) {
+  .mobile-booking-summary {
+    width: calc(100% + 50px);
+    margin: 0 -25px 24px -25px;
+  }
+  
+  .booking-summary-section {
+    padding: 18px 20px;
+  }
+  
+  .service-item {
+    padding: 14px 16px;
+    min-height: 60px;
+  }
+  
+  .professional-assignment {
+    padding: 12px 16px;
+    min-height: 50px;
+  }
+  
+  .datetime-info {
+    padding: 14px 16px;
+    min-height: 60px;
+  }
+  
+  .summary-total {
+    padding: 18px 20px;
+  }
+  
+  .summary-title {
+    font-size: 16px;
+  }
+  
+  .total-info .price {
+    font-size: 18px;
   }
 }

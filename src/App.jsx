@@ -29,10 +29,10 @@ import PaymentSuccess from "./pages/PaymentSuccess";
 // import Sheduledshifts from "./Clientsidepage/Sheduledshifts";
 // import Graphs from "./Clientsidepage/Graphs";
 // import Selectcalander from "./Clientsidepage/Selectcalander";
-import LoginPage from "./Clientsidepage/Loginpage";
-import Signuppage from "./Clientsidepage/Signuppage";
-import ForgotPassword from "./Clientsidepage/ForgotPassword";
-import ResetPassword from "./Clientsidepage/ResetPassword";
+// import LoginPage from "./Clientsidepage/Loginpage";
+import Signuppage from "./Authentication/Signuppage";
+import ForgotPassword from "./Authentication/ForgotPassword";
+import ResetPassword from "./Authentication/ResetPassword";
 import VerifyEmailPage from './pages/VerifyEmailPage';
 
 // Import the new/updated components

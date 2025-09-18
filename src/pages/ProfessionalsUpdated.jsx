@@ -19,7 +19,7 @@ const SelectProfessional = ({ onProfessionalSelected }) => {
   const backupPerServiceRef = useRef({});
   const [lastSelectedProfessional, setLastSelectedProfessional] = useState(null);
   // don't auto-select a mode; only set when user clicks a mode card
-  const [selectionMode, setSelectionMode] = useState(bookingFlow.load().selectionMode || null);
+  const [selectionMode, setSelectionMode] = useState(null);
 
   // state for the assign modal
   const [assignModal, setAssignModal] = useState({ open: false, service: null, applyToAll: false, showGrid: false });
@@ -140,10 +140,8 @@ const SelectProfessional = ({ onProfessionalSelected }) => {
       // Update the selected professional ID based on the new bookingFlow state
       const currentFlow = bookingFlow.load();
 
-      // Removed oneAll handling here (no longer supported)
-      if (currentFlow.selectionMode === 'anyAll') {
-        setSelectedId('mode-any');
-      } else if (currentFlow.selectionMode === 'perService' && activeServiceId) {
+      // Do not auto-select any mode on load; only reflect per-service assigned professional
+      if (currentFlow.selectionMode === 'perService' && activeServiceId) {
         const prof = currentFlow.selectedProfessionals?.[activeServiceId];
         setSelectedId(prof?._id || prof?.id || null);
       } else {
@@ -246,52 +244,11 @@ const SelectProfessional = ({ onProfessionalSelected }) => {
       setSelectedId(professional.id);
 
       if (newMode === 'anyAll') {
+        // Do NOT auto-assign on click. Only set mode and defer assignment to Continue/Time.
         backupPerServiceRef.current = { ...bookingFlow.selectedProfessionals };
-        
-        // Instead of just setting "any", immediately assign random professionals to all services
-        console.log('[SelectProfessional] "Any professional" selected - assigning random professionals to all services');
-        const employeesOnly = professionals.filter(p => !p._mode);
-        
-        if (employeesOnly.length > 0) {
-          selectedServices.forEach(service => {
-            // Pick a random professional for each service
-            const randomEmployee = employeesOnly[Math.floor(Math.random() * employeesOnly.length)];
-            const profPayload = randomEmployee.employee;
-            
-            console.log('[SelectProfessional] Randomly assigned to service', {
-              serviceId: service._id,
-              serviceName: service.name,
-              professionalId: profPayload._id,
-              professionalName: profPayload.user ? 
-                `${profPayload.user.firstName} ${profPayload.user.lastName}` : 
-                profPayload.name
-            });
-            
-            bookingFlow.addProfessional(service._id, profPayload);
-          });
-          
-          bookingFlow.save();
-          window.dispatchEvent(new CustomEvent('bookingFlowChange'));
-          
-          // Set the last selected professional to one of the randomly assigned ones
-          const firstAssignment = Object.values(bookingFlow.selectedProfessionals)[0];
-          setLastSelectedProfessional(firstAssignment);
-          setSelectedId(firstAssignment?._id || firstAssignment?.id);
-          
-          // Call the callback to trigger popup auto-close
-          if (onProfessionalSelected) {
-            onProfessionalSelected();
-          }
-        } else {
-          // Fallback to the original behavior if no employees available
-          applyAnyAll();
-          setLastSelectedProfessional(null);
-          
-          // Call the callback to trigger popup auto-close
-          if (onProfessionalSelected) {
-            onProfessionalSelected();
-          }
-        }
+        // Clear any visual selection - no employee should appear selected
+        setLastSelectedProfessional(null);
+        setSelectedId('mode-any'); // Only highlight the "Any professional" card itself
       } else if (newMode === 'perService') {
         // Immediately switch UI to per-service-assignment (hide professional grid)
         localStorage.setItem('showPerServiceAssignment', 'true');
@@ -342,7 +299,7 @@ const SelectProfessional = ({ onProfessionalSelected }) => {
     console.log('[SelectProfessional] profPayload prepared', profPayload);
 
     // DEFAULT BEHAVIOR: ALWAYS assign the professional to ALL services with one click
-    // This implements the "one professional for all services" feature
+    // This implements the "one professional for all services" feature WITHOUT switching to 'Any professional' mode
     console.log('[SelectProfessional] DEFAULT: One professional for ALL services - applying to all', {
       professionalId: profPayload._id || profPayload.id,
       professionalName: profPayload.user ? 
@@ -365,12 +322,13 @@ const SelectProfessional = ({ onProfessionalSelected }) => {
       bookingFlow.addProfessional(service._id, profPayload);
     });
     
-    bookingFlow.selectionMode = 'anyAll'; // Set mode to reflect the behavior
+    // Ensure ONLY the chosen employee appears selected: clear any mode selection
+    setSelectionMode(null);
+    bookingFlow.selectionMode = null;
     bookingFlow.save();
     window.dispatchEvent(new CustomEvent('bookingFlowChange'));
     setLastSelectedProfessional(profPayload);
     setSelectedId(profPayload._id || profPayload.id);
-    setSelectionMode('anyAll'); // Update local state
     
     console.log('[SelectProfessional] SUCCESS: Professional assigned to all services', {
       professionalName: profPayload.user ? 
@@ -499,16 +457,22 @@ const SelectProfessional = ({ onProfessionalSelected }) => {
             } else if (selectionMode === 'perService' && activeServiceId) {
               const assignedProfId = bookingFlow.selectedProfessionals?.[activeServiceId]?._id || bookingFlow.selectedProfessionals?.[activeServiceId]?.id;
               isSelected = pro.id === assignedProfId;
-            } else if (lastSelectedProfessional) {
-              // if a professional was applied to all (via anyAll -> chosen pro), highlight them
+            } else if (lastSelectedProfessional && selectionMode !== 'anyAll') {
+              // if a professional was applied to all (but NOT in anyAll mode), highlight them
               isSelected = pro.id === (lastSelectedProfessional._id || lastSelectedProfessional.id);
             } else if (selectionMode === 'anyAll') {
-              // A specific professional cannot be selected in this mode unless one was assigned to all
+              // In anyAll mode, NO employee cards should appear selected
               isSelected = false;
             }
 
             return (
-              <div key={pro.id} className={`professional-card ${isSelected ? 'selected' : ''} ${isModeCard ? 'mode-card' : ''}`} onClick={() => handleProfessionalSelect(pro)}>
+              <div
+                key={pro.id}
+                className={`professional-card ${isSelected ? 'selected' : ''}`}
+                onClick={() => handleProfessionalSelect(pro)}
+                role="button"
+                aria-disabled={false}
+              >
                 {pro.icon && <div className="icon-circle">{pro.icon}</div>}
                 {!pro.icon && !isModeCard && pro.letter && <div className="letter-circle">{pro.letter}</div>}
                 <div className="name-text">{pro.name}</div>
@@ -520,9 +484,8 @@ const SelectProfessional = ({ onProfessionalSelected }) => {
                   </div>
                 )}
                 {isModeCard && (
-                  <div style={{ fontSize: '0.65rem', marginTop: 6, fontWeight: 500, color: '#555' }}>
-                    {pro._mode === 'anyAll'}
-                    {pro._mode === 'perService' }
+                  <div style={{ fontSize: '0.75rem', marginTop: 6, fontWeight: 600, color: '#666' }}>
+                    Any professional 
                   </div>
                 )}
               </div>
@@ -679,12 +642,14 @@ function ServiceBottomBar({ currentStep = 2, navigate, setShowSummary, selection
   const canContinue = () => {
     const currentFlow = bookingFlow.load();
     if (!currentFlow.selectedServices || currentFlow.selectedServices.length === 0) return false;
+    const mode = selectionMode; // only respect explicit user choice
+    if (mode === 'anyAll') return true; // allow proceed; random assignment later
     const assignedCount = currentFlow.selectedServices.filter(s => currentFlow.selectedProfessionals && currentFlow.selectedProfessionals[s._id]).length;
     return assignedCount === currentFlow.selectedServices.length;
   };
 
   const handleContinue = () => {
-    const mode = selectionMode || bookingFlow.selectionMode || 'perService';
+    const mode = selectionMode; // only respect explicit user choice
     const summaryVisible = !!showSummary;
 
     // If perService mode and panels are NOT visible yet, toggle panels on first Continue.
@@ -699,7 +664,42 @@ function ServiceBottomBar({ currentStep = 2, navigate, setShowSummary, selection
       return;
     }
 
-    // require all services to be assigned before navigating
+    // If Any-professional mode, pick random professionals NOW before going to Time
+    if (mode === 'anyAll') {
+      const currentFlow = bookingFlow.load();
+      const employeesOnly = professionals.filter(p => !p._mode);
+      
+      if (employeesOnly.length > 0) {
+        console.log('[SelectProfessional] Picking random professionals for anyAll mode before navigation');
+        
+        (currentFlow.selectedServices || []).forEach(svc => {
+          if (!currentFlow.selectedProfessionals || !currentFlow.selectedProfessionals[svc._id]) {
+            // Pick a random professional for this service
+            const randomEmployee = employeesOnly[Math.floor(Math.random() * employeesOnly.length)];
+            const profPayload = randomEmployee.employee;
+            
+            console.log('[SelectProfessional] Randomly assigned to service before Time navigation', {
+              serviceId: svc._id,
+              serviceName: svc.name,
+              professionalId: profPayload._id,
+              professionalName: profPayload.user ? 
+                `${profPayload.user.firstName} ${profPayload.user.lastName}` : 
+                profPayload.name
+            });
+            
+            bookingFlow.addProfessional(svc._id, profPayload);
+          }
+        });
+        
+        bookingFlow.save();
+        window.dispatchEvent(new CustomEvent('bookingFlowChange'));
+      }
+      
+      navigate("/time", { state: { from: 'professionals', selectionMode: mode } });
+      return;
+    }
+
+    // require all services to be assigned before navigating (perService)
     if (!canContinue()) {
       alert("Please select a professional for each service before continuing.");
       return;

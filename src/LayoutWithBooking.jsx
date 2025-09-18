@@ -48,6 +48,7 @@ const GlobalHeader = () => {
               width: 'auto',
               maxWidth: '140px',
               transition: 'transform 0.3s ease'
+              ,borderRadius:'30px'
             }}
             onMouseEnter={(e) => e.target.style.transform = 'scale(1.05)'}
             onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
@@ -395,7 +396,7 @@ const LayoutWithBooking = ({ children }) => {
             {/* Render routed child via Outlet. child components can call useOutletContext() to get selectedService/selectedProfessional */}
             <Outlet context={{ selectedService, selectedProfessional }} />
           </div>
-          <div className="booking-sidebar" style={{height: '842px'}}>
+          <div className="booking-sidebar" >
             <div className="booking-summary" key={summaryKey}>
               <h3>Booking Summary</h3>
              
@@ -517,7 +518,7 @@ const LayoutWithBooking = ({ children }) => {
                   </div>
                   <div className="detail-item">
                     <span className="label">Total Price:</span>
-                    <span className="value">AED {apiUtils.formatPrice(bookingFlow.getTotalPrice())}</span>
+                    <span className="value">AED {apiUtils.formatPrice(bookingFlow.getTotalPrice()).replace(/^\$/, '')}</span>
                   </div>
                 </div>
                 <div className="progress-steps">

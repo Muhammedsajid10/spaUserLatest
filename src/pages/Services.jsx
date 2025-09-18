@@ -1,28 +1,47 @@
 import React, { useEffect, useState, useRef } from "react";
 import "./Services.css";
-import "bootstrap/dist/css/bootstrap.min.css";
-import { Modal, Button } from "react-bootstrap";
+
 import { servicesAPI, apiUtils, bookingFlow } from "../services/api";
 import { useNavigate } from "react-router-dom";
 import Swal from 'sweetalert2';
-import { FaArrowLeft } from "react-icons/fa";
+import { IoMdTime } from "react-icons/io";
+import { CiCalendar } from "react-icons/ci";
+
+// Custom hook to detect screen size
+const useScreenSize = () => {
+  const [isDesktop, setIsDesktop] = useState(window.innerWidth > 1023);
+  
+  useEffect(() => {
+    const handleResize = () => {
+      setIsDesktop(window.innerWidth > 1023);
+    };
+    
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+  
+  return { isDesktop };
+};
+
 function Services() {
+  // State management
   const [services, setServices] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeSection, setActiveSection] = useState("");
-  const sectionRefs = useRef({});
   const [expandedStates, setExpandedStates] = useState({});
   const [selectedService, setSelectedService] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [selectedOption, setSelectedOption] = useState(null);
   const [selectedServicesCount, setSelectedServicesCount] = useState(0);
   const [currentStep, setCurrentStep] = useState(1);
-  const [isNarrow, setIsNarrow] = useState(typeof window !== 'undefined' ? window.innerWidth <= 1024 : true);
-  const navigate = useNavigate();
-  // exit confirmation for small/medium screens
-  const [showExitConfirm, setShowExitConfirm] = useState(false);
 
+  // Refs and hooks
+  const sectionRefs = useRef({});
+  const navigate = useNavigate();
+  const { isDesktop } = useScreenSize();
+
+  // Fetch services from API
   const fetchServices = async () => {
     try {
       setLoading(true);
@@ -75,10 +94,12 @@ function Services() {
     }
   };
 
+  // Initialize component
   useEffect(() => {
     fetchServices();
   }, []);
 
+  // Intersection observer for active section
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
@@ -98,6 +119,26 @@ function Services() {
     return () => observer.disconnect();
   }, [services]);
 
+  // Track selected services count
+  useEffect(() => {
+    const loadSelectedServicesCount = () => {
+      bookingFlow.load();
+      setSelectedServicesCount(bookingFlow.selectedServices.length);
+    };
+    
+    loadSelectedServicesCount();
+    
+    const handleBookingFlowChange = () => {
+      loadSelectedServicesCount();
+    };
+    
+    window.addEventListener("bookingFlowChange", handleBookingFlowChange);
+    return () => {
+      window.removeEventListener("bookingFlowChange", handleBookingFlowChange);
+    };
+  }, []);
+
+  // Navigation functions
   const scrollToSection = (key) => {
     const element = sectionRefs.current[key];
     if (element) {
@@ -105,6 +146,7 @@ function Services() {
     }
   };
 
+  // Service interaction functions
   const toggleReadMore = (category, index) => {
     const key = `${category}-${index}`;
     setExpandedStates((prev) => ({
@@ -119,7 +161,6 @@ function Services() {
   };
 
   const handleServiceClick = (service) => {
-    // prevent opening modal when already at limit
     bookingFlow.load();
     const currentCount = bookingFlow.selectedServices.length;
     if (currentCount >= 15) {
@@ -137,7 +178,6 @@ function Services() {
     setSelectedOption(null);
   };
 
-  // Helper to check if a service is selected in booking
   const isServiceSelected = (serviceId) => {
     bookingFlow.load();
     return bookingFlow.selectedServices.some(svc => svc._id === serviceId);
@@ -150,7 +190,6 @@ function Services() {
   };
 
   const handleAddToBooking = () => {
-    // guard again before adding (in case state changed while modal open)
     bookingFlow.load();
     const currentCount = bookingFlow.selectedServices.length;
     if (currentCount >= 15) {
@@ -169,6 +208,7 @@ function Services() {
       if (selectedOption === "couple") {
         finalPrice = selectedService.effectivePrice * 2;
       }
+      
       const serviceForBooking = {
         _id: selectedService._id,
         name: selectedService.title,
@@ -178,51 +218,31 @@ function Services() {
         category: selectedService.category,
         option: selectedOption,
       };
+      
       bookingFlow.addService(serviceForBooking);
-      // refresh local count
       bookingFlow.load();
       handleCloseModal();
+      
       const newCount = bookingFlow.selectedServices.length;
-      // update local count immediately so bottom bar appears without waiting for external events
       setSelectedServicesCount(newCount);
-      // notify other listeners (ServiceBottomBar, layout) that booking changed
+      
       try {
         window.dispatchEvent(new CustomEvent('bookingFlowChange'));
       } catch (e) {
-        // ignore in non-browser environments
+        console.warn('Failed to dispatch bookingFlowChange event');
       }
-      // (optional) show toast / confirmation here
     }
   };
 
-  // track viewport width so bottom bar renders reactively
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const handleResize = () => setIsNarrow(window.innerWidth <= 1024);
-    // initialize
-    handleResize();
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
-  useEffect(() => {
-    const loadSelectedServicesCount = () => {
-      bookingFlow.load();
-      setSelectedServicesCount(bookingFlow.selectedServices.length);
-    };
-    loadSelectedServicesCount();
-    const handleBookingFlowChange = () => {
-      loadSelectedServicesCount();
-    };
-    window.addEventListener("bookingFlowChange", handleBookingFlowChange);
-    return () => {
-      window.removeEventListener("bookingFlowChange", handleBookingFlowChange);
-    };
-  }, []);
-
+  // Loading state
   if (loading) {
     return (
-      <div className="svc-container loading-container">
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        minHeight: '400px' 
+      }}>
         <div className="spinner-border" role="status">
           <span className="visually-hidden">Loading...</span>
         </div>
@@ -230,271 +250,282 @@ function Services() {
     );
   }
 
+  // Error state
   if (error) {
     return (
-      <div className="svc-container error-container">
+      <div style={{ 
+        textAlign: 'center', 
+        padding: '2rem',
+        background: '#fff',
+        borderRadius: '8px',
+        margin: '2rem'
+      }}>
         <h3>Error Loading Services</h3>
         <p>{error}</p>
-        <button className="btn btn-primary" onClick={fetchServices}>
+        <button 
+          className="btn btn-primary" 
+          onClick={fetchServices}
+          style={{
+            background: '#000',
+            color: '#fff',
+            border: 'none',
+            padding: '0.75rem 1.5rem',
+            borderRadius: '8px',
+            cursor: 'pointer',
+            marginTop: '1rem'
+          }}
+        >
           Try Again
         </button>
       </div>
     );
   }
 
+  // Main render
   return (
     <div className="services-page-wrapper">
-      <div className="svc-header-wrapper">
-        {/* Exit arrow visible on small/medium screens */}
-       
-        <div className="svc-header">
-        
-          <h2>Services</h2>
-      
+      {/* Services Main Content */}
+      <div className="services-main-content">
+        {/* Header Section */}
+        <div className="svc-header-wrapper">
+          <div className="svc-header">
+            <h2>Services</h2>
+          </div>
+          
+          {/* Navigation */}
+          <nav className="svc-nav">
+            {Object.keys(services).map((category) => (
+              <button
+                key={category}
+                className={activeSection === category ? "active" : ""}
+                onClick={() => scrollToSection(category)}
+              >
+                {category}
+              </button>
+            ))}
+          </nav>
         </div>
-        <nav className="svc-nav">
-          {Object.keys(services).map((category) => (
-            <button
-              key={category}
-              className={activeSection === category ? "active" : ""}
-              onClick={() => scrollToSection(category)}
-            >
-              {category}
-            </button>
-          ))}
-        </nav>
-      </div>
 
-      <div className="svc-container">
-        {Object.entries(services).map(([category, servicesList]) => (
-          <div
-            key={category}
-            id={category.replace(/\s+/g, "-").toLowerCase()}
-            className="svc-category-section"
-            data-title={category}
-            ref={(el) => (sectionRefs.current[category] = el)}
-          >
-            <h3 className="svc-category-title">{category}</h3>
-            <div className="svc-list">
-              {servicesList.map((item, idx) => {
-                const isOpen = isExpanded(category, idx);
-                const shortDesc =
-                  item.desc.length > 100
-                    ? item.desc.slice(0, 100) + "..."
+        {/* Services Container */}
+        <div className="svc-container">
+          {Object.entries(services).map(([category, servicesList]) => (
+            <div
+              key={category}
+              id={category.replace(/\s+/g, "-").toLowerCase()}
+              className="svc-category-section"
+              data-title={category}
+              ref={(el) => (sectionRefs.current[category] = el)}
+            >
+              <h3 className="svc-category-title">{category}</h3>
+              <div className="svc-list">
+                {servicesList.map((item, idx) => {
+                  const isOpen = isExpanded(category, idx);
+                  const shortDesc = item.desc.length > 100 
+                    ? item.desc.slice(0, 100) + "..." 
                     : item.desc;
-                const selected = isServiceSelected(item._id);
-                return (
-                  <div
-                    className={`svc-item${selected ? ' svc-item-selected' : ''}`}
-                    key={idx}
-                    onClick={() => !selected && handleServiceClick(item)}
-                  >
-                    <div className="svc-info">
-                      <h4>{item.title}</h4>
-                      <span className="time">{item.time}</span>
-                      <p>
-                        {isOpen ? item.desc : shortDesc}
-                        {item.desc.length > 100 && (
+                  const selected = isServiceSelected(item._id);
+                  
+                  return (
+                    <div
+                      className={`svc-item ${selected ? 'svc-item-selected' : ''}`}
+                      key={idx}
+                      onClick={() => !selected && handleServiceClick(item)}
+                    >
+                      <div className="svc-info">
+                        <h4>{item.title}</h4>
+                        <span className="time">{item.time}</span>
+                        <p>
+                          {isOpen ? item.desc : shortDesc}
+                          {item.desc.length > 100 && (
+                            <span
+                              className="svc-read-more"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleReadMore(category, idx);
+                              }}
+                              style={{
+                                color: '#000',
+                                fontWeight: '500',
+                                cursor: 'pointer',
+                                marginLeft: '5px'
+                              }}
+                            >
+                              {isOpen ? " Read less" : " Read more"}
+                            </span>
+                          )}
+                        </p>
+                        <span className="svc-price">
+                          from AED {item.price.replace(/^(AED |\$)?/, '')}
+                        </span>
+                        {item.discountPrice && item.discountPrice < item.originalPrice && (
                           <span
-                            className="svc-read-more"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              toggleReadMore(category, idx);
-                            }}
-                          >
-                            {isOpen ? " Read less" : " Read more"}
-                          </span>
-                        )}
-                      </p>
-                      <span className="svc-price">from AED {item.price.replace(/^(AED )?/, '')}</span>
-                      {item.discountPrice &&
-                        item.discountPrice < item.originalPrice && (
-                          <span
-                            className="svc-original-price"
                             style={{
                               textDecoration: "line-through",
                               color: "#999",
                               marginLeft: "10px",
                             }}
                           >
-                          AED {apiUtils.formatPrice(item.originalPrice)}
+                            AED {apiUtils.formatPrice(item.originalPrice)}
                           </span>
                         )}
-                    </div>
-                    {selected ? (
-                      <div
-                        className="svc-checkbox-btn"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          bookingFlow.removeService(item._id);
-                          window.dispatchEvent(new CustomEvent('bookingFlowChange'));
-                        }}
-                        title="Remove from booking"
-                        style={{ cursor: 'pointer' }}
-                      >
-                        <span className="svc-checkbox-outer">
-                          <span className="svc-checkbox-inner">
-                            {/* SVG tick icon */}
-                            <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
-                              <rect width="22" height="22" rx="6" fill="#1976d2" />
-                              <path d="M6 12.5L10 16L16 8" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-                            </svg>
-                          </span>
-                        </span>
                       </div>
-                    ) : (
-                      <button
-                        className="svc-add-btn"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleServiceClick(item);
-                        }}
-                      >
-                        +
-                      </button>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {showModal && selectedService && (
-        <div className="svc-popup-overlay" onClick={handleCloseModal}>
-          <div className="svc-popup" onClick={(e) => e.stopPropagation()}>
-            <div className="svc-popup-header">
-              <h2>{selectedService.title}</h2>
-              <button className="close-btn" onClick={handleCloseModal}>
-                &times;
-              </button>
-            </div>
-            <div className="svc-popup-body">
-              <p className="svc-popup-desc">
-                {selectedService.desc.slice(0, 160)}...
-                <span className="read-more"> Read more</span>
-              </p>
-              <h4 className="svc-popup-subtitle">
-                Select an option <span className="required">*</span>
-              </h4>
-              <div className="svc-option-list">
-                <label className="svc-option-item">
-                  <input
-                    type="radio"
-                    name="svcOption"
-                    value="single"
-                    checked={selectedOption === "single"}
-                    onChange={() => setSelectedOption("single")}
-                  />
-                  <div>
-                    <strong>{selectedService.title}</strong>
-                    <div className="svc-option-time">{selectedService.time}</div>
-                    <div className="svc-option-price">AED {selectedService.price.replace(/^(AED )?/, '')}</div>
-                  </div>
-                </label>
-                <hr />
-                <label className="svc-option-item">
-                  <input
-                    type="radio"
-                    name="svcOption"
-                    value="couple"
-                    checked={selectedOption === "couple"}
-                    onChange={() => setSelectedOption("couple")}
-                  />
-                  <div>
-                    <strong>Couple</strong>
-                    <div className="svc-option-time">{selectedService.time}</div>
-                    <div className="svc-option-price">AED {apiUtils.formatPrice(selectedService.effectivePrice * 2).replace(/^(AED )?/, '')}</div>
-                  </div>
-                </label>
+                      
+                      {selected ? (
+                        <div
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            bookingFlow.removeService(item._id);
+                            window.dispatchEvent(new CustomEvent('bookingFlowChange'));
+                          }}
+                          style={{ 
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}
+                          title="Remove from booking"
+                        >
+                          <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+                            <rect width="40" height="40" rx="20" fill="#1976d2" />
+                            <path 
+                              d="M12 20.5L18 26L28 16" 
+                              stroke="#fff" 
+                              strokeWidth="2.5" 
+                              strokeLinecap="round" 
+                              strokeLinejoin="round" 
+                            />
+                          </svg>
+                        </div>
+                      ) : (
+                        <button
+                          className="svc-add-btn"
+                          onClick={(e) => {
+                            // e.stopPropagation();
+                            handleServiceClick(item);
+                          }}
+                        >
+                          +
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
-            <div className="svc-popup-footer">
-              <button
-                className={selectedOption ? "btn-enabled" : "btn-disabled"}
-                disabled={!selectedOption}
-                onClick={handleAddToBooking}
-              >
-                Add to booking
-              </button>
-            </div>
-          </div>
+          ))}
         </div>
+      </div>
+
+      {/* Desktop Booking Sidebar */}
+      {isDesktop && (
+        <BookingSidebar currentStep={currentStep} navigate={navigate} />
       )}
 
-      {/* Exit confirmation modal */}
-      {showExitConfirm && (
-        <div className="svc-exit-overlay" onClick={() => setShowExitConfirm(false)}>
-          <div className="svc-exit-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
-            <h3>Leave services page?</h3>
-            <p>Are you sure you want to leave this page? Any unsaved selections will remain but you will leave the flow.</p>
-            <div className="svc-exit-actions">
-              <button className="btn-outline" onClick={() => setShowExitConfirm(false)}>No, stay</button>
-              <button className="btn-primary" onClick={() => {
-                setShowExitConfirm(false);
-                // Prefer history back when possible, otherwise go to home
-                if (window.history && window.history.length > 1) navigate(-1); else navigate('/');
-              }}>Yes, leave</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {isNarrow && selectedServicesCount > 0 && (
+      {/* Mobile Bottom Bar */}
+      {!isDesktop && selectedServicesCount > 0 && (
         <ServiceBottomBar currentStep={currentStep} navigate={navigate} />
+      )}
+
+      {/* Service Selection Modal */}
+      {showModal && selectedService && (
+        <ServiceModal
+          service={selectedService}
+          selectedOption={selectedOption}
+          setSelectedOption={setSelectedOption}
+          onClose={handleCloseModal}
+          onAdd={handleAddToBooking}
+        />
       )}
     </div>
   );
 }
 
+// Booking Sidebar Component (Desktop Only)
+function BookingSidebar({ currentStep = 1, navigate }) {
+  const [selectedServices, setSelectedServices] = useState([]);
+  const [summaryKey, setSummaryKey] = useState(0);
+
+  useEffect(() => {
+    const loadBookingData = () => {
+      bookingFlow.load();
+      setSelectedServices(bookingFlow.selectedServices || []);
+      setSummaryKey(k => k + 1);
+    };
+
+    loadBookingData();
+
+    const handleBookingFlowChange = () => {
+      loadBookingData();
+    };
+
+    window.addEventListener("bookingFlowChange", handleBookingFlowChange);
+    return () => window.removeEventListener("bookingFlowChange", handleBookingFlowChange);
+  }, []);
+
+  const steps = [
+    { number: 1, label: 'Service' },
+    { number: 2, label: 'Professional' },
+    { number: 3, label: 'Time' },
+    { number: 4, label: 'Payment' },
+    { number: 5, label: 'Confirm' }
+  ];
+
+  const handleContinue = () => {
+    if (selectedServices.length === 0) {
+      Swal.fire({
+        title: 'Service Required',
+        text: 'Please select at least one service.',
+        icon: 'warning',
+        confirmButtonText: 'OK'
+      });
+      return;
+    }
+    navigate("/professionals");
+  };
+
+  const totalDuration = selectedServices.reduce((sum, svc) => sum + (svc.duration || 0), 0);
+  const totalRate = selectedServices.reduce((sum, svc) => sum + (svc.price || 0), 0);
+
+
+}
+
+export default Services;
+
+// Service Bottom Bar Component (Mobile/Tablet Only)
 function ServiceBottomBar({ currentStep = 1, navigate }) {
-  const [selectedServices, setSelectedServices] = React.useState([]);
-  React.useEffect(() => {
+  const [selectedServices, setSelectedServices] = useState([]);
+  
+  useEffect(() => {
     bookingFlow.load();
     setSelectedServices(bookingFlow.selectedServices || []);
+    
     const handler = () => {
       bookingFlow.load();
       setSelectedServices(bookingFlow.selectedServices || []);
     };
+    
     window.addEventListener("bookingFlowChange", handler);
     return () => window.removeEventListener("bookingFlowChange", handler);
   }, []);
+
   const totalDuration = selectedServices.reduce((sum, svc) => sum + (svc.duration || 0), 0);
   const totalRate = selectedServices.reduce((sum, svc) => sum + (svc.price || 0), 0);
+  
   const canContinue = () => selectedServices.length > 0;
+  
   const handleContinue = () => {
-    switch (currentStep) {
-      case 1:
-        if (canContinue()) {
-          navigate("/professionals");
-        } else {
-          Swal.fire({
-            title: 'Service Required',
-            text: 'Please select at least one service.',
-            icon: 'warning',
-            confirmButtonText: 'OK'
-          });
-        }
-        break;
-      case 2:
-        navigate("/time");
-        break;
-      case 3:
-        navigate("/payment");
-        break;
-      case 4:
-        Swal.fire({
-          title: 'Complete Booking',
-          text: 'Complete payment logic here.',
-          icon: 'info',
-          confirmButtonText: 'OK'
-        });
-        break;
-      default:
-        break;
+    if (canContinue()) {
+      navigate("/professionals");
+    } else {
+      Swal.fire({
+        title: 'Service Required',
+        text: 'Please select at least one service.',
+        icon: 'warning',
+        confirmButtonText: 'OK'
+      });
     }
   };
+
   return (
     <div className="service-bottom-bar">
       <span>{totalDuration} min</span>
@@ -505,10 +536,83 @@ function ServiceBottomBar({ currentStep = 1, navigate }) {
         onClick={handleContinue}
         disabled={!canContinue()}
       >
-        {currentStep === 4 ? "Complete Booking" : "Continue"}
+        Continue
       </button>
     </div>
   );
 }
 
-export default Services;
+// Service Modal Component
+function ServiceModal({ service, selectedOption, setSelectedOption, onClose, onAdd }) {
+  return (
+    <div className="svc-popup-overlay" onClick={onClose}>
+      <div className="svc-popup" onClick={(e) => e.stopPropagation()}>
+        <div className="svc-popup-header">
+          <h2>{service.title}</h2>
+          <button className="close-btn" onClick={onClose}>
+            &times;
+          </button>
+        </div>
+        
+        <div className="svc-popup-body">
+          <p className="svc-popup-desc">
+            {service.desc.slice(0, 160)}...
+            <span className="read-more"> Read more</span>
+          </p>
+          
+          <h4 className="svc-popup-subtitle">
+            Select an option <span className="required">*</span>
+          </h4>
+          
+          <div className="svc-option-list">
+            <label className="svc-option-item">
+              <input
+                type="radio"
+                name="svcOption"
+                value="single"
+                checked={selectedOption === "single"}
+                onChange={() => setSelectedOption("single")}
+              />
+              <div>
+                <strong>{service.title}</strong>
+                <div className="svc-option-time">{service.time}</div>
+                <div className="svc-option-price">
+                  AED {service.price.replace(/^(AED )?/, '')}
+                </div>
+              </div>
+            </label>
+            
+            <hr />
+            
+            <label className="svc-option-item">
+              <input
+                type="radio"
+                name="svcOption"
+                value="couple"
+                checked={selectedOption === "couple"}
+                onChange={() => setSelectedOption("couple")}
+              />
+              <div>
+                <strong>Couple</strong>
+                <div className="svc-option-time">{service.time}</div>
+                <div className="svc-option-price">
+                  AED {apiUtils.formatPrice(service.effectivePrice * 2).replace(/^(AED )?/, '')}
+                </div>
+              </div>
+            </label>
+          </div>
+        </div>
+        
+        <div className="svc-popup-footer">
+          <button
+            className={selectedOption ? "btn-enabled" : "btn-disabled"}
+            disabled={!selectedOption}
+            onClick={onAdd}
+          >
+            Add to booking
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
