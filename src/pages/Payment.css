@@ -55,6 +55,199 @@ body {
   justify-content: center;
   padding: 40px 20px;
 }
+
+.success-card {
+  max-width: 800px;
+  margin: 2rem auto;
+  padding: 2.5rem;
+  text-align: center;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.success-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #6a1b9a, #9c27b0);
+}
+
+.success-icon {
+  width: 80px;
+  height: 80px;
+  margin: 0 auto 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f0e6ff;
+  border-radius: 50%;
+  color: #6a1b9a;
+  font-size: 2.5rem;
+  position: relative;
+  animation: bounce 0.6s ease-in-out;
+}
+
+.success-icon svg {
+  width: 50px;
+  height: 50px;
+  stroke-width: 2.5;
+}
+
+.success-content h1 {
+  color: #2e2e2e;
+  margin-bottom: 1rem;
+  font-size: 2rem;
+  font-weight: 700;
+}
+
+.success-content p {
+  color: #666;
+  font-size: 1.1rem;
+  margin-bottom: 2rem;
+  line-height: 1.6;
+}
+
+.payment-summary {
+  background: #f9f9ff;
+  border-radius: 10px;
+  padding: 1.5rem;
+  margin: 2rem 0;
+  text-align: left;
+  border: 1px solid rgba(106, 27, 154, 0.1);
+}
+
+.payment-summary h3 {
+  color: #444;
+  margin-bottom: 1.2rem;
+  font-size: 1.25rem;
+  font-weight: 600;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.summary-details {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.detail-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.5rem 0;
+  border-bottom: 1px dashed rgba(0, 0, 0, 0.05);
+}
+
+.detail-row:last-child {
+  border-bottom: none;
+}
+
+.detail-row span:first-child {
+  color: #666;
+  font-weight: 500;
+}
+
+.detail-row span:last-child {
+  color: #333;
+  font-weight: 500;
+}
+
+.success-actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 2rem;
+}
+
+.btn-dashboard,
+.btn-email {
+  padding: 0.8rem 1.5rem;
+  border-radius: 8px;
+  font-weight: 500;
+  font-size: 0.95rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  border: none;
+  outline: none;
+  text-decoration: none;
+}
+
+.btn-dashboard {
+  background: #6a1b9a;
+  color: white;
+}
+
+.btn-email {
+  background: #f5f5f5;
+  color: #555;
+  border: 1px solid #ddd;
+}
+
+.btn-dashboard:hover {
+  background: #5a148c;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(106, 27, 154, 0.2);
+}
+
+.btn-email:hover {
+  background: #eee;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.email-sent {
+  margin-top: 1rem;
+  color: #4caf50;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  animation: fadeIn 0.5s ease-in-out;
+}
+
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 768px) {
+  .success-card {
+    margin: 1rem;
+    padding: 1.5rem;
+  }
+  
+  .success-content h1 {
+    font-size: 1.75rem;
+  }
+  
+  .success-actions {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  
+  .btn-dashboard,
+  .btn-email {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
 .payment-success-card {
   background: #ffffff;
   border-radius: 12px;
@@ -64,6 +257,7 @@ body {
   max-width: 520px;
   width: 100%;
 }
+
 .payment-success-tick {
   width: 96px;
   height: 96px;
@@ -330,9 +524,7 @@ body {
   cursor: not-allowed;
 }
 
-@media (min-width: 901px) {
-  .payment-bottom-bar { display: none !important; }
-}
+/* Removed duplicate media query - handled by the one above */
 
 /* Removed override that forced the bottom bar to appear on larger viewports.
    The bottom bar should only be visible on small screens; see the rule above
@@ -1426,9 +1618,7 @@ body {
 }
 
 /* Hide bottom bar on larger screens (keep earlier rule precedence) */
-@media (min-width: 901px) {
-  .payment-bottom-bar { display: none !important; }
-}
+/* Removed duplicate media query - handled by the one above */
 
 .debug-panel-bw { background: #fbfbfb; border: 1px dashed #00000010; padding: 8px; border-radius: 6px; font-size: 12px; color: #000; }
 
@@ -1438,20 +1628,28 @@ body {
 /* Ensure links and small accents use muted black */
 a, .method-text, .method-icon { color: var(--bw-ink) !important; }
 
-/* Final override: ensure payment-bottom-bar is visible between 912px and 1368px
-   This comes after other "hide on large screens" rules so it can reliably show
-   on those tablet / small-laptop widths. */
-@media (min-width: 912px) and (max-width: 1368px) {
-  /* Strong final override to ensure visibility on specified tablet widths */
-  body .payment-bottom-bar {
-    display: flex !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-    position: fixed !important;
-    left: 0 !important;
-    right: 0 !important;
-    bottom: 0 !important;
-    z-index: 99999 !important;
+/* Hide payment bottom bar on tablet and desktop views */
+@media (min-width: 768px) {
+  .payment-bottom-bar {
+    display: none !important;
+  }
+}
+
+/* Show only on mobile devices (smaller than 768px) */
+@media (max-width: 767px) {
+  .payment-bottom-bar {
+    display: flex;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: white;
+    padding: 12px 16px;
+    align-items: center;
+    justify-content: space-between;
+    z-index: 1000;
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+    border-top: 1px solid #eee;
   }
 }
 

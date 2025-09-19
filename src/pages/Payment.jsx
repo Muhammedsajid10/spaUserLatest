@@ -84,8 +84,12 @@ const StripePaymentForm = ({ onPaymentSuccess, onPaymentError, paymentData, load
           paymentData: {
             paymentIntentId: mockPaymentIntent.id,
             clientSecret: 'pi_test_secret',
-            status: 'SUCCESS'
-          }
+            status: 'SUCCESS',
+            amount: paymentData.amount,
+            currency: paymentData.currency || 'aed',
+            created: new Date().toISOString()
+          },
+          paymentMethod: 'card'
         });
         
         setLoading(false);
@@ -216,15 +220,7 @@ const StripePaymentForm = ({ onPaymentSuccess, onPaymentError, paymentData, load
       )}
       
       {cardError && <div className="card-error">{cardError}</div>}
-      
-      <button
-        type="submit"
-        disabled={loading}
-        className="payment-submit-btn"
-      >
-        {loading ? 'Processing...' : 
-         `${(STRIPE_TEST_MODE || offlineMode) ? 'Test ' : ''}Pay AED ${paymentData.amount}`}
-      </button>
+   
     </form>
   );
 };
@@ -263,6 +259,9 @@ const Payment = () => {
   const [upiVpa, setUpiVpa] = useState('');
   const [paymentIntent, setPaymentIntent] = useState(null);
   const [successResult, setSuccessResult] = useState(null);
+  const [paymentSuccess, setPaymentSuccess] = useState(false);
+  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
+  const [isNavigating, setIsNavigating] = useState(false);
 
   // Get booking data from localStorage
   const bookingData = JSON.parse(localStorage.getItem('bookingData') || '{}');
@@ -785,27 +784,64 @@ const Payment = () => {
   const handlePaymentSuccess = async (result) => {
     console.log('[PAYMENT] Payment successful:', result);
     
-    // Clear booking flow data
-    bookingFlow.clear();
-
-    // Set local success result so UI can render immediately
-    setSuccessResult({
-      paymentData: result.paymentData,
-      paymentMethod: result.paymentMethod,
-      summaryText: result.paymentMethod === 'cash' ? 'Please pay at the venue.' : 'Payment processed successfully.'
-    });
-
-    // Navigate to centralized success page and pass data
+    // Prevent multiple navigations
+    if (isNavigating) return;
+    setIsNavigating(true);
+    
     try {
-      navigate('/payment/success', { state: {
-        bookingData: finalBookingData,
-        paymentData: result.paymentData,
-        paymentMethod: result.paymentMethod,
+      // Clear booking flow data
+      bookingFlow.clear();
+
+      // Set local success result so UI can render immediately
+      const successData = {
+        paymentData: result.paymentData || {},
+        paymentMethod: result.paymentMethod || 'card',
         summaryText: result.paymentMethod === 'cash' ? 'Please pay at the venue.' : 'Payment processed successfully.'
-      }});
+      };
+
+      // Update success state
+      setSuccessResult(successData);
+      setPaymentSuccess(true);
+      setShowSuccessMessage(true);
+      setError(''); // Clear any previous errors
+
+      // Create navigation state
+      const navigationState = {
+        bookingData: finalBookingData,
+        paymentData: {
+          ...successData.paymentData,
+          paymentIntentId: result.paymentIntent?.id || `pi_test_${Date.now()}`,
+          status: 'succeeded',
+          amount: successData.paymentData.amount || finalBookingData.totalAmount,
+          currency: successData.paymentData.currency || 'aed',
+          created: new Date().toISOString()
+        },
+        paymentMethod: successData.paymentMethod,
+        summaryText: successData.summaryText,
+        paymentIntent: result.paymentIntent || { 
+          id: `pi_test_${Date.now()}`,
+          status: 'succeeded',
+          amount: Math.round((successData.paymentData.amount || finalBookingData.totalAmount) * 100),
+          currency: 'aed',
+          created: Math.floor(Date.now() / 1000)
+        }
+      };
+
+      console.log('[PAYMENT] Navigating to success page with state:', navigationState);
+      
+      // Navigate to centralized success page and pass data
+      navigate('/payment/success', { 
+        state: navigationState,
+        replace: true // Prevent going back to payment page
+      });
+      
+    } catch (error) {
+      console.error('[PAYMENT] Error in success handler:', error);
+      setError('Payment was successful but there was an error processing your booking.');
     } finally {
       setLoading(false);
       setProcessing(false);
+      setIsNavigating(false);
     }
   };
 

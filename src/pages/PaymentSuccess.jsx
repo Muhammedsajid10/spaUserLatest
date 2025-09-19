@@ -179,31 +179,19 @@ const PaymentSuccess = () => {
   };
 
   return (
-    <div className="payment-container">
-      <div className="payment-card success-card">
+    <div className="payment-success-wrapper">
+      <div className="success-card">
         <div className="success-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-            <polyline points="22,4 12,14.01 9,11.01"></polyline>
-          </svg>
+          <TiTick size={40} />
         </div>
 
         <div className="success-content">
           <h1>Payment Successful!</h1>
-          <p>Your payment has been processed successfully.</p>
+          <p>Your booking has been confirmed. We've sent a confirmation to your email.</p>
           
           <div className="payment-summary">
-       
-            <h3>Payment Summary</h3>
+            <h3>Booking Summary</h3>
             <div className="summary-details">
-              <div className="detail-row">
-                <span>Payment ID:</span>
-                <span>{paymentObj?.paymentId || paymentObj?.id || paymentObj?.paymentIntent?.id || 'Processing...'}</span>
-              </div>
-              <div className="detail-row">
-                <span>Amount:</span>
-                <span>AED {bookingDetails?.totalAmount || paymentObj?.paymentData?.amount || paymentObj?.amount || 'N/A'}</span>
-              </div>
               <div className="detail-row">
                 <span>Booking ID:</span>
                 <span>{bookingDetails?.bookingId || bookingDetails?._id || 'N/A'}</span>
@@ -212,10 +200,24 @@ const PaymentSuccess = () => {
                 <span>Booking Number:</span>
                 <span>{bookingDetails?.bookingNumber || 'N/A'}</span>
               </div>
-              
-             
-          
-             
+              {bookingDetails?.date && (
+                <div className="detail-row">
+                  <span>Date:</span>
+                  <span>{new Date(bookingDetails.date).toLocaleDateString()}</span>
+                </div>
+              )}
+              {bookingDetails?.time && (
+                <div className="detail-row">
+                  <span>Time:</span>
+                  <span>{bookingDetails.time}</span>
+                </div>
+              )}
+              {bookingDetails?.totalAmount && (
+                <div className="detail-row">
+                  <span>Amount Paid:</span>
+                  <span>AED {parseFloat(bookingDetails.totalAmount).toFixed(2)}</span>
+                </div>
+              )}
             </div>
           </div>
 

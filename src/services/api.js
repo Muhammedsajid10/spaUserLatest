@@ -43,6 +43,23 @@ const formatLocalYYYYMMDD = (d) => {
 
 // Auth API calls
 export const authAPI = {
+  // Get user profile
+  getProfile: async () => {
+    const response = await fetch(`${API_BASE_URL}/auth/me`, {
+      headers: getAuthHeaders()
+    });
+    return handleResponse(response);
+  },
+  
+  // Update user profile
+  updateProfile: async (profileData) => {
+    const response = await fetch(`${API_BASE_URL}/auth/update-me`, {
+      method: 'PATCH',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(profileData)
+    });
+    return handleResponse(response);
+  },
   // Login user
   login: async (credentials) => {
     const response = await fetch(`${API_BASE_URL}/auth/login`, {
@@ -75,16 +92,6 @@ export const authAPI = {
     });
     console.log("response from get currnet user: ", response)
 
-    return handleResponse(response);
-  },
-
-  // Update user profile
-  updateProfile: async (profileData) => {
-    const response = await fetch(`${API_BASE_URL}/auth/update-me`, {
-      method: 'PATCH',
-      headers: getAuthHeaders(),
-      body: JSON.stringify(profileData)
-    });
     return handleResponse(response);
   },
 
@@ -199,8 +206,23 @@ export const bookingsAPI = {
     const response = await fetch(url, {
       headers: getAuthHeaders()
     });
-    console.log("response from getuser bookings: ", response)
-
+    console.log("response from getuser bookings: ", response);
+    return handleResponse(response);
+  },
+  
+  // Get user invoices
+  getUserInvoices: async () => {
+    const response = await fetch(`${API_BASE_URL}/bookings/my-invoices`, {
+      headers: getAuthHeaders()
+    });
+    return handleResponse(response);
+  },
+  
+  // Get user feedback
+  getUserFeedback: async () => {
+    const response = await fetch(`${API_BASE_URL}/feedback/my-feedback`, {
+      headers: getAuthHeaders()
+    });
     return handleResponse(response);
   },
 

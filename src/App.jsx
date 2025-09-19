@@ -53,6 +53,7 @@ import ProtectedRoute from "./Components/ProtectedRoute";
 import ProfilePage from './pages/ProfilePage';
 import OrdersPage from './pages/OrdersPage';
 import ClientProfilePage from './pages/ClientProfilePage';
+import Dashboard from './pages/Dashboard';
 // import Time from "./pages/TimeUpdated";
 
 function App() {
@@ -165,9 +166,28 @@ function App() {
                    {/* <Route path="/" element={<Graphs/>} /> */}
                    {/* <Route path="/" element={<Selectcalander/>} /> */}
           <Route path="/verify-email/:token" element={<VerifyEmailPage />} />
-          <Route path="/profile" element={<ProfilePage />} />
-          <Route path="/orders" element={<OrdersPage />} />
-          <Route path="/dashboard" element={<ClientProfilePage />} />
+          
+          {/* Protected routes */}
+          <Route path="/profile" element={
+            <ProtectedRoute>
+              <ProfilePage />
+            </ProtectedRoute>
+          } />
+          <Route path="/orders" element={
+            <ProtectedRoute>
+              <OrdersPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/dashboard" element={
+            <ProtectedRoute>
+              <Dashboard />
+            </ProtectedRoute>
+          } />
+          <Route path="/client-profile" element={
+            <ProtectedRoute>
+              <Dashboard />
+            </ProtectedRoute>
+          } />
         </Routes>
 
     </BrowserRouter>
