@@ -229,7 +229,7 @@ body {
   }
   
   .svc-item {
-    max-width: 84%;/* Stay within category section bounds */
+    max-width: 76%;/* Stay within category section bounds */
   }
 }
 
@@ -445,7 +445,7 @@ body {
   justify-content: space-between;
   align-items: flex-start;
   background: #fff;
-  border: 1px solid #ddd;
+  border: 1px solid #555555;
   border-radius: 12px;
   padding: 1.5rem;
   cursor: pointer;

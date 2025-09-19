@@ -1035,6 +1035,39 @@ body {
 }
 
 
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+  .professional-assignment {
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+    padding: 0.5rem 0;
+  }
+  
+  .professional-assignment .service-name,
+  .professional-assignment .professional-name {
+    font-size: 13px;
+  }
+}
+
+@media (max-width: 480px) {
+  .professional-assignment {
+    grid-template-columns: 1fr 1fr;
+    gap: 0.25rem;
+    padding: 0.375rem 0;
+  }
+  
+  .professional-assignment .service-name {
+    font-weight: 500;
+    padding-right: 0.5rem;
+  }
+  
+  .professional-assignment .professional-name {
+    text-align: right;
+    padding-left: 0.5rem;
+  }
+}
+
 /* === Responsive Design === */
 @media (max-width: 992px) {
     .payment-card { max-width: 720px; }
@@ -1765,11 +1798,47 @@ a, .method-text, .method-icon { color: var(--bw-ink) !important; }
   min-height: 50px;
 }
 
+/* Professional Assignments Section */
+.professional-assignments {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.professional-assignment {
+  display: grid;
+  grid-template-columns: minmax(100px, 1fr) 1fr;
+  align-items: center;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #f3f4f6;
+  width: 100%;
+}
+
+.professional-assignment:last-child {
+  border-bottom: none;
+}
+
 .professional-assignment .service-name {
   font-size: 14px;
-  color: var(--text-color-secondary);
-  flex: 0 0 auto;
-  margin-right: 12px;
+  font-weight: 500;
+  color: #1f2937;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding-right: 0.75rem;
+}
+
+.professional-assignment .professional-name {
+  font-size: 14px;
+  color: #4b5563;
+  font-weight: 400;
+  text-align: right;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding-left: 0.75rem;
+  padding-right: 0.75rem;
 }
 
 .professional-name {
@@ -1965,11 +2034,163 @@ a, .method-text, .method-icon { color: var(--bw-ink) !important; }
 }
 
 /* Small Mobile (≤480px) */
+/* Mobile Booking Summary */
+.mobile-booking-summary {
+  background: #fff;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.summary-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #111827;
+  margin-bottom: 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.summary-item {
+  margin-bottom: 16px;
+}
+
+.summary-label {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: #6b7280;
+  margin-bottom: 6px;
+  display: block;
+}
+
+/* Services Section */
+.summary-services {
+  max-height: 200px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+.service-item {
+  padding: 10px 0;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.service-item:last-child {
+  border-bottom: none;
+}
+
+.service-details {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.service-name {
+  font-size: 0.875rem;
+  color: #111827;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.service-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8125rem;
+  color: #6b7280;
+}
+
+/* Professional Assignments */
+.professional-assignments {
+  max-height: 120px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+.professional-assignment {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid #f3f4f6;
+  font-size: 0.875rem;
+}
+
+.professional-assignment:last-child {
+  border-bottom: none;
+}
+
+/* Date & Time Section */
+.summary-datetime {
+  font-size: 0.875rem;
+  color: #111827;
+  padding: 8px 0;
+}
+
+/* Total Section */
+.summary-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 0;
+  margin-top: 12px;
+  border-top: 1px solid #f3f4f6;
+  font-weight: 600;
+  font-size: 1rem;
+  color: #111827;
+}
+
+/* Horizontal Scroll for Long Content */
+.summary-services,
+.professional-assignments {
+  scrollbar-width: thin;
+  scrollbar-color: #d1d5db transparent;
+}
+
+.summary-services::-webkit-scrollbar,
+.professional-assignments::-webkit-scrollbar {
+  height: 4px;
+}
+
+.summary-services::-webkit-scrollbar-thumb,
+.professional-assignments::-webkit-scrollbar-thumb {
+  background-color: #d1d5db;
+  border-radius: 4px;
+}
+
+/* Responsive Adjustments */
 @media (max-width: 480px) {
   .mobile-booking-summary {
-    width: calc(100% + 50px);
-    margin: 0 -25px 24px -25px;
+    width: 109%;
+    margin: 0 0 0px 0;
+    padding: 0px;
+    border-radius: 0;
+    border-bottom: 1px solid #e5e7eb;
   }
+  
+  .summary-title {
+    font-size: 1rem;
+    margin-bottom: 12px;
+  }
+  
+  .service-name,
+  .professional-assignment {
+    font-size: 0.8125rem;
+  }
+  
+  .service-meta,
+  .summary-datetime {
+    font-size: 0.75rem;
+  }
+  
+  .summary-total {
+    font-size: 0.9375rem;
+  }
+}
   
   .booking-summary-section {
     padding: 18px 20px;

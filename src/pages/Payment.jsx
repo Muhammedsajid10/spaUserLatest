@@ -925,16 +925,24 @@ const Payment = () => {
                   {finalBookingData.services ? 
                     finalBookingData.services.map((service, index) => (
                       <div key={index} className="service-item">
-                        <span className="service-name">{service.name}</span>
-                        <span className="service-duration">{service.duration} min</span>
-                        <span className="service-price">AED {service.price}</span>
+                        <div className="service-details">
+                          <span className="service-name">{service.name}</span>
+                          <div className="service-meta">
+                            <span className="service-duration">{service.duration} min</span>
+                            <span className="service-price">AED {service.price}</span>
+                          </div>
+                        </div>
                       </div>
                     )) :
                     bookingFlow.selectedServices?.map((service, index) => (
                       <div key={index} className="service-item">
-                        <span className="service-name">{service.name}</span>
-                        <span className="service-duration">{service.duration} min</span>
-                        <span className="service-price">AED {service.price}</span>
+                        <div className="service-details">
+                          <span className="service-name">{service.name}</span>
+                          <div className="service-meta">
+                            <span className="service-duration">{service.duration} min</span>
+                            <span className="service-price">AED {service.price}</span>
+                          </div>
+                        </div>
                       </div>
                     ))
                   }
@@ -944,7 +952,7 @@ const Payment = () => {
               {/* Professional */}
               <div className="summary-item">
                 <div className="summary-label">Professional</div>
-                <div className="summary-value">
+                <div className="summary-value professional-assignments">
                   {finalBookingData.professionalAssignments ? 
                     finalBookingData.professionalAssignments.map((assignment, index) => (
                       <div key={index} className="professional-assignment">

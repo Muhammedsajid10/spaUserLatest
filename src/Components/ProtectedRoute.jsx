@@ -19,9 +19,14 @@ const ProtectedRoute = ({ children, requiredRole = null }) => {
   if (loading) {
     console.log('ProtectedRoute: Still loading...');
     return (
-      <div className="loading-container">
-        <div className="loading-spinner"></div>
-        <p>Loading...</p>
+      <div className="empty-state">
+        <div className="empty-state-card">
+          <div className="spinner-border mx-auto mb-4"></div>
+          <h3 className="empty-state-title">Loading...</h3>
+          <p className="empty-state-description">
+            Please wait while we load your dashboard.
+          </p>
+        </div>
       </div>
     );
   }

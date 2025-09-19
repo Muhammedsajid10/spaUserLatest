@@ -1,13 +1,13 @@
 import { Menu, User } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import './MobileHeader.css';
 
 const MobileHeader = ({ profile, onMenuToggle }) => {
   return (
-    <div className="lg:hidden bg-white border-b border-gray-200 px-4 py-3">
+    <div className="mobile-header">
       <div className="flex items-center justify-between">
-        <Button variant="ghost" size="sm" onClick={onMenuToggle}>
+        <button className="btn btn-ghost btn-sm" onClick={onMenuToggle}>
           <Menu className="w-6 h-6" />
-        </Button>
+        </button>
         
         <div className="flex items-center space-x-3">
           <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">

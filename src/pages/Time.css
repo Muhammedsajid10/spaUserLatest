@@ -95,8 +95,7 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    /* Responsive minimal text size and width */
-    font-size: clamp(0.75rem, 2.6vw, 0.95rem);
+    font-size: clamp(-1.25rem, 2.6vw, 0.95rem);
     max-width: clamp(90px, 26vw, 150px);
 }
 
@@ -566,24 +565,44 @@
   height: 68px;
 }
 
-/* Hide the bottom bar on large desktop (>=1025px) */
-@media (min-width: 1025px) {
+/* Hide the bottom bar on screens 1024px and wider */
+@media (min-width: 1024px) {
     .time-bottom-bar {
         display: none !important;
+        visibility: hidden !important;
+        height: 0 !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        border: none !important;
+        overflow: hidden !important;
+        position: absolute !important;
+        width: 0 !important;
+    }
+    .time-selector {
+        padding-bottom: 0 !important;
+        margin-bottom: 0 !important;
     }
 }
 
-/* Show bottom bar on tablet widths (768px - 1024px) and reserve space for it */
-@media (min-width: 768px) and (max-width: 1024px) {
-    .time-bottom-bar { display: flex !important; }
+/* Show bottom bar on tablet widths (768px - 1023px) and reserve space for it */
+@media (min-width: 768px) and (max-width: 1023px) {
+    .time-bottom-bar { 
+        display: flex !important; 
+    }
     /* reserve same space as mobile so content isn't covered */
-    .time-selector { padding-bottom: 88px; }
+    .time-selector { 
+        padding-bottom: 88px; 
+    }
 }
 
 /* Small gap (721-767) keep hidden and minimal padding */
 @media (min-width: 721px) and (max-width: 767px) {
-    .time-bottom-bar { display: none !important; }
-    .time-selector { padding-bottom: 30px; }
+    .time-bottom-bar { 
+        display: none !important; 
+    }
+    .time-selector { 
+        padding-bottom: 30px; 
+    }
 }
 
 /* Polished bottom bar layout matching Services/Professionals styles */

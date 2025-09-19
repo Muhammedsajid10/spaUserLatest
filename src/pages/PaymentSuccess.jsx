@@ -81,7 +81,7 @@ const PaymentSuccess = () => {
       /* ignore */
     }
     bookingFlow.reset();
-    navigate('/dashboard');
+    navigate('/client-profile');
   };
 
   const handleNewBooking = () => {

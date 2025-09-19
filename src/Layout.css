@@ -451,7 +451,17 @@
 .no-services p {
   margin: 0.5rem 0;
 }
-
+.profile-avatar-unique{
+  width: 3rem;
+    height: 3rem;
+    background-color: var(--bg-tertiary);
+    border-radius: var(--radius-full);
+    display: flex
+;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid var(--border-primary);
+}
 /* GLOBAL HEADER */
 .global-header {
   width: 100%;

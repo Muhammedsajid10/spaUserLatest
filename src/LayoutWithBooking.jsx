@@ -3,7 +3,7 @@ import { useNavigate, useLocation, Link, Outlet } from 'react-router-dom';
 import { bookingFlow, apiUtils } from './services/api';
 import { confirmBookingAndPay } from './services/paymentFlow';
 import { IoMdTime } from "react-icons/io";
-
+import './layout.css'
 import { CiCalendar } from "react-icons/ci";
 import './Layout.css'; // Assuming this CSS file exists
 import { HeaderTitleProvider, useHeaderTitle } from './Service/HeaderTitleContext'; // Assuming this context exists
@@ -13,7 +13,7 @@ import Swal from 'sweetalert2'; // Assuming SweetAlert2 is installed
 
 // ProfileIcon component - No changes
 const ProfileIcon = () => (
-  <svg className="profile-avatar" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <svg className="profile-avatar-unique" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
     <circle cx="20" cy="20" r="20" fill="#e0e0e0" />
     <ellipse cx="20" cy="16" rx="7" ry="7" fill="#bdbdbd" />
     <ellipse cx="20" cy="30" rx="12" ry="7" fill="#bdbdbd" />
@@ -67,14 +67,14 @@ const GlobalHeader = () => {
               <img
                 src={user.avatar}
                 alt="Profile"
-                className="profile-avatar"
+                className="profile-avatar-unique"
               />
             ) : (
               <ProfileIcon />
             )}
           </div>
           <div className="dropdown-content">
-            <Link to="/dashboard" onClick={() => setDropdownOpen(false)}>Bookings</Link>
+            <Link to="/client-profile" onClick={() => setDropdownOpen(false)}>Bookings</Link>
             
             <button onClick={() => { logout(); setDropdownOpen(false); }}>Logout</button>
           </div>

@@ -53,7 +53,6 @@ import ProtectedRoute from "./Components/ProtectedRoute";
 import ProfilePage from './pages/ProfilePage';
 import OrdersPage from './pages/OrdersPage';
 import ClientProfilePage from './pages/ClientProfilePage';
-import Dashboard from './pages/Dashboard';
 // import Time from "./pages/TimeUpdated";
 
 function App() {
@@ -178,14 +177,9 @@ function App() {
               <OrdersPage />
             </ProtectedRoute>
           } />
-          <Route path="/dashboard" element={
-            <ProtectedRoute>
-              <Dashboard />
-            </ProtectedRoute>
-          } />
           <Route path="/client-profile" element={
             <ProtectedRoute>
-              <Dashboard />
+              <ClientProfilePage />
             </ProtectedRoute>
           } />
         </Routes>

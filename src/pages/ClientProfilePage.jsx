@@ -1,485 +1,730 @@
-import React, { useState, useEffect } from 'react';
-import { Spinner } from 'react-bootstrap';
-import './ClientProfilePage.css';
-import { authAPI, bookingsAPI, paymentsAPI, feedbackAPI, bookingFlow } from '../services/api';
-import StarRating from '../Components/StarRating';
-import FeedbackModal from '../Components/FeedbackModal';
-import PasswordChangeModal from '../Components/PasswordChangeModal';
-import Swal from 'sweetalert2';
-import { FaBars, FaTimes } from 'react-icons/fa';
-import { FaCalendarAlt, FaCreditCard, FaRegStar, FaUser } from "react-icons/fa";
-import { useNavigate } from 'react-router-dom';
-import { FaPlus } from 'react-icons/fa';
+import { useState, useEffect } from "react";
+import {
+  Calendar,
+  User,
+  Star,
+  CreditCard,
+  MessageSquare,
+  Edit,
+  X,
+  Plus,
+  Key,
+  Sun,
+  Moon,
+  Menu,
+} from "lucide-react";
+import Swal from "sweetalert2";
+import "./ClientProfilePage.css";
+import { authAPI, bookingsAPI, paymentsAPI, feedbackAPI } from "../services/api";
 
-export default function ClientProfilePage() {
-    // Track window width for responsive UI
-    const [windowWidth, setWindowWidth] = useState(window.innerWidth);
-    // One-time cleanup: clear any booking flow data when entering dashboard
-    useEffect(() => {
-        try {
-            localStorage.removeItem('bookingData');
-            localStorage.removeItem('currentBooking');
-        } catch (e) {
-            /* ignore */
-        }
-        if (bookingFlow && typeof bookingFlow.reset === 'function') {
-            bookingFlow.reset();
-        }
-    }, []);
-    useEffect(() => {
-        const handleResize = () => setWindowWidth(window.innerWidth);
-        window.addEventListener('resize', handleResize);
-        return () => window.removeEventListener('resize', handleResize);
-    }, []);
-    const [profile, setProfile] = useState({});
-    const [editMode, setEditMode] = useState(false);
-    const [editProfile, setEditProfile] = useState({});
-    const [bookings, setBookings] = useState([]);
-    const [invoices, setInvoices] = useState([]);
-    const [userFeedback, setUserFeedback] = useState([]);
-    const [activeTab, setActiveTab] = useState('bookings');
-    const [sidebarOpen, setSidebarOpen] = useState(false);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
-    const [showFeedbackModal, setShowFeedbackModal] = useState(false);
-    const [selectedBookingForFeedback, setSelectedBookingForFeedback] = useState(null);
-    const [showPasswordForm, setShowPasswordForm] = useState(false);
-    const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
-    const [changingPassword, setChangingPassword] = useState(false);
-
-    useEffect(() => {
-        const fetchData = async () => {
-            try {
-                setLoading(true);
-                setError(false);
-
-                const [profileData, bookingsData, invoicesData] = await Promise.all([
-                    authAPI.getCurrentUser(),
-                    bookingsAPI.getUserBookings(),
-                    paymentsAPI.getPaymentHistory()
-                ]);
-
-                // Debug logs for fetched data (feedback fetch temporarily disabled)
-                console.log('[ClientProfilePage] Fetched profileData:', profileData);
-                console.log('[ClientProfilePage] Fetched bookingsData:', bookingsData);
-                console.log('[ClientProfilePage] Fetched invoicesData:', invoicesData);
-
-                setProfile(profileData.data.user);
-                setEditProfile(profileData.data.user);
-                console.log("this is your profile data:",profileData.data.user)
-                // Deduplicate bookings by _id and bookingNumber
-                const rawBookings = bookingsData.data.bookings || [];
-                const uniqueBookings = rawBookings.filter((booking, index, self) => {
-                    const firstOccurrence = self.findIndex(b => 
-                        b._id === booking._id || 
-                        (b.bookingNumber && booking.bookingNumber && b.bookingNumber === booking.bookingNumber)
-                    ) === index;
-                    return firstOccurrence;
-                });
-                
-                console.log('[ClientProfilePage] Unique bookings after dedupe:', uniqueBookings);
-                setBookings(uniqueBookings);
-                setInvoices(invoicesData.data.payments || []);
-                // Temporarily disable loading feedback from API for checking — keep local state empty
-                setUserFeedback([]);
-            } catch (err) {
-                setError(err.message);
-                console.error("Failed to fetch data:", err);
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchData();
-    }, []);
-
-    const handleProfileChange = (e) => {
-        setEditProfile({ ...editProfile, [e.target.name]: e.target.value });
-    };
-
-    const handleProfileSave = async (e) => {
-        e.preventDefault();
-        try {
-            const updatedData = await authAPI.updateProfile(editProfile);
-            setProfile(updatedData.data.user);
-            console.log('[ClientProfilePage] Profile updated:', updatedData.data.user);
-            setEditMode(false);
-            Swal.fire({
-                title: 'Success!',
-                text: 'Profile updated successfully!',
-                icon: 'success',
-                timer: 3000,
-                showConfirmButton: false
-            });
-        } catch (error) {
-            Swal.fire({
-                title: 'Error!',
-                text: error.message || 'Failed to update profile',
-                icon: 'error',
-                timer: 5000,
-                showConfirmButton: true
-            });
-        }
-    };
-
-    const handleRate = async (booking) => {
-    console.log('[ClientProfilePage] Rate called for booking:', booking);
-    setSelectedBookingForFeedback(booking);
-    setShowFeedbackModal(true);
-    };
-
-    const handleSubmitFeedback = async (feedbackData) => {
-        try {
-            await feedbackAPI.createFeedback(feedbackData);
-            
-            // Update the booking to mark as rated
-            setBookings(bookings.map(b => 
-                b._id === feedbackData.bookingId ? { ...b, hasRating: true } : b
-            ));
-            
-            console.log('[ClientProfilePage] Feedback submitted:', feedbackData);
-
-            Swal.fire({
-                title: 'Success!',
-                text: 'Thank you for your feedback!',
-                icon: 'success',
-                timer: 3000,
-                showConfirmButton: false
-            });
-            setShowFeedbackModal(false);
-            setSelectedBookingForFeedback(null);
-            // Feedback refresh skipped while checking — do not call feedbackAPI.getUserFeedback()
-        } catch (error) {
-            console.error("Failed to submit feedback:", error);
-            Swal.fire({
-                title: 'Error!',
-                text: 'Failed to submit feedback. Please try again.',
-                icon: 'error',
-                timer: 5000,
-                showConfirmButton: true
-            });
-            throw error;
-        }
-    };
-
-    const getBookingFeedback = (bookingId) => {
-        return userFeedback.filter(f => f.booking?._id === bookingId);
-    };
-
-    const sidebarItems = [
-        { key: 'bookings', label: 'Bookings', icon: FaCalendarAlt },
-        { key: 'invoices', label: 'Invoices & Payments', icon: FaCreditCard },
-        { key: 'feedback', label: 'My Feedback', icon: FaRegStar },
-        { key: 'profile', label: 'Profile', icon: FaUser },
-    ];
-
-    const navigate = useNavigate();
-
-    const handleBookServiceClick = () => {
-        // Close mobile sidebar if open, then navigate to services page
-        if (window.innerWidth <= 992) setSidebarOpen(false);
-        navigate('/');
-    };
-
-    const handleSidebarTabClick = (key) => {
-        setActiveTab(key);
-        if (window.innerWidth <= 992) {
-            setSidebarOpen(false);
-        }
-    };
+/* -------------------
+   Theme Hook
+   ------------------- */
+const useTheme = () => {
+  const [theme, setTheme] = useState(() => {
+    // Check localStorage first, then system preference
+    const savedTheme = localStorage.getItem('spa-theme');
+    if (savedTheme) return savedTheme;
     
-    // Helper function to get service names
-    const getServiceNames = (booking) => {
-        if (!booking.services || booking.services.length === 0) return 'N/A';
-        return booking.services
-            .map(s => s.service?.name || s.name || 'Unknown Service')
-            .filter(name => name !== 'Unknown Service')
-            .join(', ') || 'N/A';
-    };
-    
-    // Helper function to get professional names
-    const getProfessionalNames = (booking) => {
-        if (!booking.services || booking.services.length === 0) return 'N/A';
-        const professionals = booking.services
-            .map(s => {
-                if (s.employee?.user?.firstName) {
-                    return `${s.employee.user.firstName} ${s.employee.user.lastName || ''}`.trim();
-                }
-                return s.employee?.name || s.professionalName || null;
-            })
-            .filter(name => name && name !== 'null');
-        
-        const uniqueProfessionals = [...new Set(professionals)];
-        return uniqueProfessionals.length > 0 ? uniqueProfessionals.join(', ') : 'N/A';
-    };
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  });
 
-    const renderContent = () => {
-        if (loading) {
+  useEffect(() => {
+    // Apply theme to document
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('spa-theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme(prev => prev === 'light' ? 'dark' : 'light');
+  };
+
+  return { theme, toggleTheme };
+};
+
+/* -------------------
+   Theme Toggle Button
+   ------------------- */
+const ThemeToggle = ({ theme, onToggle }) => (
+  <button
+    onClick={onToggle}
+    className="theme-toggle"
+    aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
+  >
+    {theme === 'light' ? <Moon /> : <Sun />}
+  </button>
+);
+
+/* -------------------
+   Utility UI States
+   ------------------- */
+const LoadingState = () => (
+  <div className="empty-state">
+    <div className="empty-state-card">
+      <div className="spinner-border mx-auto mb-4"></div>
+      <h3 className="empty-state-title">Loading...</h3>
+      <p className="empty-state-description">
+        Please wait while we load your dashboard.
+      </p>
+    </div>
+  </div>
+);
+
+const ErrorState = ({ message, onRetry }) => (
+  <div className="empty-state">
+    <div className="empty-state-card error">
+      <MessageSquare className="empty-state-icon" />
+      <h3 className="empty-state-title">Something went wrong</h3>
+      <p className="empty-state-description">{message}</p>
+      <div className="empty-state-actions">
+        <button onClick={onRetry} className="btn btn-primary">
+          Retry
+        </button>
+      </div>
+    </div>
+  </div>
+);
+
+/* -------------------
+   Enhanced Sidebar
+   ------------------- */
+const Sidebar = ({ activeTab, onTabChange, isOpen, onClose, isMobile }) => {
+  const sidebarItems = [
+    { key: "bookings", label: "Bookings", icon: Calendar },
+    { key: "invoices", label: "Invoices & Payments", icon: CreditCard },
+    { key: "feedback", label: "My Feedback", icon: Star },
+    { key: "profile", label: "Profile", icon: User },
+  ];
+
+  const handleTabChange = (tab) => {
+    onTabChange(tab);
+    if (isMobile) {
+      onClose();
+    }
+  };
+
+  const sidebarContent = (
+    <div className="h-full flex flex-col">
+      <div className="p-6 border-b border-gray-200 flex justify-between items-center">
+        <h2 className="text-xl font-bold text-gray-900">Dashboard</h2>
+        {isMobile && (
+          <button 
+            className="btn btn-ghost btn-sm" 
+            onClick={onClose}
+            aria-label="Close menu"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        )}
+      </div>
+      <div className="p-6 border-b border-gray-200">
+        <button
+          onClick={() => Swal.fire({
+            title: "Book Service",
+            text: "Service booking functionality would be implemented here.",
+            icon: "info",
+            confirmButtonText: "Got it!"
+          })}
+          className="btn btn-primary w-full"
+        >
+          <Plus className="w-4 h-4" />
+          <span>Book a Service</span>
+        </button>
+      </div>
+      <nav className="sidebar-nav flex-1">
+        <ul>
+          {sidebarItems.map((item) => {
+            const Icon = item.icon;
             return (
-                <div className="content-loading">
-                    <Spinner animation="border" role="status">
-                        <span className="visually-hidden">Loading...</span>
-                    </Spinner>
-                    <p>Loading your data...</p>
-                </div>
-            );
-        }
-
-        if (error) {
-            return (
-                <div className="content-error">
-                    {console.log('[ClientProfilePage] renderContent error state:', error, 'profile=', profile, 'bookings=', bookings)}
-                    <p>Something went wrong. Please try again.</p>
-                </div>
-            );
-        }
-
-        switch (activeTab) {
-            case 'bookings':
-                const upcomingBookings = bookings.filter(b => new Date(b.appointmentDate || b.date) >= new Date());
-                const pastBookings = bookings.filter(b => new Date(b.appointmentDate || b.date) < new Date());
-
-                // If there are no bookings at all, show a clear empty state
-                if (!bookings || bookings.length === 0) {
-                    console.log('[ClientProfilePage] No bookings found for user:', profile);
-                    return (
-                        <div className="no-data-panel">
-                            <div className="no-data-card">
-                                <h3>No bookings yet</h3>
-                                <p>You don't have any bookings right now. Start by booking a service.</p>
-                                <div className="no-data-actions">
-                                    <button className="profile-button-primary" onClick={() => window.location.href = '/'}>Book a Service</button>
-                                    <button className="profile-button-secondary" onClick={() => setActiveTab('profile')}>Edit Profile</button>
-                                </div>
-                            </div>
-                        </div>
-                    );
-                }
-
-                return (
-                    <>
-                        <div className="profile-card">
-                            <h5 className="card-title">Upcoming Bookings</h5>
-                            <div className="table-wrapper">
-                                <table className="profile-table">
-                                    <thead>
-                                        <tr>
-                                            <th>Date</th>
-                                            <th>Service</th>
-                                            <th>Professional</th>
-                                            <th>Status</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {upcomingBookings.length > 0 ? upcomingBookings.map(b => (
-                                            <tr key={`upcoming-${b._id}`}>
-                                                <td>{new Date(b.appointmentDate || b.date).toLocaleDateString()}</td>
-                                                <td>{getServiceNames(b)}</td>
-                                                <td>{getProfessionalNames(b)}</td>
-                                                <td><span className="status-badge status-upcoming">{b.status}</span></td>
-                                            </tr>
-                                        )) : <tr><td colSpan="4" className="text-center">No upcoming bookings.</td></tr>}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                        <div className="profile-card">
-                            <h5 className="card-title">Past Bookings</h5>
-                            <div className="table-wrapper">
-                                <table className="profile-table">
-                                    <thead>
-                                        <tr>
-                                            <th>Date</th>
-                                            <th>Service</th>
-                                            <th>Professional</th>
-                                            <th>Rate</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {pastBookings.length > 0 ? pastBookings.map(b => (
-                                            <tr key={`past-${b._id}`}>
-                                                <td>{new Date(b.appointmentDate || b.date).toLocaleDateString()}</td>
-                                                <td>{getServiceNames(b)}</td>
-                                                <td>{getProfessionalNames(b)}</td>
-                                                <td className="rating-cell">
-                                                    {getBookingFeedback(b._id).length > 0 ? (
-                                                        <div className="feedback-display">
-                                                            <StarRating rating={getBookingFeedback(b._id)[0]?.ratings?.overall || 0} readOnly size="small"/>
-                                                            <small>Rated</small>
-                                                        </div>
-                                                    ) : (
-                                                        <button 
-                                                            className="profile-button-secondary"
-                                                            onClick={() => handleRate(b)}
-                                                        >
-                                                            Rate Experience
-                                                        </button>
-                                                    )}
-                                                </td>
-                                            </tr>
-                                        )) : <tr><td colSpan="4" className="text-center">No past bookings.</td></tr>}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </>
-                );
-            case 'invoices':
-                const uniqueInvoices = invoices.filter((inv, index, self) => index === self.findIndex(i => i._id === inv._id));
-                return (
-                    <div className="profile-card">
-                        <h5 className="card-title">Invoices & Payments</h5>
-                        <div className="table-wrapper">
-                            <table className="profile-table">
-                                <thead>
-                                    <tr>
-                                        <th>Date</th>
-                                        <th>Invoice #</th>
-                                        <th>Amount</th>
-                                        <th>Status</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {uniqueInvoices.length > 0 ? uniqueInvoices.map(inv => (
-                                        <tr key={inv._id}>
-                                            <td>{new Date(inv.createdAt).toLocaleDateString()}</td>
-                                            <td>{inv._id}</td>
-                                            <td>AED {inv.amount.toFixed(2)}</td>
-                                            <td><span className={`status-badge status-${inv.status}`}>{inv.status}</span></td>
-                                        </tr>
-                                    )) : <tr><td colSpan="4" className="text-center">No invoices found.</td></tr>}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                );
-            case 'feedback':
-                // Feedback listing is temporarily disabled for checking — show a placeholder message
-                return (
-                    <div className="profile-card">
-                        <h5 className="card-title">My Feedback & Reviews</h5>
-                        <div className="no-data-card">
-                            <p>Feedback listing is temporarily disabled for testing.</p>
-                            <p>You can still submit feedback from the Past Bookings table using "Rate Experience."</p>
-                        </div>
-                    </div>
-                );
-            case 'profile':
-                return (
-                    <div className="profile-card profile-card-unique">
-                        <h5 className="card-title">My Profile</h5>
-                        {editMode ? (
-                            <form onSubmit={handleProfileSave} className="profile-form profile-form-unique">
-                                <div className="form-group form-group-unique">
-                                    <label className="form-label-unique">First Name</label>
-                                    <input className="form-control-unique" name="firstName" value={editProfile.firstName || ''} onChange={handleProfileChange} required />
-                                </div>
-                                <div className="form-group form-group-unique">
-                                    <label className="form-label-unique">Last Name</label>
-                                    <input className="form-control-unique" name="lastName" value={editProfile.lastName || ''} onChange={handleProfileChange} />
-                                </div>
-                                <div className="form-group form-group-unique">
-                                    <label className="form-label-unique">Email</label>
-                                    <input className="form-control-unique" name="email" type="email" value={editProfile.email || ''} onChange={handleProfileChange} required />
-                                </div>
-                                <div className="form-group form-group-unique">
-                                    <label className="form-label-unique">Phone</label>
-                                    <input className="form-control-unique" name="phone" value={editProfile.phone || ''} onChange={handleProfileChange} />
-                                </div>
-                                <div className="form-actions form-actions-unique">
-                                    <button type="submit" className="profile-button-primary">Save Changes</button>
-                                    <button type="button" className="profile-button-secondary" onClick={() => { setEditMode(false); setEditProfile(profile); }}>Cancel</button>
-                                </div>
-                            </form>
-                        ) : (
-                            <div className="profile-details profile-details-unique">
-                                <div className="detail-item detail-item-unique">
-                                    <strong>Name:</strong>
-                                    <span>{profile.fullName || `${profile.firstName || ''} ${profile.lastName || ''}`.trim()}</span>
-                                </div>
-                                <div className="detail-item detail-item-unique">
-                                    <strong>Email:</strong>
-                                    <span>{profile.email}</span>
-                                </div>
-                                <div className="detail-item detail-item-unique">
-                                    <strong>Phone:</strong>
-                                    <span>{profile.phone || 'Not provided'}</span>
-                                </div>
-                                <div className="profile-actions profile-actions-unique">
-                                    <button onClick={() => setEditMode(true)} className="profile-button-primary">Edit Profile</button>
-                                    <button onClick={() => setShowPasswordForm(!showPasswordForm)} className="profile-button-secondary">
-                                        {showPasswordForm ? 'Hide Password Form' : 'Change Password'}
-                                    </button>
-                                </div>
-                                {/* Password change is now a modal */}
-                                <PasswordChangeModal show={showPasswordForm} onHide={() => setShowPasswordForm(false)} />
-                            </div>
-                        )}
-                    </div>
-                );
-            default: return null;
-        }
-    };
-
-    return (
-        <div className="client-profile-wrapper">
-            {/* Mobile menu bar toggle button: only show on mobile (<= 992px) */}
-            {windowWidth <= 992 && (
+              <li key={item.key}>
                 <button
-                    className="sidebar-toggle-btn"
-                    onClick={() => setSidebarOpen(!sidebarOpen)}
+                  onClick={() => handleTabChange(item.key)}
+                  className={`sidebar-link ${
+                    activeTab === item.key ? "active" : ""
+                  }`}
+                  aria-current={activeTab === item.key ? "page" : undefined}
                 >
-                    {sidebarOpen ? <FaTimes /> : <FaBars />}
+                  <Icon className="icon" />
+                  <span>{item.label}</span>
                 </button>
-            )}
-            {windowWidth <= 992 && (
-                <div
-                    className={`sidebar-overlay${sidebarOpen ? ' active' : ''}`}
-                    style={{ display: sidebarOpen ? 'block' : 'none' }}
-                    onClick={() => setSidebarOpen(false)}
-                />
-            )}
-            <div className="client-profile-container">
-                <aside className={`client-profile-sidebar ${sidebarOpen ? 'open' : ''}`}>
-                    <div className="sidebar-header">
-                        <h3>My Portal</h3>
-                    </div>
-                    <nav className="sidebar-nav">
-                        {sidebarItems.map(item => (
-                            <button
-                                key={item.key}
-                                className={`sidebar-link ${activeTab === item.key ? 'active' : ''}`}
-                                onClick={() => handleSidebarTabClick(item.key)}
-                            >
-                                <span className="icon"><item.icon /></span>
-                                {item.label}
-                            </button>
-                        ))}
-                    </nav>
-                    <div style={{ marginTop: 12, paddingTop: 8, borderTop: '1px solid var(--border-color)' }}>
-                        <button
-                            className="sidebar-link cta"
-                            onClick={handleBookServiceClick}
-                            aria-label="Book a Service"
-                        >
-                            <span className="icon"><FaPlus /></span>
-                            Book a Service
-                        </button>
-                    </div>
-                </aside>
-                <main className="client-profile-content">
-                    {renderContent()}
-                </main>
+              </li>
+            );
+          })}
+        </ul>
+      </nav>
+    </div>
+  );
+
+  return sidebarContent;
+};
+
+/* -------------------
+   Enhanced Profile Header
+   ------------------- */
+const ProfileHeader = ({ profile }) => (
+  <div className="profile-header">
+    <div className="flex items-center space-x-6">
+      <div className="profile-avatar">
+        <User className="w-10 h-10 text-gray-400" />
+      </div>
+      <div className="flex-1">
+        <h1 className="text-2xl font-bold text-gray-900">
+          {profile?.firstName} {profile?.lastName}
+        </h1>
+        <p className="profile-meta">
+          Member since{" "}
+          {new Date(profile?.createdAt || new Date()).toLocaleDateString(
+            "en-US",
+            {
+              year: "numeric",
+              month: "long",
+            }
+          )}
+        </p>
+        <p className="profile-email">{profile?.email}</p>
+      </div>
+      <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3">
+        <button 
+          className="btn btn-secondary btn-sm"
+          onClick={() => Swal.fire({
+            title: "Edit Profile",
+            text: "Profile editing functionality would be implemented here.",
+            icon: "info"
+          })}
+        >
+          <Edit className="w-4 h-4" />
+          <span>Edit Profile</span>
+        </button>
+        <button 
+          className="btn btn-secondary btn-sm"
+          onClick={() => Swal.fire({
+            title: "Change Password",
+            text: "Password change functionality would be implemented here.",
+            icon: "info"
+          })}
+        >
+          <Key className="w-4 h-4" />
+          <span>Change Password</span>
+        </button>
+      </div>
+    </div>
+  </div>
+);
+
+/* -------------------
+   Enhanced Main Page
+   ------------------- */
+const SpaProfilePage = () => {
+  const [activeTab, setActiveTab] = useState("bookings");
+  const [profile, setProfile] = useState(null);
+  const [bookings, setBookings] = useState([]);
+  const [invoices, setInvoices] = useState([]);
+  const [feedback, setFeedback] = useState([]);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  
+  const { theme, toggleTheme } = useTheme();
+
+  // Enhanced responsive check with debouncing
+  useEffect(() => {
+    let timeoutId;
+    
+    const checkMobile = () => {
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => {
+        const newIsMobile = window.innerWidth < 1024;
+        setIsMobile(newIsMobile);
+        
+        // Auto-close sidebar when switching to desktop
+        if (!newIsMobile && sidebarOpen) {
+          setSidebarOpen(false);
+        }
+      }, 100);
+    };
+    
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    
+    return () => {
+      window.removeEventListener("resize", checkMobile);
+      clearTimeout(timeoutId);
+    };
+  }, [sidebarOpen]);
+
+  // Enhanced data fetching with better error handling
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        console.log('Starting to fetch profile data...');
+        setLoading(true);
+        setError(null);
+
+        console.log('Making API requests...');
+        const [profileRes, bookingsRes, invoicesRes, feedbackRes] =
+          await Promise.allSettled([
+            authAPI.getCurrentUser(),
+            bookingsAPI.getUserBookings(),
+            paymentsAPI.getPaymentHistory(),
+            feedbackAPI.getUserFeedback(),
+          ]);
+
+        console.log('API Responses:', {
+          profile: profileRes.status === 'fulfilled' ? profileRes.value?.data : profileRes.reason,
+          bookings: bookingsRes.status === 'fulfilled' ? bookingsRes.value?.data : bookingsRes.reason,
+          payments: invoicesRes.status === 'fulfilled' ? invoicesRes.value?.data : invoicesRes.reason,
+          feedback: feedbackRes.status === 'fulfilled' ? feedbackRes.value?.data : feedbackRes.reason
+        });
+
+        // Set states with proper fallbacks and error handling
+        setProfile(
+          profileRes.status === 'fulfilled' 
+            ? profileRes.value?.data?.user || null 
+            : null
+        );
+        setBookings(
+          bookingsRes.status === 'fulfilled' 
+            ? bookingsRes.value?.data?.bookings || [] 
+            : []
+        );
+        setInvoices(
+          invoicesRes.status === 'fulfilled' 
+            ? invoicesRes.value?.data?.payments || [] 
+            : []
+        );
+        setFeedback(
+          feedbackRes.status === 'fulfilled' 
+            ? feedbackRes.value?.data?.feedback || [] 
+            : []
+        );
+        
+        console.log('State after update:', {
+          profile: profileRes.status === 'fulfilled' ? profileRes.value?.data?.user || null : null,
+          bookingsCount: bookingsRes.status === 'fulfilled' ? bookingsRes.value?.data?.bookings?.length || 0 : 0,
+          invoicesCount: invoicesRes.status === 'fulfilled' ? invoicesRes.value?.data?.payments?.length || 0 : 0,
+          feedbackCount: feedbackRes.status === 'fulfilled' ? feedbackRes.value?.data?.feedback?.length || 0 : 0
+        });
+      } catch (err) {
+        console.error('Unexpected error:', err);
+        setError("An unexpected error occurred while loading data.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  // Enhanced sidebar management
+  const toggleSidebar = () => {
+    setSidebarOpen(prev => !prev);
+  };
+
+  const closeSidebar = () => {
+    setSidebarOpen(false);
+  };
+
+  // Enhanced outside click handler
+  useEffect(() => {
+    if (!isMobile || !sidebarOpen) return;
+
+    const handleClickOutside = (event) => {
+      const sidebar = document.querySelector('.sidebar-container');
+      const toggleButton = document.querySelector('.mobile-menu-button');
+      
+      if (sidebar && 
+          !sidebar.contains(event.target) && 
+          toggleButton &&
+          !toggleButton.contains(event.target)) {
+        closeSidebar();
+      }
+    };
+
+    const handleEscapeKey = (event) => {
+      if (event.key === 'Escape') {
+        closeSidebar();
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside);
+    document.addEventListener('keydown', handleEscapeKey);
+    
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+      document.removeEventListener('keydown', handleEscapeKey);
+    };
+  }, [isMobile, sidebarOpen]);
+
+  // Enhanced body scroll lock
+  useEffect(() => {
+    if (isMobile && sidebarOpen) {
+      document.body.classList.add('menu-open');
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.classList.remove('menu-open');
+      document.body.style.overflow = '';
+    }
+
+    return () => {
+      document.body.classList.remove('menu-open');
+      document.body.style.overflow = '';
+    };
+  }, [isMobile, sidebarOpen]);
+
+  // Enhanced content renderer with better accessibility
+  const renderContent = () => {
+    console.log('Rendering content, current state:', {
+      loading,
+      error,
+      activeTab,
+      hasProfile: !!profile,
+      bookingsCount: bookings?.length || 0,
+      invoicesCount: invoices?.length || 0,
+      feedbackCount: feedback?.length || 0
+    });
+
+    if (loading) {
+      console.log('Showing loading state');
+      return <LoadingState />;
+    }
+    
+    if (error) {
+      console.log('Showing error state:', error);
+      return (
+        <ErrorState
+          message={error}
+          onRetry={() => {
+            console.log('Retry button clicked');
+            window.location.reload();
+          }}
+        />
+      );
+    }
+
+    console.log(`Rendering tab: ${activeTab}`);
+    
+    switch (activeTab) {
+      case "bookings":
+        console.log('Bookings data:', bookings);
+        return bookings?.length > 0 ? (
+          <div className="card">
+            <h3 className="card-title">
+              <Calendar className="w-5 h-5" />
+              Bookings ({bookings.length})
+            </h3>
+            <div className="space-y-4">
+              {bookings.map((booking, index) => (
+                <div key={booking._id || `booking-${index}`} className="booking-item">
+                  <div className="flex justify-between items-start mb-2">
+                    <h4 className="font-semibold text-gray-900">
+                      {booking.serviceName || `Service ${index + 1}`}
+                    </h4>
+                    <span className={`badge ${
+                      booking.status === 'confirmed' ? 'badge-default' : 
+                      booking.status === 'pending' ? 'badge-secondary' : 
+                      'badge-destructive'
+                    }`}>
+                      {booking.status || 'pending'}
+                    </span>
+                  </div>
+                  <p className="text-sm text-gray-600 mb-1">
+                    <strong>Booking ID:</strong> {booking._id || `booking-${index}`}
+                  </p>
+                  <p className="text-sm text-gray-600">
+                    <strong>Date:</strong> {booking.date ? new Date(booking.date).toLocaleDateString() : 'TBD'}
+                  </p>
+                  {booking.time && (
+                    <p className="text-sm text-gray-600">
+                      <strong>Time:</strong> {booking.time}
+                    </p>
+                  )}
+                </div>
+              ))}
             </div>
-            <FeedbackModal
-                show={showFeedbackModal}
-                onHide={() => {
-                    setShowFeedbackModal(false);
-                    setSelectedBookingForFeedback(null);
-                }}
-                booking={selectedBookingForFeedback}
-                onSubmitFeedback={handleSubmitFeedback}
-            />
-        </div>
-    );
-}
+          </div>
+        ) : (
+          <div className="empty-state">
+            <div className="empty-state-card">
+              <Calendar className="empty-state-icon" />
+              <h3 className="empty-state-title">No Bookings Found</h3>
+              <p className="empty-state-description">
+                You don't have any bookings yet. Book your first service to get started!
+              </p>
+              <div className="empty-state-actions">
+                <button 
+                  className="btn btn-primary"
+                  onClick={() => Swal.fire({
+                    title: "Book Service",
+                    text: "Service booking functionality would be implemented here.",
+                    icon: "info"
+                  })}
+                >
+                  <Plus className="w-4 h-4" />
+                  Book a Service
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+        
+      case "invoices":
+        console.log('Invoices data:', invoices);
+        return invoices?.length > 0 ? (
+          <div className="card">
+            <h3 className="card-title">
+              <CreditCard className="w-5 h-5" />
+              Invoices & Payments ({invoices.length})
+            </h3>
+            <div className="space-y-4">
+              {invoices.map((invoice, index) => (
+                <div key={invoice._id || `invoice-${index}`} className="invoice-item">
+                  <div className="invoice-header">
+                    <div className="invoice-date">
+                      <Calendar className="w-4 h-4" />
+                      <span>{invoice.date ? new Date(invoice.date).toLocaleDateString() : 'N/A'}</span>
+                    </div>
+                    <span className={`badge ${
+                      invoice.status === 'paid' ? 'badge-default' : 
+                      invoice.status === 'pending' ? 'badge-secondary' : 
+                      'badge-destructive'
+                    }`}>
+                      {invoice.status || 'pending'}
+                    </span>
+                  </div>
+                  <div className="invoice-content">
+                    <div className="invoice-details">
+                      <h4>{invoice.serviceName || `Service ${index + 1}`}</h4>
+                      <p className="invoice-description">
+                        Invoice: {invoice.invoiceNumber || `INV-${index + 1000}`}
+                      </p>
+                    </div>
+                    <div className="invoice-amount">
+                      <div className="invoice-price">
+                        <span>${invoice.amount ? invoice.amount.toFixed(2) : '0.00'}</span>
+                      </div>
+                      <p className="invoice-method">
+                        {invoice.paymentMethod || 'Card'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="empty-state">
+            <div className="empty-state-card">
+              <CreditCard className="empty-state-icon" />
+              <h3 className="empty-state-title">No Invoices Found</h3>
+              <p className="empty-state-description">
+                Your payment history will appear here once you complete a booking.
+              </p>
+            </div>
+          </div>
+        );
+        
+      case "feedback":
+        console.log('Feedback data:', feedback);
+        return feedback?.length > 0 ? (
+          <div className="card">
+            <h3 className="card-title">
+              <Star className="w-5 h-5" />
+              My Feedback ({feedback.length})
+            </h3>
+            <div className="space-y-6">
+              {feedback.map((item, index) => (
+                <div key={item._id || `feedback-${index}`} className="feedback-item">
+                  <div className="feedback-header">
+                    <div>
+                      <h4 className="feedback-title">
+                        {item.serviceName || `Service ${index + 1}`}
+                      </h4>
+                      <div className="feedback-date">
+                        <Calendar className="w-4 h-4" />
+                        <span>{item.date ? new Date(item.date).toLocaleDateString() : 'N/A'}</span>
+                      </div>
+                    </div>
+                    <div className="feedback-rating">
+                      <div className="star-rating">
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <Star
+                            key={star}
+                            className={`star ${star <= (item.rating || 0) ? 'filled' : ''}`}
+                          />
+                        ))}
+                      </div>
+                      <span className="feedback-rating-text">
+                        {item.rating || 0}/5
+                      </span>
+                    </div>
+                  </div>
+                  {item.comment && (
+                    <div className="feedback-comment">
+                      <p>{item.comment}</p>
+                    </div>
+                  )}
+                  {item.breakdown && (
+                    <div className="feedback-breakdown">
+                      {Object.entries(item.breakdown).map(([key, value]) => (
+                        <div key={key} className="feedback-breakdown-item">
+                          <span className="feedback-breakdown-label">{key}</span>
+                          <div className="star-rating">
+                            {[1, 2, 3, 4, 5].map((star) => (
+                              <Star
+                                key={star}
+                                className={`star ${star <= value ? 'filled' : ''}`}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="empty-state">
+            <div className="empty-state-card">
+              <Star className="empty-state-icon" />
+              <h3 className="empty-state-title">No Feedback Yet</h3>
+              <p className="empty-state-description">
+                Your feedback will appear here after you complete a booking and leave a review.
+              </p>
+            </div>
+          </div>
+        );
+        
+      case "profile":
+        console.log('Profile data:', profile);
+        return (
+          <div className="card">
+            <h3 className="card-title">
+              <User className="w-5 h-5" />
+              Profile Information
+            </h3>
+            <div className="profile-info-grid">
+              <div className="profile-info-item">
+                <User className="profile-info-icon" />
+                <div className="profile-info-content">
+                  <p>Full Name</p>
+                  <p>{profile?.firstName} {profile?.lastName}</p>
+                </div>
+              </div>
+              <div className="profile-info-item">
+                <MessageSquare className="profile-info-icon" />
+                <div className="profile-info-content">
+                  <p>Email</p>
+                  <p>{profile?.email || 'Not provided'}</p>
+                </div>
+              </div>
+              <div className="profile-info-item">
+                <Calendar className="profile-info-icon" />
+                <div className="profile-info-content">
+                  <p>Phone</p>
+                  <p>{profile?.phone || 'Not provided'}</p>
+                </div>
+              </div>
+              <div className="profile-info-item">
+                <Star className="profile-info-icon" />
+                <div className="profile-info-content">
+                  <p>Member Since</p>
+                  <p>{profile?.createdAt ? new Date(profile.createdAt).toLocaleDateString() : 'N/A'}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+        
+      default:
+        console.log('Unknown tab:', activeTab);
+        return (
+          <div className="empty-state">
+            <div className="empty-state-card">
+              <MessageSquare className="empty-state-icon" />
+              <h3 className="empty-state-title">Page Not Found</h3>
+              <p className="empty-state-description">
+                The requested page could not be found.
+              </p>
+              <div className="empty-state-actions">
+                <button 
+                  className="btn btn-primary"
+                  onClick={() => setActiveTab('bookings')}
+                >
+                  Go to Bookings
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+    }
+  };
+
+  return (
+    <div className={`min-h-screen bg-gray-50 flex ${sidebarOpen && isMobile ? 'overflow-hidden' : ''}`}>
+      {/* Theme Toggle */}
+      <ThemeToggle theme={theme} onToggle={toggleTheme} />
+      
+      {/* Mobile overlay */}
+      {isMobile && (
+        <div 
+          className={`mobile-overlay ${sidebarOpen ? 'open' : ''}`}
+          onClick={closeSidebar}
+          aria-hidden="true"
+        />
+      )}
+
+      {/* Enhanced Sidebar */}
+      <aside 
+        className={`sidebar-container ${
+          sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+        }`}
+        aria-label="Main navigation"
+      >
+        <Sidebar
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          isOpen={sidebarOpen}
+          onClose={closeSidebar}
+          isMobile={isMobile}
+        />
+      </aside>
+
+      {/* Main content */}
+      <div className="flex-1 flex flex-col min-h-screen">
+        {/* Enhanced Mobile header */}
+        <header className="lg:hidden sticky top-0 z-30 bg-white border-b border-gray-200">
+          <div className="flex items-center justify-between h-16 px-4">
+            <button
+              onClick={toggleSidebar}
+              className="mobile-menu-button"
+              aria-label="Toggle navigation menu"
+              aria-expanded={sidebarOpen}
+            >
+              <Menu className="w-6 h-6" />
+            </button>
+            <h1 className="text-lg font-semibold text-gray-900">
+              {activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}
+            </h1>
+            <div className="w-10"></div> {/* For alignment */}
+          </div>
+        </header>
+
+        {/* Enhanced Page content */}
+        <main className="flex-1 overflow-y-auto" role="main">
+          <div className="max-w-6xl mx-auto p-4 md:p-6">
+            {!isMobile && <ProfileHeader profile={profile || {}} />}
+            {renderContent()}
+          </div>
+        </main>
+      </div>
+    </div>
+  );
+};
+
+export default SpaProfilePage;
+

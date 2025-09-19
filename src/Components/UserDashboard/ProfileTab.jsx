@@ -1,9 +1,5 @@
 import { useState } from 'react';
 import { User, Mail, Phone, MapPin, Calendar, Edit, Save, X } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 
 const ProfileTab = ({ profile, onSave }) => {
   const [isEditing, setIsEditing] = useState(false);
@@ -37,141 +33,146 @@ const ProfileTab = ({ profile, onSave }) => {
 
   if (isEditing) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
+      <div className="card">
+        <div className="card-header">
+          <div className="flex items-center justify-between">
+            <h3 className="card-title">
               <Edit className="w-5 h-5" />
               <span>Edit Profile</span>
-            </div>
-            <div className="flex space-x-2">
-              <Button variant="outline" size="sm" onClick={handleCancel}>
-                <X className="w-4 h-4 mr-2" />
+            </h3>
+            <div className="form-actions">
+              <button className="btn btn-secondary btn-sm" onClick={handleCancel}>
+                <X className="w-4 h-4" />
                 Cancel
-              </Button>
-              <Button size="sm" onClick={handleSave}>
-                <Save className="w-4 h-4 mr-2" />
+              </button>
+              <button className="btn btn-primary btn-sm" onClick={handleSave}>
+                <Save className="w-4 h-4" />
                 Save Changes
-              </Button>
+              </button>
             </div>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <Label htmlFor="firstName">First Name</Label>
-              <Input
+          </div>
+        </div>
+        <div className="card-content">
+          <div className="edit-profile-form">
+            <div className="form-group">
+              <label className="label" htmlFor="firstName">First Name</label>
+              <input
                 id="firstName"
+                className="input"
                 value={editedProfile.firstName || ''}
                 onChange={(e) => handleChange('firstName', e.target.value)}
                 placeholder="Enter your first name"
               />
             </div>
             
-            <div className="space-y-2">
-              <Label htmlFor="lastName">Last Name</Label>
-              <Input
+            <div className="form-group">
+              <label className="label" htmlFor="lastName">Last Name</label>
+              <input
                 id="lastName"
+                className="input"
                 value={editedProfile.lastName || ''}
                 onChange={(e) => handleChange('lastName', e.target.value)}
                 placeholder="Enter your last name"
               />
             </div>
             
-            <div className="space-y-2">
-              <Label htmlFor="email">Email Address</Label>
-              <Input
+            <div className="form-group">
+              <label className="label" htmlFor="email">Email Address</label>
+              <input
                 id="email"
                 type="email"
+                className="input"
                 value={editedProfile.email || ''}
                 onChange={(e) => handleChange('email', e.target.value)}
                 placeholder="Enter your email"
               />
             </div>
             
-            <div className="space-y-2">
-              <Label htmlFor="phone">Phone Number</Label>
-              <Input
+            <div className="form-group">
+              <label className="label" htmlFor="phone">Phone Number</label>
+              <input
                 id="phone"
+                className="input"
                 value={editedProfile.phone || ''}
                 onChange={(e) => handleChange('phone', e.target.value)}
                 placeholder="Enter your phone number"
               />
             </div>
             
-            <div className="space-y-2 md:col-span-2">
-              <Label htmlFor="address">Address</Label>
-              <Input
+            <div className="form-group">
+              <label className="label" htmlFor="address">Address</label>
+              <input
                 id="address"
+                className="input"
                 value={editedProfile.address || ''}
                 onChange={(e) => handleChange('address', e.target.value)}
                 placeholder="Enter your address"
               />
             </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     );
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center justify-between">
-          <div className="flex items-center space-x-2">
+    <div className="card">
+      <div className="card-header">
+        <div className="flex items-center justify-between">
+          <h3 className="card-title">
             <User className="w-5 h-5" />
             <span>Profile Information</span>
-          </div>
-          <Button variant="outline" size="sm" onClick={handleEdit}>
-            <Edit className="w-4 h-4 mr-2" />
+          </h3>
+          <button className="btn btn-secondary btn-sm" onClick={handleEdit}>
+            <Edit className="w-4 h-4" />
             Edit Profile
-          </Button>
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          </button>
+        </div>
+      </div>
+      <div className="card-content">
+        <div className="profile-info-grid">
           <div className="space-y-4">
-            <div className="flex items-center space-x-3">
-              <User className="w-5 h-5 text-gray-400" />
-              <div>
-                <p className="text-sm text-gray-600">Full Name</p>
-                <p className="font-medium text-gray-900">
+            <div className="profile-info-item">
+              <User className="profile-info-icon" />
+              <div className="profile-info-content">
+                <p>Full Name</p>
+                <p>
                   {profile.firstName} {profile.lastName}
                 </p>
               </div>
             </div>
             
-            <div className="flex items-center space-x-3">
-              <Mail className="w-5 h-5 text-gray-400" />
-              <div>
-                <p className="text-sm text-gray-600">Email Address</p>
-                <p className="font-medium text-gray-900">{profile.email}</p>
+            <div className="profile-info-item">
+              <Mail className="profile-info-icon" />
+              <div className="profile-info-content">
+                <p>Email Address</p>
+                <p>{profile.email}</p>
               </div>
             </div>
             
-            <div className="flex items-center space-x-3">
-              <Phone className="w-5 h-5 text-gray-400" />
-              <div>
-                <p className="text-sm text-gray-600">Phone Number</p>
-                <p className="font-medium text-gray-900">{profile.phone || 'Not provided'}</p>
+            <div className="profile-info-item">
+              <Phone className="profile-info-icon" />
+              <div className="profile-info-content">
+                <p>Phone Number</p>
+                <p>{profile.phone || 'Not provided'}</p>
               </div>
             </div>
           </div>
           
           <div className="space-y-4">
-            <div className="flex items-center space-x-3">
-              <MapPin className="w-5 h-5 text-gray-400" />
-              <div>
-                <p className="text-sm text-gray-600">Address</p>
-                <p className="font-medium text-gray-900">{profile.address || 'Not provided'}</p>
+            <div className="profile-info-item">
+              <MapPin className="profile-info-icon" />
+              <div className="profile-info-content">
+                <p>Address</p>
+                <p>{profile.address || 'Not provided'}</p>
               </div>
             </div>
             
-            <div className="flex items-center space-x-3">
-              <Calendar className="w-5 h-5 text-gray-400" />
-              <div>
-                <p className="text-sm text-gray-600">Member Since</p>
-                <p className="font-medium text-gray-900">
+            <div className="profile-info-item">
+              <Calendar className="profile-info-icon" />
+              <div className="profile-info-content">
+                <p>Member Since</p>
+                <p>
                   {new Date(profile.createdAt || '2024-01-01').toLocaleDateString('en-US', {
                     year: 'numeric',
                     month: 'long',
@@ -182,8 +183,8 @@ const ProfileTab = ({ profile, onSave }) => {
             </div>
           </div>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 };
 

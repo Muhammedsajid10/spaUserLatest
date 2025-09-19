@@ -1,19 +1,17 @@
 import { CreditCard, FileText, DollarSign } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 
 const InvoicesTab = ({ invoices }) => {
-  const getStatusBadgeVariant = (status) => {
+  const getStatusBadgeClass = (status) => {
     switch (status?.toLowerCase()) {
       case 'paid':
       case 'completed':
-        return 'default';
+        return 'badge badge-default';
       case 'pending':
-        return 'secondary';
+        return 'badge badge-secondary';
       case 'failed':
-        return 'destructive';
+        return 'badge badge-destructive';
       default:
-        return 'secondary';
+        return 'badge badge-secondary';
     }
   };
 
@@ -26,58 +24,56 @@ const InvoicesTab = ({ invoices }) => {
 
   if (!invoices || invoices.length === 0) {
     return (
-      <div className="flex items-center justify-center min-h-96">
-        <Card className="w-full max-w-md text-center">
-          <CardContent className="pt-6">
-            <CreditCard className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">No invoices yet</h3>
-            <p className="text-gray-600">
-              Your payment history will appear here once you make your first booking.
-            </p>
-          </CardContent>
-        </Card>
+      <div className="empty-state">
+        <div className="empty-state-card">
+          <CreditCard className="empty-state-icon" />
+          <h3 className="empty-state-title">No invoices yet</h3>
+          <p className="empty-state-description">
+            Your payment history will appear here once you make your first booking.
+          </p>
+        </div>
       </div>
     );
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center space-x-2">
+    <div className="card">
+      <div className="card-header">
+        <h3 className="card-title">
           <FileText className="w-5 h-5" />
           <span>Invoices & Payments</span>
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
+        </h3>
+      </div>
+      <div className="card-content">
         <div className="space-y-4">
           {invoices.map((invoice) => (
-            <div key={invoice._id} className="border border-gray-200 rounded-lg p-4">
+            <div key={invoice._id} className="invoice-item">
               <div className="flex items-center justify-between">
                 <div className="flex-1">
-                  <div className="flex items-center space-x-4 mb-2">
-                    <div className="flex items-center space-x-2 text-sm text-gray-600">
+                  <div className="invoice-header">
+                    <div className="invoice-date">
                       <FileText className="w-4 h-4" />
                       <span>{new Date(invoice.createdAt).toLocaleDateString()}</span>
                     </div>
-                    <Badge variant={getStatusBadgeVariant(invoice.status)}>
+                    <span className={getStatusBadgeClass(invoice.status)}>
                       {invoice.status || 'Unknown'}
-                    </Badge>
+                    </span>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h4 className="font-semibold text-gray-900">
+                  <div className="invoice-content">
+                    <div className="invoice-details">
+                      <h4>
                         Invoice #{invoice.invoiceNumber || invoice._id?.slice(-8) || 'N/A'}
                       </h4>
-                      <p className="text-sm text-gray-600">
+                      <p className="invoice-description">
                         {invoice.description || 'Spa service payment'}
                       </p>
                     </div>
-                    <div className="text-right">
-                      <div className="flex items-center space-x-1 text-lg font-semibold text-gray-900">
+                    <div className="invoice-amount">
+                      <div className="invoice-price">
                         <DollarSign className="w-4 h-4" />
                         <span>{formatAmount(invoice.amount)}</span>
                       </div>
-                      <p className="text-sm text-gray-500">
+                      <p className="invoice-method">
                         {invoice.paymentMethod || 'Card'}
                       </p>
                     </div>
@@ -87,8 +83,8 @@ const InvoicesTab = ({ invoices }) => {
             </div>
           ))}
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 };
 
