@@ -74,8 +74,9 @@
 }
 
 .profile-info .avatar {
-    width: 48px;
-    height: 48px;
+    /* Responsive minimal avatar size across devices */
+    width: clamp(28px, 6vw, 40px);
+    height: clamp(28px, 6vw, 40px);
     border-radius: 50%;
     background: #e6f2ff;
     color: #0b4bd8;
@@ -83,6 +84,8 @@
     align-items: center;
     justify-content: center;
     font-weight: 700;
+    /* Responsive initials/text size inside avatar */
+    font-size: clamp(0.6rem, 2.4vw, 0.9rem);
     border: 1px solid rgba(0,0,0,0.08);
 }
 
@@ -92,7 +95,9 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    max-width: 150px;
+    /* Responsive minimal text size and width */
+    font-size: clamp(0.75rem, 2.6vw, 0.95rem);
+    max-width: clamp(90px, 26vw, 150px);
 }
 
 .profile-info .multiple-text{
@@ -260,11 +265,29 @@
 .time-slots-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-    gap: 20px;
+    gap: 12px;
     justify-content: center;
     align-items: stretch;
     margin-top: 20px;
     padding: 0 10px;
+}
+
+/* Mobile-first approach for time slots */
+@media (max-width: 767px) {
+    .time-slots-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+        padding: 0 8px;
+    }
+    
+    .time-slot {
+        padding: 12px 8px;
+        min-height: 54px;
+    }
+    
+    .time-text {
+        font-size: 0.95rem;
+    }
 }
 
 .time-slot {
@@ -446,9 +469,23 @@
 
 /* ensure layout stays tidy on small screens */
 @media (max-width:720px){
-  .avatar-small { width:32px; height:32px; font-size:0.9rem; }
-  .avatar-more { min-width:32px; height:32px; font-size:0.8rem; }
-  .username { display:none; } /* optional: hide name on small screens */
+  /* Keep avatars and name visible on small screens with minimal sizes */
+  .avatar-small {
+    width: clamp(24px, 7vw, 32px);
+    height: clamp(24px, 7vw, 32px);
+    font-size: clamp(0.6rem, 2.5vw, 0.85rem);
+  }
+  .avatar-more {
+    min-width: clamp(24px, 7vw, 32px);
+    height: clamp(24px, 7vw, 32px);
+    font-size: clamp(0.6rem, 2.5vw, 0.8rem);
+  }
+  .profile-info { gap: 8px; padding: 6px 10px; }
+  .username {
+    display: inline;
+    font-size: clamp(0.7rem, 3.2vw, 0.9rem);
+    max-width: 110px;
+  }
 }
 
 /* Centered profile popup (overlay) */

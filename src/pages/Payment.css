@@ -198,11 +198,13 @@ body {
     font-size:1rem;
 }
 .summary-row {
-    display:flex;
-    justify-content:space-between;
-    color:#333;
-    font-size:0.95rem;
-    padding:6px 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: #333;
+  font-size: 0.95rem;
+  padding: 8px 0;
+  gap: 20px;
 }
 .summary-divider {
     height:1px;
@@ -1211,8 +1213,8 @@ body {
   }
   
   .payment-card-main {
-    padding: 20px;
-    margin: 45px;
+    padding: 0px;
+    margin: 28px;
   }
 }
 
@@ -1502,11 +1504,16 @@ a, .method-text, .method-icon { color: var(--bw-ink) !important; }
   color: var(--text-color-secondary);
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  white-space: nowrap;
+  flex: 0 0 40%;
 }
 
 .summary-value {
   font-size: 16px;
   color: var(--text-color-primary);
+  text-align: right;
+  flex: 1;
+  padding-left: 10px;
 }
 
 /* Services Section */

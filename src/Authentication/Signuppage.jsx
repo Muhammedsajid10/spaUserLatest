@@ -128,7 +128,29 @@ const SignInPage = () => {
                 <input name="email" type="email" placeholder="Email Address" value={formData.email} onChange={handleSignupChange} className="form-input" required disabled={signupLoading} />
                 <div className="password-input-container">
                   <input name="password" type={showSignupPassword ? 'text' : 'password'} placeholder="Password" value={formData.password} onChange={handleSignupChange} className="form-input" required disabled={signupLoading} />
-                  <button type="button" className="password-toggle" onClick={() => setShowSignupPassword(s => !s)} disabled={signupLoading}>{showSignupPassword ? 'Hide' : 'Show'}</button>
+                  <button 
+                    type="button" 
+                    className={`show-pass-btn ${signupLoading ? 'disabled' : ''}`} 
+                    onClick={() => setShowSignupPassword(s => !s)} 
+                    disabled={signupLoading}
+                    aria-label={showSignupPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showSignupPassword ? (
+                      <>
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                          <path d="M12 6.5a9.77 9.77 0 0 1 8.82 5.5 9.647 9.647 0 0 1-2.41 3.12l1.41 1.41c1.39-1.23 2.49-2.77 3.18-4.53C21.27 7.11 17 4 12 4c-1.27 0-2.49.2-3.64.57l1.65 1.65c1.36-.28 2.8-.72 4.99-.72zm-9.5-2l-1.41-1.41-1.68 1.68 1.37 1.37C.39 8.12 0 10.04 0 12c0 3.7 2.01 6.92 4.99 8.65l1.01-1.75A8.02 8.02 0 0 1 4 12c0-1.27.27-2.48.74-3.57l-1.24-1.93zM12 17.5a9.77 9.77 0 0 1-8.82-5.5.5.5 0 0 1 0-.5C3.73 7.11 8 4 13 4c1.27 0 2.49.2 3.64.57l-1.65 1.65c-1.36-.28-2.8-.72-4.99-.72-3.3 0-5.88 2.25-6.85 5.5C4.5 14.43 7.97 17.5 12 17.5zm6.5-3c0 .36-.04.72-.11 1.07l1.61 1.61c.47-.83.75-1.78.75-2.78 0-3.7-2.01-6.92-4.99-8.65l-1.01 1.75A8.02 8.02 0 0 1 20 12v.5z"/>
+                        </svg>
+                        Hide
+                      </>
+                    ) : (
+                      <>
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                          <path d="M12 6.5a9.77 9.77 0 0 1 8.82 5.5 9.647 9.647 0 0 1-2.41 3.12l1.41 1.41c1.39-1.23 2.49-2.77 3.18-4.53C21.27 7.11 17 4 12 4c-1.27 0-2.49.2-3.64.57l1.65 1.65c1.36-.28 2.8-.72 4.99-.72zm-9.5-2l-1.41-1.41-1.68 1.68 1.37 1.37C.39 8.12 0 10.04 0 12c0 3.7 2.01 6.92 4.99 8.65l1.01-1.75A8.02 8.02 0 0 1 4 12c0-1.27.27-2.48.74-3.57l-1.24-1.93zM12 17.5a9.77 9.77 0 0 1-8.82-5.5.5.5 0 0 1 0-.5C3.73 7.11 8 4 13 4c1.27 0 2.49.2 3.64.57l-1.65 1.65c-1.36-.28-2.8-.72-4.99-.72-3.3 0-5.88 2.25-6.85 5.5C4.5 14.43 7.97 17.5 12 17.5z"/>
+                        </svg>
+                        Show
+                      </>
+                    )}
+                  </button>
                 </div>
                 <input name="phone" type="tel" placeholder="Phone (e.g. +918089391497)" value={formData.phone} onChange={handleSignupChange} className="form-input" required disabled={signupLoading} />
                 <button type="submit" className={`signin-btn ${signupLoading ? 'loading' : ''}`} disabled={signupLoading}>{signupLoading ? 'Creating Account...' : 'Sign Up'}</button>
@@ -141,12 +163,43 @@ const SignInPage = () => {
                   <input id="login-email" name="email" type="email" value={loginData.email} onChange={handleLoginChange} required disabled={loginLoading} placeholder="you@example.com" />
                 </div>
                 <div className="form-group">
-                  <label htmlFor="login-password" className="form-label-row">
-                    <span>Password</span>
-                    <button type="button" className="show-pass-btn" onClick={() => setShowLoginPassword(s=>!s)} disabled={loginLoading}>{showLoginPassword ? 'Hide' : 'Show'}</button>
-                  </label>
-                  <div className="password-wrapper">
-                    <input id="login-password" name="password" type={showLoginPassword ? 'text' : 'password'} value={loginData.password} onChange={handleLoginChange} required disabled={loginLoading} placeholder="••••••" minLength={6} />
+                  <label htmlFor="login-password">Password</label>
+                  <div className="password-input-container">
+                    <input 
+                      id="login-password" 
+                      name="password" 
+                      type={showLoginPassword ? 'text' : 'password'} 
+                      value={loginData.password} 
+                      onChange={handleLoginChange} 
+                      required 
+                      disabled={loginLoading} 
+                      placeholder="••••••" 
+                      minLength={6} 
+                      className="form-input"
+                    />
+                    <button 
+                      type="button" 
+                      className={`show-pass-btn ${loginLoading ? 'disabled' : ''}`} 
+                      onClick={() => setShowLoginPassword(s => !s)} 
+                      disabled={loginLoading}
+                      aria-label={showLoginPassword ? 'Hide password' : 'Show password'}
+                    >
+                      {showLoginPassword ? (
+                        <>
+                          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                            <path d="M12 6.5a9.77 9.77 0 0 1 8.82 5.5 9.647 9.647 0 0 1-2.41 3.12l1.41 1.41c1.39-1.23 2.49-2.77 3.18-4.53C21.27 7.11 17 4 12 4c-1.27 0-2.49.2-3.64.57l1.65 1.65c1.36-.28 2.8-.72 4.99-.72zm-9.5-2l-1.41-1.41-1.68 1.68 1.37 1.37C.39 8.12 0 10.04 0 12c0 3.7 2.01 6.92 4.99 8.65l1.01-1.75A8.02 8.02 0 0 1 4 12c0-1.27.27-2.48.74-3.57l-1.24-1.93zM12 17.5a9.77 9.77 0 0 1-8.82-5.5.5.5 0 0 1 0-.5C3.73 7.11 8 4 13 4c1.27 0 2.49.2 3.64.57l-1.65 1.65c-1.36-.28-2.8-.72-4.99-.72-3.3 0-5.88 2.25-6.85 5.5C4.5 14.43 7.97 17.5 12 17.5zm6.5-3c0 .36-.04.72-.11 1.07l1.61 1.61c.47-.83.75-1.78.75-2.78 0-3.7-2.01-6.92-4.99-8.65l-1.01 1.75A8.02 8.02 0 0 1 20 12v.5z"/>
+                          </svg>
+                          Hide
+                        </>
+                      ) : (
+                        <>
+                          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                            <path d="M12 6.5a9.77 9.77 0 0 1 8.82 5.5 9.647 9.647 0 0 1-2.41 3.12l1.41 1.41c1.39-1.23 2.49-2.77 3.18-4.53C21.27 7.11 17 4 12 4c-1.27 0-2.49.2-3.64.57l1.65 1.65c1.36-.28 2.8-.72 4.99-.72zm-9.5-2l-1.41-1.41-1.68 1.68 1.37 1.37C.39 8.12 0 10.04 0 12c0 3.7 2.01 6.92 4.99 8.65l1.01-1.75A8.02 8.02 0 0 1 4 12c0-1.27.27-2.48.74-3.57l-1.24-1.93zM12 17.5a9.77 9.77 0 0 1-8.82-5.5.5.5 0 0 1 0-.5C3.73 7.11 8 4 13 4c1.27 0 2.49.2 3.64.57l-1.65 1.65c-1.36-.28-2.8-.72-4.99-.72-3.3 0-5.88 2.25-6.85 5.5C4.5 14.43 7.97 17.5 12 17.5z"/>
+                          </svg>
+                          Show
+                        </>
+                      )}
+                    </button>
                   </div>
                 </div>
                 <div className="form-meta-row">
