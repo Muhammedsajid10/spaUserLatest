@@ -3,12 +3,12 @@ import { useNavigate, useLocation, Link, Outlet } from 'react-router-dom';
 import { bookingFlow, apiUtils } from './services/api';
 import { confirmBookingAndPay } from './services/paymentFlow';
 import { IoMdTime } from "react-icons/io";
-import './layout.css'
+import './LayoutWithBooking.css';
 import { CiCalendar } from "react-icons/ci";
 import { HeaderTitleProvider, useHeaderTitle } from './Service/HeaderTitleContext'; // Assuming this context exists
 import { useAuth } from './Service/Context'; // Assuming this context exists
 import alloraLogo from './assets/alloraLogo.jpg'; // Assuming logo asset exists
-import Swal from 'sweetalert2'; // Assuming SweetAlert2 is installed
+import Swal from 'sweetalert2'; 
 
 // ProfileIcon component - No changes
 const ProfileIcon = () => (
