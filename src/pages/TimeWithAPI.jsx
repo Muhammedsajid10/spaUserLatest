@@ -35,6 +35,15 @@ const LoadingDots = () => (
 );
 
 const Time = (props) => {
+  // Get start of current week (Sunday)
+  const getStartOfWeek = (date = new Date()) => {
+    const d = new Date(date);
+    const day = d.getDay();
+    const diff = d.getDate() - day;
+    return new Date(d.setDate(diff));
+  };
+
+  const [currentWeekStart, setCurrentWeekStart] = useState(getStartOfWeek());
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [selectedTime, setSelectedTime] = useState(null);
@@ -59,18 +68,72 @@ const Time = (props) => {
   // FIX: Use a ref to track if initial load is complete
   const isInitialLoad = useRef(true);
 
-  // compute 7-day array (Sunday -> Saturday) for the current selectedDate
+  // compute 7-day array (Sunday -> Saturday) for the current selectedDate, filtering out past days
   const weekDates = useMemo(() => {
-    const start = new Date(selectedDate);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Find the next Sunday (or today if it's Sunday)
+    const start = new Date(today);
     const day = start.getDay(); // 0 = Sunday
     start.setDate(start.getDate() - day);
-    start.setHours(0,0,0,0);
-    return Array.from({ length: 7 }, (_, i) => {
+    start.setHours(0, 0, 0, 0);
+
+    // Generate 7 days starting from the calculated Sunday
+    const days = Array.from({ length: 7 }, (_, i) => {
       const d = new Date(start);
       d.setDate(start.getDate() + i);
       return d;
     });
-  }, [selectedDate.toDateString()]); // Use stable date string
+
+    // Filter out past days (only keep today and future days)
+    return days.filter(day => day >= today);
+  }, [selectedDate.toDateString()]);
+
+  // Check if a date is today
+  const isToday = (date) => {
+    if (!date) return false;
+    const today = new Date();
+    return date.getDate() === today.getDate() &&
+      date.getMonth() === today.getMonth() &&
+      date.getFullYear() === today.getFullYear();
+  };
+
+  // Check if a date is in the past
+  const isPastDate = (date) => {
+    if (!date) return false;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return date < today;
+  };
+
+  // Check if we're viewing the current month in the calendar
+  const isCurrentMonth = (date) => {
+    const today = new Date();
+    return date.getMonth() === today.getMonth() &&
+      date.getFullYear() === today.getFullYear();
+  };
+
+  // Change the month in the calendar view
+  const changeMonth = (months) => {
+    const newDate = new Date(selectedDate);
+    newDate.setMonth(newDate.getMonth() + months);
+    setSelectedDate(newDate);
+  };
+
+  // Change the week in the week view
+  const changeWeek = (weeks) => {
+    const newDate = new Date(selectedDate);
+    newDate.setDate(newDate.getDate() + weeks * 7);
+
+    // Prevent navigating to past weeks
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (newDate >= today) {
+      setSelectedDate(newDate);
+    }
+  };
 
   // Load booking flow data and initial page load
   useEffect(() => {
@@ -109,9 +172,9 @@ const Time = (props) => {
       const currentSelectedService = selectedService?._id;
       const currentSelectedProfessional = selectedProfessional?._id || selectedProfessional?.id;
       const newSelectedService = data.selectedServices?.[0]?._id;
-      const newSelectedProfessional = data.selectedProfessionals?.[data.selectedServices?.[0]?._id]?._id || 
-                                      data.selectedProfessionals ?.[data.selectedServices?.[0]?._id]?.id;
-      
+      const newSelectedProfessional = data.selectedProfessionals?.[data.selectedServices?.[0]?._id]?._id ||
+        data.selectedProfessionals?.[data.selectedServices?.[0]?._id]?.id;
+
       // Only reload data if service or professional changed (not just time slot)
       if (currentSelectedService !== newSelectedService || currentSelectedProfessional !== newSelectedProfessional) {
         loadBookingData();
@@ -128,17 +191,11 @@ const Time = (props) => {
   const getDaysInMonth = (year, month) => new Date(year, month + 1, 0).getDate();
   const getFirstDayOfMonth = (year, month) => new Date(year, month, 1).getDay();
 
-  const changeMonth = (offset) => {
-    const newDate = new Date(selectedDate);
-    newDate.setMonth(newDate.getMonth() + offset);
-    setSelectedDate(newDate);
-  };
-
   // ENHANCED: Employee-specific booking conflict detection system
   const fetchEmployeeBookingConflicts = async (date, employeeId) => {
     const formattedDate = apiUtils.formatDate(date);
-    console.log('[Time] EMPLOYEE-SPECIFIC: Fetching booking conflicts for specific employee only', { 
-      formattedDate, 
+    console.log('[Time] EMPLOYEE-SPECIFIC: Fetching booking conflicts for specific employee only', {
+      formattedDate,
       employeeId,
       employeeName: 'Target employee'
     });
@@ -147,7 +204,7 @@ const Time = (props) => {
     let allBookings = [];
     try {
       console.log('[Time] EMPLOYEE-SPECIFIC: Fetching ALL bookings from admin side');
-      
+
       if (bookingsAPI && typeof bookingsAPI.getTotalBookingsFromAdminSide === 'function') {
         const resp = await bookingsAPI.getTotalBookingsFromAdminSide(formattedDate);
         allBookings = resp?.data?.bookings ?? resp?.bookings ?? resp?.data ?? resp ?? [];
@@ -181,12 +238,12 @@ const Time = (props) => {
 
     // STEP 2: Extract ONLY bookings for the specific employee
     let employeeSpecificBookings = [];
-    
+
     dateFilteredBookings.forEach(booking => {
       if (booking.services && Array.isArray(booking.services)) {
         booking.services.forEach(service => {
           const serviceEmployeeId = service.employee?._id || service.employee?.id;
-          
+
           // CRITICAL: Only include bookings for THIS specific employee
           if (String(serviceEmployeeId) === String(employeeId)) {
             employeeSpecificBookings.push({
@@ -236,8 +293,8 @@ const Time = (props) => {
           rawEndTime: booking.endTime,
           employeeInfo: {
             id: booking.employee?._id || booking.employee?.id,
-            name: booking.employee?.user ? 
-              `${booking.employee.user.firstName} ${booking.employee.user.lastName}` : 
+            name: booking.employee?.user ?
+              `${booking.employee.user.firstName} ${booking.employee.user.lastName}` :
               booking.employee?.name
           }
         })),
@@ -251,7 +308,7 @@ const Time = (props) => {
           if (!timeStr) return 'N/A';
           if (timeStr.includes('T')) {
             const date = new Date(timeStr);
-            
+
             // TIMEZONE DEBUG: Log the conversion
             console.log('[Time] 🌍 EMPLOYEE-SPECIFIC TIME CONVERSION:', {
               originalISO: timeStr,
@@ -259,12 +316,12 @@ const Time = (props) => {
               localTime: `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`,
               timezoneOffset: date.getTimezoneOffset()
             });
-            
+
             return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
           }
           return timeStr;
         };
-        
+
         return {
           startTime: normalizeTime(booking.startTime),
           endTime: normalizeTime(booking.endTime),
@@ -291,74 +348,22 @@ const Time = (props) => {
       });
     }
 
-    // ENHANCED: Check for overlapping bookings within the same employee
-    console.log('[Time] EMPLOYEE-SPECIFIC: Checking for overlapping bookings within same employee');
-    const overlapWarnings = [];
-    for (let i = 0; i < employeeSpecificBookings.length; i++) {
-      for (let j = i + 1; j < employeeSpecificBookings.length; j++) {
-        const booking1 = employeeSpecificBookings[i];
-        const booking2 = employeeSpecificBookings[j];
-        
-        // Convert times to comparable format
-        const normalizeTime = (timeStr) => {
-          if (!timeStr) return null;
-          if (timeStr.includes('T')) {
-            const date = new Date(timeStr);
-            
-            // TIMEZONE DEBUG: Log the conversion for overlap detection
-            console.log('[Time] 🌍 OVERLAP DETECTION TIME CONVERSION:', {
-              originalISO: timeStr,
-              utcTime: `${String(date.getUTCHours()).padStart(2, '0')}:${String(date.getUTCMinutes()).padStart(2, '0')}`,
-              localTime: `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`,
-              timezoneOffset: date.getTimezoneOffset()
-            });
-            
-            // CRITICAL FIX: Use local time instead of UTC for proper timezone handling
-            return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
-          }
-          return timeStr;
-        };
-        
-        const start1 = normalizeTime(booking1.startTime);
-        const end1 = normalizeTime(booking1.endTime);
-        const start2 = normalizeTime(booking2.startTime);
-        const end2 = normalizeTime(booking2.endTime);
-        
-        // Check for overlap: (start1 < end2) AND (end1 > start2)
-        if (start1 < end2 && end1 > start2) {
-          overlapWarnings.push({
-            booking1: { id: booking1.bookingId, time: `${start1}-${end1}`, service: booking1.serviceName },
-            booking2: { id: booking2.bookingId, time: `${start2}-${end2}`, service: booking2.serviceName },
-            overlapType: start1 === start2 ? 'exact-match' : 'partial-overlap'
-          });
-        }
-      }
-    }
-    
-    if (overlapWarnings.length > 0) {
-      console.warn('[Time] EMPLOYEE-SPECIFIC: ⚠️ OVERLAPPING BOOKINGS DETECTED for employee:', {
-        employeeId,
-        overlaps: overlapWarnings,
-        message: 'This employee has conflicting time slots - system should prevent double booking!'
-      });
-    }
-
     // STEP 3: Build appointmentsIndex ONLY for this employee
     const appointmentsIndex = {};
     appointmentsIndex[employeeId] = {};
     appointmentsIndex[employeeId][selectedDateKey] = {};
-    
+
     employeeSpecificBookings.forEach(serviceBooking => {
       const startTime = serviceBooking.startTime;
-      
+
       if (!startTime) {
         console.warn('[Time] EMPLOYEE-SPECIFIC: Skipping booking with missing time:', serviceBooking);
         return;
       }
-      
+
       // Create unique key for this booking
       const bookingKey = serviceBooking._id || `${startTime}_${employeeId}_${serviceBooking.bookingId}`;
-      
+
       // Store the booking in appointmentsIndex
       appointmentsIndex[employeeId][selectedDateKey][bookingKey] = {
         _id: serviceBooking._id,
@@ -396,7 +401,7 @@ const Time = (props) => {
     let allBookings = [];
     try {
       console.log('[Time] Fetching ALL bookings from admin side for enhanced filtering');
-      
+
       if (bookingsAPI && typeof bookingsAPI.getTotalBookingsFromAdminSide === 'function') {
         const resp = await bookingsAPI.getTotalBookingsFromAdminSide(formattedDate);
         allBookings = resp?.data?.bookings ?? resp?.bookings ?? resp?.data ?? resp ?? [];
@@ -440,20 +445,19 @@ const Time = (props) => {
     // STEP 2: Extract individual service bookings and filter by selected employee
     const flow = bookingFlow.load();
     const selectedProfessionalForService = flow.selectedProfessionals?.[selectedService?._id] || selectedProfessional;
-    const hasSpecificProfessional = selectedProfessionalForService && 
-      selectedProfessionalForService.id !== 'any' && 
-      selectedProfessionalForService._id !== 'any';
 
     let relevantServiceBookings = [];
-    
+
     // Extract all individual service bookings from date-filtered bookings
     dateFilteredBookings.forEach(booking => {
       if (booking.services && Array.isArray(booking.services)) {
         booking.services.forEach(service => {
           const serviceEmployeeId = service.employee?._id || service.employee?.id;
-          
+
           // If specific professional selected, filter by employee
-          if (hasSpecificProfessional) {
+          if (selectedProfessionalForService &&
+            selectedProfessionalForService.id !== 'any' &&
+            selectedProfessionalForService._id !== 'any') {
             const targetEmployeeId = selectedProfessionalForService._id || selectedProfessionalForService.id;
             if (String(serviceEmployeeId) === String(targetEmployeeId)) {
               relevantServiceBookings.push({
@@ -489,11 +493,14 @@ const Time = (props) => {
     });
 
     console.log('[Time] STEP 2 - Employee filtering and service extraction:', {
-      hasSpecificProfessional,
-      selectedProfessionalId: hasSpecificProfessional ? (selectedProfessionalForService._id || selectedProfessionalForService.id) : 'any',
-      selectedProfessionalName: hasSpecificProfessional ? 
-        (selectedProfessionalForService.user ? 
-          `${selectedProfessionalForService.user.firstName} ${selectedProfessionalForService.user.lastName}` : 
+      hasSpecificProfessional: selectedProfessionalForService &&
+        selectedProfessionalForService.id !== 'any' &&
+        selectedProfessionalForService._id !== 'any',
+      selectedProfessionalId: selectedProfessionalForService ?
+        (selectedProfessionalForService._id || selectedProfessionalForService.id) : 'any',
+      selectedProfessionalName: selectedProfessionalForService ?
+        (selectedProfessionalForService.user ?
+          `${selectedProfessionalForService.user.firstName} ${selectedProfessionalForService.user.lastName}` :
           selectedProfessionalForService.name) : 'Any professional',
       dateFilteredBookings: dateFilteredBookings.length,
       totalServiceBookings: dateFilteredBookings.reduce((sum, b) => sum + (b.services?.length || 0), 0),
@@ -507,12 +514,15 @@ const Time = (props) => {
     });
 
     // ENHANCED LOGGING: Detailed booking conflicts for chosen employee on chosen date
-    if (hasSpecificProfessional && relevantServiceBookings.length > 0) {
+    if (selectedProfessionalForService &&
+      selectedProfessionalForService.id !== 'any' &&
+      selectedProfessionalForService._id !== 'any' &&
+      relevantServiceBookings.length > 0) {
       const targetEmployeeId = selectedProfessionalForService._id || selectedProfessionalForService.id;
-      const targetEmployeeName = selectedProfessionalForService.user ? 
-        `${selectedProfessionalForService.user.firstName} ${selectedProfessionalForService.user.lastName}` : 
+      const targetEmployeeName = selectedProfessionalForService.user ?
+        `${selectedProfessionalForService.user.firstName} ${selectedProfessionalForService.user.lastName}` :
         selectedProfessionalForService.name;
-      
+
       console.log('🚫 BOOKING CONFLICTS DETECTED for chosen employee on chosen date:', {
         chosenEmployee: {
           id: targetEmployeeId,
@@ -539,7 +549,7 @@ const Time = (props) => {
           if (!timeStr) return 'N/A';
           if (timeStr.includes('T')) {
             const date = new Date(timeStr);
-            
+
             // TIMEZONE DEBUG: Log the conversion for general booking conflicts
             console.log('[Time] 🌍 GENERAL BOOKING CONFLICT TIME CONVERSION:', {
               originalISO: timeStr,
@@ -547,12 +557,12 @@ const Time = (props) => {
               localTime: `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`,
               timezoneOffset: date.getTimezoneOffset()
             });
-            
+
             return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
           }
           return timeStr;
         };
-        
+
         return {
           startTime: normalizeTime(booking.startTime),
           endTime: normalizeTime(booking.endTime),
@@ -568,12 +578,15 @@ const Time = (props) => {
         blockedSlots: blockedTimeSlots,
         timeSlotsSummary: blockedTimeSlots.map(slot => `${slot.startTime}-${slot.endTime} (${slot.service})`).join(', ')
       });
-    } else if (hasSpecificProfessional && relevantServiceBookings.length === 0) {
+    } else if (selectedProfessionalForService &&
+      selectedProfessionalForService.id !== 'any' &&
+      selectedProfessionalForService._id !== 'any' &&
+      relevantServiceBookings.length === 0) {
       const targetEmployeeId = selectedProfessionalForService._id || selectedProfessionalForService.id;
-      const targetEmployeeName = selectedProfessionalForService.user ? 
-        `${selectedProfessionalForService.user.firstName} ${selectedProfessionalForService.user.lastName}` : 
+      const targetEmployeeName = selectedProfessionalForService.user ?
+        `${selectedProfessionalForService.user.firstName} ${selectedProfessionalForService.user.lastName}` :
         selectedProfessionalForService.name;
-      
+
       console.log('✅ NO BOOKING CONFLICTS for chosen employee on chosen date:', {
         chosenEmployee: {
           id: targetEmployeeId,
@@ -588,23 +601,23 @@ const Time = (props) => {
 
     // STEP 3: Build appointmentsIndex from relevant service bookings
     const appointmentsIndex = {};
-    
+
     relevantServiceBookings.forEach(serviceBooking => {
       const empId = serviceBooking.employeeId;
       const startTime = serviceBooking.startTime;
-      
+
       if (!empId || !startTime) {
         console.warn('[Time] Skipping service booking with missing employee or time:', serviceBooking);
         return;
       }
-      
+
       // Ensure appointmentsIndex structure exists
       appointmentsIndex[empId] = appointmentsIndex[empId] || {};
       appointmentsIndex[empId][selectedDateKey] = appointmentsIndex[empId][selectedDateKey] || {};
-      
+
       // Create unique key for this booking
       const bookingKey = serviceBooking._id || `${startTime}_${empId}_${serviceBooking.bookingId}`;
-      
+
       // Store the booking in appointmentsIndex
       appointmentsIndex[empId][selectedDateKey][bookingKey] = {
         _id: serviceBooking._id,
@@ -636,9 +649,17 @@ const Time = (props) => {
     return { appointmentsIndex };
   };
 
-  const handleDateClick = async (day) => {
-    console.log('[Time] handleDateClick start (local computation)', { day, selectedService, selectedProfessional });
-    const newDate = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), day);
+  const handleDateClick = async (day, month, year) => {
+    console.log('[Time] handleDateClick start (local computation)', { day, month, year, selectedService, selectedProfessional });
+    const newDate = new Date(year || selectedDate.getFullYear(), month !== undefined ? month : selectedDate.getMonth(), day);
+
+    // Don't allow selecting past dates
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (newDate < today) {
+      console.log('[Time] Attempted to select past date, ignoring');
+      return;
+    }
     setSelectedDate(newDate);
     setCalendarOpen(false);
     setLoadingTimeSlots(true);
@@ -669,17 +690,17 @@ const Time = (props) => {
             console.warn('[Time] Failed to fetch professionals for Any selection:', err);
             employees = [];
           }
-          
+
           const avail = getAvailableProfessionalsForService(svc._id, newDate, employees, appointmentsIndex, flow.selectedServices || [svc]);
           const union = [];
           (avail || []).forEach(r => (r.slots || []).forEach(s => union.push(s)));
           const uniq = Array.from(new Set(union)).sort();
-          
+
           // Filter out past times if selected date is today
           const now = new Date();
           const isToday = newDate.toDateString() === now.toDateString();
           const currentTime = isToday ? `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}` : null;
-          
+
           const futureFilteredUniq = isToday ? uniq.filter(slotTime => {
             const isCurrentOrFuture = slotTime >= currentTime;
             console.log('[Time] handleDateClick Any professional slot time comparison:', {
@@ -690,7 +711,7 @@ const Time = (props) => {
             });
             return isCurrentOrFuture;
           }) : uniq;
-          
+
           console.log('[Time] handleDateClick Any professional past time filtering:', {
             isToday,
             currentTime,
@@ -698,14 +719,14 @@ const Time = (props) => {
             afterFilter: futureFilteredUniq.length,
             removedPastSlots: uniq.length - futureFilteredUniq.length
           });
-          
-          const slots = futureFilteredUniq.map((t,i) => ({ 
-            id:i, 
+
+          const slots = futureFilteredUniq.map((t, i) => ({
+            id: i,
             time: formatTimeToAMPM(t), // Display in AM/PM format
             timeValue: t, // Keep original 24-hour format for calculations
-            startTime:t, 
-            endTime: addMinutesToTime(t, svc.duration||30), 
-            available:true 
+            startTime: t,
+            endTime: addMinutesToTime(t, svc.duration || 30),
+            available: true
           }));
           console.log('[Time] union slots count', slots.length);
           setAvailableTimeSlots(slots);
@@ -717,13 +738,13 @@ const Time = (props) => {
         const empId = assigned._id || assigned.id;
         console.log('[Time] computing local slots for employee', { employeeId: empId, date: localDateKey(newDate), duration });
         const slotsArr = getValidTimeSlotsForProfessional(assigned, new Date(newDate), duration, appointmentsIndex);
-        console.log('[Time] local slots computed count', slotsArr.length, slotsArr.slice(0,6));
-        
+        console.log('[Time] local slots computed count', slotsArr.length, slotsArr.slice(0, 6));
+
         // Filter out past times if selected date is today
         const now = new Date();
         const isToday = newDate.toDateString() === now.toDateString();
         const currentTime = isToday ? `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}` : null;
-        
+
         const futureFilteredSlotsArr = isToday ? slotsArr.filter(slotTime => {
           const isCurrentOrFuture = slotTime >= currentTime;
           console.log('[Time] handleDateClick specific professional slot time comparison:', {
@@ -734,7 +755,7 @@ const Time = (props) => {
           });
           return isCurrentOrFuture;
         }) : slotsArr;
-        
+
         console.log('[Time] handleDateClick specific professional past time filtering:', {
           isToday,
           currentTime,
@@ -742,14 +763,14 @@ const Time = (props) => {
           afterFilter: futureFilteredSlotsArr.length,
           removedPastSlots: slotsArr.length - futureFilteredSlotsArr.length
         });
-        
-        const mapped = futureFilteredSlotsArr.map((t, i) => ({ 
-          id: i, 
+
+        const mapped = futureFilteredSlotsArr.map((t, i) => ({
+          id: i,
           time: formatTimeToAMPM(t), // Display in AM/PM format
           timeValue: t, // Keep original 24-hour format for calculations
-          startTime: t, 
-          endTime: addMinutesToTime(t, duration), 
-          available: true 
+          startTime: t,
+          endTime: addMinutesToTime(t, duration),
+          available: true
         }));
         setAvailableTimeSlots(mapped);
         return;
@@ -758,7 +779,7 @@ const Time = (props) => {
       // multi-service -> compute sequential series (back-to-back)
       const missing = services.filter(s => !flow.selectedProfessionals?.[s._id]);
       if (missing.length) {
-        console.log('[Time] multi-service missing assigned professionals', missing.map(m=>m._id));
+        console.log('[Time] multi-service missing assigned professionals', missing.map(m => m._id));
         setAvailableTimeSlots([]);
         setError('Please assign professionals to all services first');
         return;
@@ -769,7 +790,7 @@ const Time = (props) => {
         professionalsMap[svc._id] = flow.selectedProfessionals[svc._id];
       });
 
-      console.log('[Time] computing sequential service start times locally (with bookings)', { services: services.map(s=>s._id), date: localDateKey(newDate) });
+      console.log('[Time] computing sequential service start times locally (with bookings)', { services: services.map(s => s._id), date: localDateKey(newDate) });
       const sequences = await computeSequentialServiceStartTimesWithBookings(services, professionalsMap, newDate, appointmentsIndex);
       console.log('[Time] sequences found', sequences?.length);
       if (!sequences || sequences.length === 0) {
@@ -798,9 +819,9 @@ const Time = (props) => {
 
   useEffect(() => {
     const fetchTimeSlots = async () => {
-      console.log('[Time] useEffect fetchTimeSlots TRIGGERED - checking dependencies:', { 
-        selectedServiceId: selectedService?._id, 
-        selectedProfessionalId: selectedProfessional?._id || selectedProfessional?.id, 
+      console.log('[Time] useEffect fetchTimeSlots TRIGGERED - checking dependencies:', {
+        selectedServiceId: selectedService?._id,
+        selectedProfessionalId: selectedProfessional?._id || selectedProfessional?.id,
         selectedDateString: selectedDate.toDateString(),
         timestamp: new Date().toISOString()
       });
@@ -833,7 +854,7 @@ const Time = (props) => {
           console.log('[Time] FIXED WORKFLOW - Multi-service flow starting');
           const missing = services.filter(s => !flow.selectedProfessionals?.[s._id]);
           if (missing.length) {
-            console.log('[Time] multi-service abort - missing assignments', missing.map(m=>m._id));
+            console.log('[Time] multi-service abort - missing assignments', missing.map(m => m._id));
             setAvailableTimeSlots([]);
             return;
           }
@@ -891,7 +912,7 @@ const Time = (props) => {
         // Single-service flow - FIXED WORKFLOW
         const svc = services[0];
         const assigned = flow.selectedProfessionals?.[svc._id] || selectedProfessional;
-        
+
         console.log('[Time] FIXED WORKFLOW - Single-service assignment check:', {
           serviceId: svc._id,
           assignedFromFlow: flow.selectedProfessionals?.[svc._id],
@@ -901,12 +922,12 @@ const Time = (props) => {
           assignedName: assigned?.user ? `${assigned.user.firstName} ${assigned.user.lastName}` : assigned?.name,
           isAny: !assigned || assigned.id === 'any' || assigned._id === 'any'
         });
-        
+
         if (!assigned || assigned.id === 'any' || assigned._id === 'any') {
           console.log('[Time] single-service ANY -> using old workflow (fetch bookings first)');
           // For "Any professional", use old workflow - fetch bookings first
           const { appointmentsIndex } = await fetchDateData(selectedDate);
-          
+
           let availableEmployees = [];
           try {
             const resp = await bookingsAPI.getAvailableProfessionals(svc._id, apiUtils.formatDate(selectedDate));
@@ -916,17 +937,17 @@ const Time = (props) => {
             console.warn('[Time] Failed to fetch professionals for Any selection:', err);
             availableEmployees = [];
           }
-          
+
           const profsResult = getAvailableProfessionalsForService(svc._id, selectedDate, availableEmployees, appointmentsIndex, services);
           const union = [];
           (profsResult || []).forEach(r => (r.slots || []).forEach(s => union.push(s)));
           const uniq = Array.from(new Set(union)).sort();
-          
+
           // Filter out past times if selected date is today
           const now = new Date();
           const isToday = selectedDate.toDateString() === now.toDateString();
           const currentTime = isToday ? `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}` : null;
-          
+
           const futureFilteredUniq = isToday ? uniq.filter(slotTime => {
             const isCurrentOrFuture = slotTime >= currentTime;
             console.log('[Time] Any professional slot time comparison:', {
@@ -937,7 +958,7 @@ const Time = (props) => {
             });
             return isCurrentOrFuture;
           }) : uniq;
-          
+
           console.log('[Time] Any professional past time filtering:', {
             isToday,
             currentTime,
@@ -945,14 +966,14 @@ const Time = (props) => {
             afterFilter: futureFilteredUniq.length,
             removedPastSlots: uniq.length - futureFilteredUniq.length
           });
-          
-          const slots = futureFilteredUniq.map((t,i) => ({ 
-            id:i, 
+
+          const slots = futureFilteredUniq.map((t, i) => ({
+            id: i,
             time: formatTimeToAMPM(t), // Display in AM/PM format
             timeValue: t, // Keep original 24-hour format for calculations
-            startTime:t, 
-            endTime:addMinutesToTime(t, svc.duration||30), 
-            available:true 
+            startTime: t,
+            endTime: addMinutesToTime(t, svc.duration || 30),
+            available: true
           }));
           console.log('[Time] union slots count', slots.length);
           setAvailableTimeSlots(slots);
@@ -964,7 +985,7 @@ const Time = (props) => {
         const duration = svc.duration || 30;
         const empId = assigned._id || assigned.id;
         const formattedDate = apiUtils.formatDate(selectedDate);
-        
+
         console.log('[Time] FIXED WORKFLOW - Fetching employee schedule FIRST (before bookings):', {
           assignedEmployee: assigned,
           employeeId: empId,
@@ -972,29 +993,29 @@ const Time = (props) => {
           formattedDate,
           selectedDate: selectedDate.toString()
         });
-        
+
         try {
           console.log('[Time] STEP 1 - Fetching employee schedule template first', { employeeId: empId, date: formattedDate });
           const response = await bookingsAPI.getEmployeeSchedule(empId, formattedDate);
           const scheduleData = response?.data || response;
-          
+
           console.log('[Time] STEP 1 - Employee schedule template fetched:', {
             scheduledShifts: scheduleData.scheduledShifts,
             rawAvailableSlots: scheduleData.availableTimeSlots?.length || 0
           });
-          
+
           // STEP 2: Now fetch booking conflicts for THIS specific employee only  
           console.log('[Time] STEP 2 - Fetching booking conflicts for specific employee using new method');
           const { appointmentsIndex } = await fetchEmployeeBookingConflicts(selectedDate, empId);
-          
+
           const rawScheduleSlots = scheduleData.availableTimeSlots || [];
-          console.log('[Time] STEP 2 - Raw schedule slots from API:', { count: rawScheduleSlots.length, sample: rawScheduleSlots.slice(0,6) });
-          
+          console.log('[Time] STEP 2 - Raw schedule slots from API:', { count: rawScheduleSlots.length, sample: rawScheduleSlots.slice(0, 6) });
+
           // STEP 3: Apply booking conflict filtering AND shift boundary validation
           const dateKey = localDateKey(selectedDate);
           const employeeBookings = appointmentsIndex[empId]?.[dateKey] || {};
           const bookingCount = Object.keys(employeeBookings).length;
-          
+
           // 🔍 CRITICAL DEBUG: Verify time format consistency
           console.log('🔍 TIME FORMAT DEBUGGING - Before filtering slots:', {
             employeeId: empId,
@@ -1038,11 +1059,11 @@ const Time = (props) => {
               actualConvertedTime: 'See localTime above - should be 09:00'
             });
           }
-          
+
           // ENHANCED: Extract shift end time from schedule data for boundary validation
           const employeeShifts = scheduleData.scheduledShifts || [];
           let shiftEndTime = null;
-          
+
           console.log('[Time] DEBUG - Schedule data structure:', {
             scheduledShifts: scheduleData.scheduledShifts,
             shiftsCount: employeeShifts.length,
@@ -1051,7 +1072,7 @@ const Time = (props) => {
             scheduleDataKeys: Object.keys(scheduleData),
             fullScheduleData: scheduleData
           });
-          
+
           if (employeeShifts.length > 0 && employeeShifts[0] && employeeShifts[0].endTime) {
             // Method 1: Extract from scheduled shifts (preferred)
             shiftEndTime = employeeShifts[0].endTime;
@@ -1107,7 +1128,7 @@ const Time = (props) => {
               }
             });
           }
-          
+
           console.log('[Time] STEP 3 - Applying conflict filtering AND shift boundary validation:', {
             employeeId: empId,
             dateKey,
@@ -1117,26 +1138,26 @@ const Time = (props) => {
             serviceDuration: duration,
             bookingTimes: Object.values(employeeBookings).map(b => `${b.startTime}-${b.endTime}`)
           });
-          
+
           // Apply booking conflict detection AND shift boundary validation
           const filteredSlots = rawScheduleSlots.filter(slot => {
             const slotStartTime = slot.time || slot.startTime;
             const slotEndTime = slot.endTime || addMinutesToTime(slotStartTime, duration);
-            
+
             // Convert times to comparable format (24-hour HH:mm)
             const normalizeTime = (timeStr) => {
               if (!timeStr) return null;
-              
+
               console.log('[Time] 🕐 NORMALIZING TIME:', {
                 inputTime: timeStr,
                 inputType: timeStr.includes('T') ? 'ISO DateTime' : 'HH:mm format'
               });
-              
+
               // If it's an ISO date string, extract time part
               if (timeStr.includes('T')) {
                 // CRITICAL FIX: For booking times, we need to handle the timezone properly
                 // The booking times are stored in UTC, but we need to compare them in the same timezone as slots
-                
+
                 // If the time ends with 'Z', it's UTC time
                 if (timeStr.endsWith('Z')) {
                   // Extract just the time part from ISO string: "2025-09-08T09:00:00.000Z" -> "09:00"
@@ -1160,7 +1181,7 @@ const Time = (props) => {
                   return localTime;
                 }
               }
-              
+
               // If it's already HH:mm format, return as-is
               if (timeStr.includes(':') && timeStr.length <= 5) {
                 console.log('[Time] ✅ TIME ALREADY NORMALIZED:', {
@@ -1170,25 +1191,25 @@ const Time = (props) => {
                 });
                 return timeStr;
               }
-              
+
               console.log('[Time] ⚠️ UNKNOWN TIME FORMAT:', {
                 inputTime: timeStr,
                 fallbackOutput: timeStr
               });
               return timeStr;
             };
-            
+
             const normalizedSlotStart = normalizeTime(slotStartTime);
             const normalizedSlotEnd = normalizeTime(slotEndTime);
-            
+
             // CRITICAL FIX: Calculate the actual service end time based on service duration
             const actualServiceEndTime = addMinutesToTime(normalizedSlotStart, duration);
-            
+
             // ENHANCED VALIDATION 1: Check if service duration fits within shift end time
             let exceedsShiftBoundary = false;
             if (shiftEndTime) {
               const normalizedShiftEnd = normalizeTime(shiftEndTime);
-              
+
               console.log('[Time] DEBUGGING - Shift boundary check for slot:', {
                 slotStartTime: normalizedSlotStart,
                 slotEndTime: normalizedSlotEnd, // Raw 15-min slot end
@@ -1197,11 +1218,11 @@ const Time = (props) => {
                 serviceDuration: `${duration} minutes`,
                 wouldExceed: actualServiceEndTime > normalizedShiftEnd
               });
-              
+
               // CRITICAL FIX: Compare ACTUAL service end time with shift end time
               // Service should COMPLETE before or exactly at shift end
               exceedsShiftBoundary = actualServiceEndTime > normalizedShiftEnd;
-              
+
               if (exceedsShiftBoundary) {
                 console.log('[Time] ❌ SHIFT BOUNDARY VIOLATION - Removing slot:', {
                   slotTime: `${normalizedSlotStart}-${actualServiceEndTime}`,
@@ -1235,12 +1256,12 @@ const Time = (props) => {
               // If no shift end time, allow the slot but log warning
               exceedsShiftBoundary = false;
             }
-            
+
             // ENHANCED VALIDATION 2: Check for conflicts with existing bookings
             const hasBookingConflict = Object.values(employeeBookings).some(booking => {
               const normalizedBookingStart = normalizeTime(booking.startTime);
               const normalizedBookingEnd = normalizeTime(booking.endTime);
-              
+
               // ENHANCED DEBUG: Show detailed time comparison for EVERY slot check
               console.log('[Time] 🔍 DETAILED BOOKING CONFLICT CHECK - Slot vs Booking:', {
                 slotBeingChecked: {
@@ -1267,12 +1288,12 @@ const Time = (props) => {
                   overlapFormula: 'slot_start < booking_end AND service_end > booking_start'
                 }
               });
-              
+
               // Enhanced overlap detection: Two time ranges overlap if:
               // (slot_start < booking_end) AND (service_end > booking_start)
               // Using actualServiceEndTime instead of slot end time for accurate conflict detection
               const overlap = (normalizedSlotStart < normalizedBookingEnd && actualServiceEndTime > normalizedBookingStart);
-              
+
               if (overlap) {
                 console.log('🚫 BOOKING CONFLICT DETECTED - This slot WILL BE REMOVED:', {
                   conflictedSlot: `${normalizedSlotStart}-${actualServiceEndTime}`,
@@ -1295,17 +1316,17 @@ const Time = (props) => {
                   slotTime: `${normalizedSlotStart}-${actualServiceEndTime}`,
                   bookingTime: `${normalizedBookingStart}-${normalizedBookingEnd}`,
                   bookingService: booking.serviceName,
-                  reason: normalizedSlotStart >= normalizedBookingEnd ? 
-                    'Slot starts after booking ends' : 
+                  reason: normalizedSlotStart >= normalizedBookingEnd ?
+                    'Slot starts after booking ends' :
                     'Service ends before booking starts'
                 });
               }
               return overlap;
             });
-            
+
             // FINAL VALIDATION: Log the decision for this slot
             const isValidSlot = !exceedsShiftBoundary && !hasBookingConflict;
-            
+
             if (isValidSlot) {
               console.log('✅ SLOT APPROVED for chosen employee on chosen date:', {
                 employeeId: empId,
@@ -1331,11 +1352,11 @@ const Time = (props) => {
                 slotDisplayTime: formatTimeToAMPM(normalizedSlotStart)
               });
             }
-            
+
             // Slot is valid only if it doesn't exceed shift boundary AND has no booking conflicts
             return isValidSlot;
           });
-          
+
           console.log('[Time] STEP 3 - ENHANCED WORKFLOW RESULT after conflict + shift boundary validation:', {
             beforeFilter: rawScheduleSlots.length,
             afterFilter: filteredSlots.length,
@@ -1343,7 +1364,7 @@ const Time = (props) => {
             shiftEndTime: shiftEndTime,
             serviceDuration: duration,
             validationTypes: ['booking conflicts', 'shift boundary violations'],
-            finalSlots: filteredSlots.slice(0,6).map(s => s.time || s.startTime)
+            finalSlots: filteredSlots.slice(0, 6).map(s => s.time || s.startTime)
           });
 
           // 📋 SUMMARY: Show exactly what was filtered out
@@ -1354,12 +1375,13 @@ const Time = (props) => {
             finalSlots: filteredSlots.length,
             removedSlots: rawScheduleSlots.length - filteredSlots.length,
             bookingConflicts: Object.keys(employeeBookings).length,
-            conflictingTimes: Object.values(employeeBookings).map(b => {
-              const startTime = b.startTime.includes('T') ? b.startTime.split('T')[1].substring(0, 5) : b.startTime;
-              const endTime = b.endTime.includes('T') ? b.endTime.split('T')[1].substring(0, 5) : b.endTime;
-              return `${startTime}-${endTime} (${b.serviceName})`;
-            }),
-            message: filteredSlots.length === 0 ? 
+            conflictingTimes: Object.values(employeeBookings).map(b => ({
+              timeSlot: `${b.startTime}-${b.endTime}`,
+              duration: b.duration,
+              serviceName: b.serviceName,
+              bookingId: b.bookingId
+            })),
+            message: filteredSlots.length === 0 ?
               'NO SLOTS AVAILABLE - All blocked by conflicts or shift boundaries' :
               `${filteredSlots.length} slots available after filtering conflicts`
           });
@@ -1377,17 +1399,21 @@ const Time = (props) => {
             conflictAnalysis: {
               totalScheduleSlots: rawScheduleSlots.length,
               blockedByBookings: Object.keys(employeeBookings).length,
-              blockedTimeSlots: Object.values(employeeBookings).map(b => {
-                const normalizeTime = (timeStr) => {
-                  if (!timeStr) return 'N/A';
-                  if (timeStr.includes('T')) {
-                    const date = new Date(timeStr);
-                    return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
-                  }
-                  return timeStr;
-                };
-                return `${normalizeTime(b.startTime)}-${normalizeTime(b.endTime)} (${b.serviceName})`;
-              }),
+              blockedTimeSlots: Object.values(employeeBookings).map(booking => ({
+                timeSlot: `${booking.startTime} - ${booking.endTime}`,
+                duration: `${booking.duration} minutes`,
+                serviceName: booking.serviceName,
+                status: booking.status,
+                appointmentDate: booking.appointmentDate,
+                rawStartTime: booking.startTime,
+                rawEndTime: booking.endTime,
+                employeeInfo: {
+                  id: booking.employee?._id || booking.employee?.id,
+                  name: booking.employee?.user ?
+                    `${booking.employee.user.firstName} ${booking.employee.user.lastName}` :
+                    booking.employee?.name
+                }
+              })),
               finalAvailableSlots: filteredSlots.length,
               slotsRemoved: rawScheduleSlots.length - filteredSlots.length
             },
@@ -1397,40 +1423,50 @@ const Time = (props) => {
                 if (!timeStr) return 'N/A';
                 if (timeStr.includes('T')) {
                   const date = new Date(timeStr);
+
+                  // TIMEZONE DEBUG: Log the conversion
+                  console.log('[Time] 🌍 TIME CONVERSION:', {
+                    originalISO: timeStr,
+                    utcTime: `${String(date.getUTCHours()).padStart(2, '0')}:${String(date.getUTCMinutes()).padStart(2, '0')}`,
+                    localTime: `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`,
+                    timezoneOffset: date.getTimezoneOffset()
+                  });
+
                   return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
                 }
                 return timeStr;
               };
+
               return normalizeTime(slotTime);
             }),
-            message: filteredSlots.length > 0 ? 
-              `${filteredSlots.length} time slots are available for booking` : 
+            message: filteredSlots.length > 0 ?
+              `${filteredSlots.length} time slots are available for booking` :
               'NO time slots available - all blocked by conflicts or shift boundaries'
           });
-          
+
           // Filter out past times if selected date is today
           const now = new Date();
           const isToday = selectedDate.toDateString() === now.toDateString();
           const currentTime = isToday ? `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}` : null;
-          
+
           const futureFilteredSlots = isToday ? filteredSlots.filter(slot => {
             const slotTime = slot.time || slot.startTime;
-            const normalizedSlotTime = slotTime.includes('T') ? 
+            const normalizedSlotTime = slotTime.includes('T') ?
               slotTime.split('T')[1].substring(0, 5) : slotTime;
-            
+
             // Compare times properly: slot time should be >= current time
             const isCurrentOrFuture = normalizedSlotTime >= currentTime;
-            
+
             console.log('[Time] Slot time comparison:', {
               slotTime: normalizedSlotTime,
               currentTime,
               isCurrentOrFuture,
               action: isCurrentOrFuture ? 'KEEP' : 'REMOVE'
             });
-            
+
             return isCurrentOrFuture;
           }) : filteredSlots;
-          
+
           console.log('[Time] Past time filtering:', {
             isToday,
             currentTime,
@@ -1439,13 +1475,13 @@ const Time = (props) => {
             removedPastSlots: filteredSlots.length - futureFilteredSlots.length
           });
 
-          const mapped = futureFilteredSlots.map((slot, i) => ({ 
-            id: i, 
+          const mapped = futureFilteredSlots.map((slot, i) => ({
+            id: i,
             time: formatTimeToAMPM(slot.time || slot.startTime), // Display in AM/PM format
             timeValue: slot.time || slot.startTime, // Keep original 24-hour format for calculations
-            startTime: slot.startTime || slot.time, 
-            endTime: slot.endTime || addMinutesToTime(slot.time || slot.startTime, duration), 
-            available: true 
+            startTime: slot.startTime || slot.time,
+            endTime: slot.endTime || addMinutesToTime(slot.time || slot.startTime, duration),
+            available: true
           }));
           setAvailableTimeSlots(mapped);
           console.log('[Time] SUCCESS: Using FIXED WORKFLOW filtered time slots for', assigned?.user?.firstName, assigned?.user?.lastName);
@@ -1458,16 +1494,16 @@ const Time = (props) => {
             employeeName: assigned?.user ? `${assigned.user.firstName} ${assigned.user.lastName}` : assigned?.name
           });
           console.warn('[Time] getEmployeeSchedule API failed, falling back to local computation', apiError.message);
-          
+
           // Fallback to local computation with enhanced workSchedule
           const slotsArr = getValidTimeSlotsForProfessional(assigned, selectedDate, duration, appointmentsIndex);
-          console.log('[Time] fallback local slots computed count', slotsArr.length, slotsArr.slice(0,6));
-          
+          console.log('[Time] fallback local slots computed count', slotsArr.length, slotsArr.slice(0, 6));
+
           // Filter out past times if selected date is today
           const now = new Date();
           const isToday = selectedDate.toDateString() === now.toDateString();
           const currentTime = isToday ? `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}` : null;
-          
+
           const futureFilteredSlotsArr = isToday ? slotsArr.filter(slotTime => {
             const isCurrentOrFuture = slotTime >= currentTime;
             console.log('[Time] Fallback slot time comparison:', {
@@ -1478,7 +1514,7 @@ const Time = (props) => {
             });
             return isCurrentOrFuture;
           }) : slotsArr;
-          
+
           console.log('[Time] Fallback past time filtering:', {
             isToday,
             currentTime,
@@ -1486,14 +1522,14 @@ const Time = (props) => {
             afterFilter: futureFilteredSlotsArr.length,
             removedPastSlots: slotsArr.length - futureFilteredSlotsArr.length
           });
-          
-          const mapped = futureFilteredSlotsArr.map((t, i) => ({ 
-            id: i, 
+
+          const mapped = futureFilteredSlotsArr.map((t, i) => ({
+            id: i,
             time: formatTimeToAMPM(t), // Display in AM/PM format
             timeValue: t, // Keep original 24-hour format for calculations
-            startTime: t, 
-            endTime: addMinutesToTime(t, duration), 
-            available: true 
+            startTime: t,
+            endTime: addMinutesToTime(t, duration),
+            available: true
           }));
           setAvailableTimeSlots(mapped);
         }
@@ -1534,14 +1570,14 @@ const Time = (props) => {
     // This preserves the selected time as-is in the target timezone
     const [startHour, startMinute] = formattedStartTime.split(':').map(n => parseInt(n));
     const [endHour, endMinute] = formattedEndTime.split(':').map(n => parseInt(n));
-    
+
     // Create date objects for the selected date at the exact time selected
     const startDateTimeLocal = new Date(selectedDate);
     startDateTimeLocal.setHours(startHour, startMinute, 0, 0);
-    
+
     const endDateTimeLocal = new Date(selectedDate);
     endDateTimeLocal.setHours(endHour, endMinute, 0, 0);
-    
+
     console.log('[Time] TIMEZONE FIX v2 - Time slot selection:', {
       selectedDateString: selectedDateStr,
       formattedStartTime,
@@ -1563,8 +1599,8 @@ const Time = (props) => {
     console.log('[Time] Using already assigned professional:', {
       serviceId: selectedService?._id,
       professionalId: currentProfessional?._id,
-      professionalName: currentProfessional?.user ? 
-        `${currentProfessional.user.firstName} ${currentProfessional.user.lastName}` : 
+      professionalName: currentProfessional?.user ?
+        `${currentProfessional.user.firstName} ${currentProfessional.user.lastName}` :
         currentProfessional?.name
     });
 
@@ -1652,6 +1688,34 @@ const Time = (props) => {
     return <FullPageLoader />;
   }
 
+  // Filter out past time slots for the current day
+  const filteredTimeSlots = useMemo(() => {
+    if (!isToday(selectedDate)) return availableTimeSlots;
+
+    const now = new Date();
+    const currentHour = now.getHours();
+    const currentMinute = now.getMinutes();
+
+    return availableTimeSlots.filter(slot => {
+      if (!slot.time) return false;
+
+      // Handle both 12-hour and 24-hour formats
+      let hour, minute;
+      if (slot.time.includes(' ')) {
+        // 12-hour format (e.g., "2:30 PM")
+        const [time, period] = slot.time.split(' ');
+        [hour, minute] = time.split(':').map(Number);
+        if (period === 'PM' && hour < 12) hour += 12;
+        if (period === 'AM' && hour === 12) hour = 0;
+      } else {
+        // 24-hour format (e.g., "14:30")
+        [hour, minute] = slot.time.split(':').map(Number);
+      }
+
+      return hour > currentHour || (hour === currentHour && minute > currentMinute + 15);
+    });
+  }, [availableTimeSlots, selectedDate]);
+
   return (
     <div className="time-selector">
       {/* {from === 'professionals' && (
@@ -1674,7 +1738,7 @@ const Time = (props) => {
                 <>
                   <div className="avatar multiple">
                     <div className="avatar-stack" aria-hidden="true">
-                      {assigned.slice(0,3).map((p,i) => {
+                      {assigned.slice(0, 3).map((p, i) => {
                         const ch = p?.user?.firstName?.charAt(0) || p?.name?.charAt(0) || '?';
                         return <div key={i} className="avatar-small" title={p?.user?.firstName ? `${p.user.firstName} ${p.user.lastName}` : p?.name}>{ch}</div>;
                       })}
@@ -1698,20 +1762,33 @@ const Time = (props) => {
         </div>
 
         <div className="calendar-picker-wrapper">
-          <button className="calendar-btn" onClick={() => setCalendarOpen(!calendarOpen)}>
+          <button
+            className="calendar-btn"
+            onClick={() => setCalendarOpen(!calendarOpen)}
+            aria-label="Open calendar"
+          >
             <Calendar className="calendar-icon" />
           </button>
 
           {calendarOpen && (
             <div className="calendar-popup">
               <div className="calendar-header">
-                <button onClick={() => changeMonth(-1)} className="cal-arrow">
-                  <ChevronLeft />
+                <button
+                  onClick={() => changeMonth(-1)}
+                  className="cal-arrow"
+                  disabled={isCurrentMonth(selectedDate)}
+                  aria-label="Previous month"
+                >
+                  <ChevronLeft className={isCurrentMonth(selectedDate) ? 'cal-arrow-disabled' : ''} />
                 </button>
-                <span>
+                <span className="calendar-month-title">
                   {selectedDate.toLocaleString("default", { month: "long" })} {selectedDate.getFullYear()}
                 </span>
-                <button onClick={() => changeMonth(1)} className="cal-arrow">
+                <button
+                  onClick={() => changeMonth(1)}
+                  className="cal-arrow"
+                  aria-label="Next month"
+                >
                   <ChevronRight />
                 </button>
               </div>
@@ -1719,24 +1796,7 @@ const Time = (props) => {
                 {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((d, i) => (
                   <div key={i} className="cal-day-name">{d}</div>
                 ))}
-                {Array(getFirstDayOfMonth(selectedDate.getFullYear(), selectedDate.getMonth()))
-                  .fill("")
-                  .map((_, i) => <div key={`empty-${i}`} className="cal-empty"></div>)}
-                {Array(getDaysInMonth(selectedDate.getFullYear(), selectedDate.getMonth()))
-                  .fill(0)
-                  .map((_, i) => {
-                    const day = i + 1;
-                    const isSelected = day === selectedDate.getDate();
-                    return (
-                      <div
-                        key={day}
-                        className={`cal-day ${isSelected ? "cal-day-selected" : ""}`}
-                        onClick={() => handleDateClick(day)}
-                      >
-                        {day}
-                      </div>
-                    );
-                  })}
+                {generateWeekDays()}
               </div>
             </div>
           )}
@@ -1772,13 +1832,16 @@ const Time = (props) => {
         </h2>
         <div className="nav-buttons">
           <button
-            className="nav-btn"
+            className={`nav-btn ${isPastDate(selectedDate) ? 'nav-btn-disabled' : ''}`}
             onClick={() => {
               const newDate = new Date(selectedDate);
               newDate.setDate(newDate.getDate() - 7);
-              setSelectedDate(newDate);
+              if (!isPastDate(newDate)) {
+                setSelectedDate(newDate);
+              }
             }}
             aria-label="Previous week"
+            disabled={isPastDate(selectedDate)}
           >
             <ChevronLeft className="nav-icon" />
           </button>
@@ -1797,16 +1860,43 @@ const Time = (props) => {
       </div>
 
       <div className="date-grid">
-        {weekDates.map((date, index) => (
+        {weekDates.length > 0 ? (
+          weekDates.map((date, index) => {
+            const isToday = date.toDateString() === new Date().toDateString();
+            const isSelected = selectedDate.toDateString() === date.toDateString();
+
+            return (
+              <button
+                key={index}
+                onClick={() => handleDateClick(date.getDate())}
+                className={`date-btn 
+                  ${isSelected ? "date-btn-selected" : ""} 
+                  ${isToday ? "date-btn-today" : ""}`}
+                aria-current={isToday ? "date" : undefined}
+              >
+                <span className="date-number">
+                  {date.getDate()}
+                  {isToday && <span className="today-indicator">•</span>}
+                </span>
+                <span className="date-weekday">
+                  {isToday ? 'Today' : date.toLocaleString("default", { weekday: 'short' })}
+                </span>
+              </button>
+            );
+          })
+        ) : (
+          // Show today's date if no future dates are available (shouldn't happen but good to handle)
           <button
-            key={index}
-            onClick={() => handleDateClick(date.getDate())}
-            className={`date-btn ${selectedDate.toDateString() === date.toDateString() ? "date-btn-selected" : ""}`}
+            className="date-btn date-btn-selected"
+            aria-current="date"
           >
-            <span className="date-number">{date.getDate()}</span>
-            <span className="date-weekday">{date.toLocaleString("default", { weekday: 'short' })}</span>
+            <span className="date-number">
+              {new Date().getDate()}
+              <span className="today-indicator">•</span>
+            </span>
+            <span className="date-weekday">Today</span>
           </button>
-        ))}
+        )}
       </div>
 
       <div className="time-grid-section">
@@ -1840,28 +1930,24 @@ const Time = (props) => {
       </div>
 
       {/* Fixed bottom bar for mobile: summary + continue */}
-  <div className="time-bottom-bar">
-        <div className="bar-summary">
-          <span>{bookingFlow.getTotalDuration()} min</span>
-          <span>{(bookingFlow.selectedServices?.length || 0)} services</span>
-          <span>AED {bookingFlow.getTotalPrice()}</span>
-        </div>
-        <div className="bar-actions">
-          <button
-            className="continue-btn"
-            disabled={!selectedTime}
-            onClick={() => {
-              if (!selectedTime) {
-                Swal.fire({ title: 'Time Slot Required', text: 'Please select an available time slot.', icon: 'warning', confirmButtonText: 'OK' });
-                return;
-              }
-              navigate('/payment');
-            }}
-          >
-            Continue
-          </button>
-        </div>
+      <div className="unified-bottom-bar">
+      {/* Summary Section */}
+      <div className="unified-bottom-bar__summary">
+        <span className="unified-bottom-bar__primary-info">AED {bookingFlow.getTotalPrice()}</span>
+        <span className="unified-bottom-bar__secondary-info">
+          {bookingFlow.selectedServices?.length || 0} service{bookingFlow.selectedServices?.length !== 1 ? 's' : ''} • {bookingFlow.getTotalDuration()} min
+        </span>
       </div>
+
+      {/* Action Button */}
+      <button
+        className="unified-bottom-bar__button"
+        disabled={!selectedTime}
+        onClick={() => { /* ... your click logic */ }}
+      >
+        Continue
+      </button>
+    </div>
     </div>
   );
 };

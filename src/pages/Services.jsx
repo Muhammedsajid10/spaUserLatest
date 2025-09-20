@@ -96,6 +96,15 @@ function Services() {
 
   // Initialize component
   useEffect(() => {
+    // Clear any existing booking flow when component mounts
+    bookingFlow.clear();
+    
+    // Reset local state
+    setSelectedService(null);
+    setSelectedOption(null);
+    setSelectedServicesCount(0);
+    
+    // Fetch services
     fetchServices();
   }, []);
 
@@ -527,18 +536,24 @@ function ServiceBottomBar({ currentStep = 1, navigate }) {
   };
 
   return (
-    <div className="service-bottom-bar">
-      <span>{totalDuration} min</span>
-      <span>{selectedServices.length} services</span>
-      <span>AED {totalRate}</span>
-      <button
-        className={`btn-continue ${!canContinue() ? "disabled" : ""}`}
-        onClick={handleContinue}
-        disabled={!canContinue()}
-      >
-        Continue
-      </button>
+    <div className="unified-bottom-bar">
+    {/* Summary Section */}
+    <div className="unified-bottom-bar__summary">
+      <span className="unified-bottom-bar__primary-info">AED {totalRate}</span>
+      <span className="unified-bottom-bar__secondary-info">
+        {serviceCount} service{serviceCount !== 1 ? 's' : ''} • {totalDuration} min
+      </span>
     </div>
+
+    {/* Action Button */}
+    <button
+      className="unified-bottom-bar__button"
+      onClick={handleContinue}
+      disabled={!canContinue()}
+    >
+      Continue
+    </button>
+  </div>
   );
 }
 

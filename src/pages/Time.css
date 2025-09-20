@@ -394,6 +394,382 @@
     color: #fff;
 }
 
+/* Add your custom styles here */
+
+/* Calendar Popup Styles */
+.calendar-popup {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  padding: 16px;
+  z-index: 1000;
+  width: 280px;
+  margin-top: 8px;
+}
+
+.calendar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.calendar-month-title {
+  font-weight: 600;
+  font-size: 16px;
+  color: #333;
+}
+
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  text-align: center;
+}
+
+.cal-day-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: #666;
+  padding: 4px 0;
+}
+
+.cal-day {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: transparent;
+  border: none;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.cal-day:hover:not(.cal-day-disabled) {
+  background: #f5f5f5;
+}
+
+.cal-day-selected {
+  background: #000;
+  color: white;
+}
+
+.cal-day-today {
+  position: relative;
+  color: #000;
+  font-weight: 600;
+}
+
+.cal-day-today:not(.cal-day-selected) {
+  background: #f0f0f0;
+}
+
+.cal-day-past,
+.cal-day-other-month {
+  color: #ccc;
+  cursor: not-allowed;
+}
+
+.cal-day-disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Date Grid Styles */
+.date-grid {
+  display: flex;
+  gap: 8px;
+  padding: 8px 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  margin-bottom: 16px;
+}
+
+.date-grid::-webkit-scrollbar {
+  display: none;
+}
+
+.date-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 60px;
+  height: 64px;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+  background: white;
+  cursor: pointer;
+  transition: all 0.2s;
+  padding: 8px;
+}
+
+.date-btn:hover {
+  border-color: #ccc;
+}
+
+.date-btn-selected {
+  background: #000;
+  border-color: #000;
+  color: white;
+}
+
+.date-btn-today {
+  border-color: #000;
+  position: relative;
+}
+
+.today-indicator {
+  position: absolute;
+  top: 4px;
+  color: #000;
+  font-size: 12px;
+  line-height: 1;
+}
+
+.date-btn-selected .today-indicator {
+  color: white;
+}
+
+.date-number {
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.2;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+}
+
+.date-weekday {
+  font-size: 12px;
+  color: #666;
+  text-transform: capitalize;
+}
+
+.date-btn-selected .date-weekday {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+/* Navigation Buttons */
+.nav-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.nav-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #e0e0e0;
+  background: white;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+/* ===================================================
+   UNIFIED BOTTOM BAR STYLING (PROFESSIONAL)
+   =================================================== */
+
+/* --- Main Container --- */
+/* This is the main wrapper for the bar, e.g., <div className="unified-bottom-bar"> */
+.unified-bottom-bar {
+    /* Layout & Positioning */
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 1000; /* Ensures it stays on top of other content */
+  
+    /* Box Model */
+    background-color: #ffffff;
+    padding: 12px 16px;
+    min-height: 72px; /* Provides ample touch area */
+    border-top: 1px solid #e9ecef; /* Subtle top border */
+    box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.06); /* Soft, modern shadow */
+  
+    /* Hide on desktop, as summary info is often in a sidebar */
+    @media (min-width: 1024px) {
+      display: none;
+    }
+  }
+  
+  /* --- Summary Section (Left Side) --- */
+  /* Wrapper for the text info, e.g., <div className="unified-bottom-bar__summary"> */
+  .unified-bottom-bar__summary {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-start;
+    gap: 4px; /* Creates space between the two lines of text */
+  }
+  
+  /* Primary Info (e.g., Price) */
+  /* <span className="unified-bottom-bar__primary-info">AED 410</span> */
+  .unified-bottom-bar__primary-info {
+    font-size: 1rem; /* 16px */
+    font-weight: 700; /* Bold for emphasis */
+    color: #1c1c1e; /* Near-black for strong contrast */
+    line-height: 1.2;
+  }
+  
+  /* Secondary Info (e.g., Services, Duration) */
+  /* <span className="unified-bottom-bar__secondary-info">1 service • 1 hr</span> */
+  .unified-bottom-bar__secondary-info {
+    font-size: 0.875rem; /* 14px */
+    color: #6c757d; /* Muted gray for secondary details */
+    line-height: 1.2;
+  }
+  
+  /* --- Action Button (Right Side) --- */
+  /* The button itself, e.g., <button className="unified-bottom-bar__button"> */
+  .unified-bottom-bar__button {
+    /* Appearance */
+    background-color: #000000;
+    color: #ffffff;
+    font-size: 1rem; /* 16px */
+    font-weight: 600;
+    border-radius: 10px; /* Slightly rounded corners */
+    border: none;
+    cursor: pointer;
+  
+    /* Box Model */
+    padding: 14px 28px; /* Generous padding for a premium feel */
+    white-space: nowrap; /* Prevents text from wrapping */
+  
+    /* Animation */
+    transition: background-color 0.2s ease-in-out, transform 0.15s ease;
+  }
+  
+  /* Hover state for the button (when not disabled) */
+  .unified-bottom-bar__button:hover:not(:disabled) {
+    background-color: #333333; /* Darken slightly on hover */
+    transform: translateY(-1px); /* Subtle lift effect */
+  }
+  
+  /* Disabled state for the button */
+  .unified-bottom-bar__button:disabled {
+    background-color: #e0e0e0; /* Lighter gray when disabled */
+    color: #a0a0a0;
+    cursor: not-allowed;
+  }
+  
+.nav-btn:hover:not(:disabled) {
+  border-color: #000;
+}
+
+.nav-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.nav-btn-disabled {
+  opacity: 0.5;
+  cursor: not-allowed !important;
+}
+
+.nav-icon {
+  width: 20px;
+  height: 20px;
+}
+
+/* Time Slots */
+.time-slots-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.time-slot {
+  padding: 10px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: white;
+}
+
+.time-slot:hover:not(.time-slot-disabled) {
+  border-color: #000;
+}
+
+.time-slot-selected {
+  background: #000;
+  border-color: #000;
+  color: white;
+}
+
+.time-slot-disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  text-decoration: line-through;
+}
+
+.time-text {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+/* Loading State */
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  color: #666;
+}
+
+.loading-dots {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+
+.loading-dots .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ccc;
+  animation: bounce 1.4s infinite ease-in-out both;
+}
+
+.loading-dots .dot:nth-child(1) { animation-delay: -0.32s; }
+.loading-dots .dot:nth-child(2) { animation-delay: -0.16s; }
+
+@keyframes bounce {
+  0%, 80%, 100% { transform: scale(0); }
+  40% { transform: scale(1); }
+}
+
+/* Responsive Adjustments */
+@media (max-width: 480px) {
+  .date-btn {
+    min-width: 54px;
+    height: 60px;
+  }
+  
+  .time-slots-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
 /* Add styles for error actions */
 .error-actions {
     display: flex;

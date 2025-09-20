@@ -1,5 +1,94 @@
 /* ProfessionalSelection.css */
 /* Clean, accessible B/W theme for Professionals + per-service assignment + modal */
+/* ===================================================
+   UNIFIED BOTTOM BAR STYLING (PROFESSIONAL)
+   =================================================== */
+
+/* --- Main Container --- */
+/* This is the main wrapper for the bar, e.g., <div className="unified-bottom-bar"> */
+.unified-bottom-bar {
+  /* Layout & Positioning */
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000; /* Ensures it stays on top of other content */
+
+  /* Box Model */
+  background-color: #ffffff;
+  padding: 12px 16px;
+  min-height: 72px; /* Provides ample touch area */
+  border-top: 1px solid #e9ecef; /* Subtle top border */
+  box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.06); /* Soft, modern shadow */
+
+  /* Hide on desktop, as summary info is often in a sidebar */
+  @media (min-width: 1024px) {
+    display: none;
+  }
+}
+
+/* --- Summary Section (Left Side) --- */
+/* Wrapper for the text info, e.g., <div className="unified-bottom-bar__summary"> */
+.unified-bottom-bar__summary {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 4px; /* Creates space between the two lines of text */
+}
+
+/* Primary Info (e.g., Price) */
+/* <span className="unified-bottom-bar__primary-info">AED 410</span> */
+.unified-bottom-bar__primary-info {
+  font-size: 1rem; /* 16px */
+  font-weight: 700; /* Bold for emphasis */
+  color: #1c1c1e; /* Near-black for strong contrast */
+  line-height: 1.2;
+}
+
+/* Secondary Info (e.g., Services, Duration) */
+/* <span className="unified-bottom-bar__secondary-info">1 service • 1 hr</span> */
+.unified-bottom-bar__secondary-info {
+  font-size: 0.875rem; /* 14px */
+  color: #6c757d; /* Muted gray for secondary details */
+  line-height: 1.2;
+}
+
+/* --- Action Button (Right Side) --- */
+/* The button itself, e.g., <button className="unified-bottom-bar__button"> */
+.unified-bottom-bar__button {
+  /* Appearance */
+  background-color: #000000;
+  color: #ffffff;
+  font-size: 1rem; /* 16px */
+  font-weight: 600;
+  border-radius: 10px; /* Slightly rounded corners */
+  border: none;
+  cursor: pointer;
+
+  /* Box Model */
+  padding: 14px 28px; /* Generous padding for a premium feel */
+  white-space: nowrap; /* Prevents text from wrapping */
+
+  /* Animation */
+  transition: background-color 0.2s ease-in-out, transform 0.15s ease;
+}
+
+/* Hover state for the button (when not disabled) */
+.unified-bottom-bar__button:hover:not(:disabled) {
+  background-color: #333333; /* Darken slightly on hover */
+  transform: translateY(-1px); /* Subtle lift effect */
+}
+
+/* Disabled state for the button */
+.unified-bottom-bar__button:disabled {
+  background-color: #e0e0e0; /* Lighter gray when disabled */
+  color: #a0a0a0;
+  cursor: not-allowed;
+}
 
 /* Variables */
 :root{

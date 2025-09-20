@@ -712,20 +712,25 @@ function ServiceBottomBar({ currentStep = 2, navigate, setShowSummary, selection
   const assignedCount = (bookingFlow.selectedServices || []).filter(s => bookingFlow.selectedProfessionals?.[s._id]).length;
 
   return (
-    <div className="service-bottom-bar">
-      <span>{totalDuration} min</span>
-      <span>{selectedServices.length} services</span>
-      {/* <span>{assignedCount}/{selectedServices.length} assigned</span> */}
-      <span>AED {totalRate}</span>
-      <button
-        className={`btn-continue ${!canContinue() ? "disabled" : ""}`}
-        onClick={handleContinue}
-        // allow the initial perService toggle even if not all services assigned
-        disabled={!canContinue() && !(selectionMode === 'perService' && !showSummary && !toggledOnceRef.current)}
-      >
-        Continue
-      </button>
+    <div className="unified-bottom-bar">
+    {/* Summary Section */}
+    <div className="unified-bottom-bar__summary">
+      <span className="unified-bottom-bar__primary-info">AED {totalRate}</span>
+      <span className="unified-bottom-bar__secondary-info">
+        {selectedServices.length} service{selectedServices.length !== 1 ? 's' : ''} • {totalDuration} min
+      </span>
     </div>
+
+    {/* Action Button */}
+    <button
+      className="unified-bottom-bar__button"
+      onClick={handleContinue}
+      // The complex disabled logic from your component is preserved
+      disabled={!canContinue() && !(selectionMode === 'perService' && !showSummary && !toggledOnceRef.current)}
+    >
+      Continue
+    </button>
+  </div>
   );
 }
 
