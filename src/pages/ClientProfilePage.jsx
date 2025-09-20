@@ -21,6 +21,7 @@ import Swal from "sweetalert2";
 import "./ClientProfilePage.css";
 import { authAPI, bookingsAPI, paymentsAPI, feedbackAPI } from "../services/api";
 import { useNavigate } from "react-router-dom";
+
 /* -------------------
    Theme Hook
    ------------------- */
@@ -202,7 +203,7 @@ const ProfileHeader = ({ profile }) => (
         )}
       </div>
       <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3">
-        <button 
+        {/* <button 
           className="btn btn-secondary btn-sm"
           onClick={() => Swal.fire({
             title: "Edit Profile",
@@ -223,7 +224,7 @@ const ProfileHeader = ({ profile }) => (
         >
           <Key className="w-4 h-4" />
           <span>Change Password</span>
-        </button>
+        </button> */}
       </div>
     </div>
   </div>
@@ -436,12 +437,18 @@ const SpaProfilePage = () => {
   const [bookings, setBookings] = useState([]);
   const [invoices, setInvoices] = useState([]);
   const [feedback, setFeedback] = useState([]);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [showPasswordForm, setShowPasswordForm] = useState(false);
+  const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
+  const [changingPassword, setChangingPassword] = useState(false);
+  const [editMode, setEditMode] = useState(false);
+  const [editProfile, setEditProfile] = useState({});
+  const [isUpdating, setIsUpdating] = useState(false);
   const [error, setError] = useState(null);
   
   const { theme, toggleTheme } = useTheme();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
+  const [loading, setLoading] = useState(true);
 
   // Enhanced responsive check with debouncing
   useEffect(() => {
@@ -531,6 +538,47 @@ const SpaProfilePage = () => {
 
     fetchData();
   }, []);
+
+  // Initialize editProfile when profile data loads
+  useEffect(() => {
+    if (profile) {
+      setEditProfile(profile);
+    }
+  }, [profile]);
+
+  const handleProfileChange = (e) => {
+    const { name, value } = e.target;
+    setEditProfile(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handleProfileSave = async (e) => {
+    e.preventDefault();
+    setIsUpdating(true);
+    try {
+      const response = await authAPI.updateProfile(editProfile);
+      setProfile(response.data.user);
+      setEditMode(false);
+      Swal.fire({
+        title: 'Success!',
+        text: 'Profile updated successfully',
+        icon: 'success',
+        timer: 2000,
+        showConfirmButton: false
+      });
+    } catch (error) {
+      console.error('Update failed:', error);
+      Swal.fire({
+        title: 'Error!',
+        text: error.response?.data?.message || 'Failed to update profile',
+        icon: 'error'
+      });
+    } finally {
+      setIsUpdating(false);
+    }
+  };
 
   // Enhanced sidebar management
   const toggleSidebar = () => {

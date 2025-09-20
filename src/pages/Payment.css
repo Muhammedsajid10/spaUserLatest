@@ -530,17 +530,33 @@ body {
   }
 }
 
+/* Tablet View - 768px and below */
+@media (max-width: 768px) {
+  .booking-summary-card {
+    margin-top: 30px;
+    border-radius: 7px;
+  }
+}
+
+/* Mobile View - 480px and below */
 @media (max-width: 480px) {
+  .booking-summary-card {
+    margin-top: 30px;
+  }
+  
   .payment-container {
     padding: 8px;
   }
 
   .payment-left {
-    padding: 12px;
-    margin: 20px 0 0 20px; /* Further reduced left margin for small screens */
-    width: auto; /* Full width on mobile */
+    padding: 15px;
+    margin: 10px auto 0; /* 10px top margin on small screens */
+    width: 100%;
     max-width: 100%;
-    min-width: 0; /* Reset min-width */
+    min-width: 0;
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
   }
 
   .summary-header,

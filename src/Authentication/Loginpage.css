@@ -36,7 +36,50 @@
 .auth-form { display:flex; flex-direction:column; gap:22px; }
 .form-group { display:flex; flex-direction:column; gap:8px; }
 .form-group label { font-size:.8rem; font-weight:600; letter-spacing:.5px; text-transform:uppercase; color:#555; }
-.form-group input {  border-radius:14px; padding:15px 18px; font-size:.95rem; background:#ffffff; transition:.25s; font-weight:500; }
+.form-group input {  
+  border: 1px solid #e0e0e0;
+  border-radius: 12px; 
+  padding: 16px 20px; 
+  font-size: 1rem;
+  background: #f9f9f9;
+  transition: all 0.3s ease;
+  font-weight: 500;
+  width: 100%;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+/* Specific style for email input */
+.form-group input[type="email"] {
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+
+.form-group input:focus {
+  outline: none;
+  border-color: #000;
+  box-shadow: 0 0 0 2px rgba(0,0,0,0.1);
+  background: #fff;
+}
+
+/* Placeholder styling */
+.form-group input::placeholder {
+  color: #999;
+  font-weight: 400;
+}
+
+/* Hover state */
+.form-group input:not(:disabled):hover {
+  border-color: #b3b3b3;
+  background: #fff;
+}
+
+/* Disabled state */
+.form-group input:disabled {
+  background: #f5f5f5;
+  cursor: not-allowed;
+  opacity: 0.8;
+}
 .form-group input:focus { outline:none; background:#fff; border-color:#000; box-shadow:0 0 0 4px rgba(0,0,0,.08); }
 .form-label-row { display:flex; justify-content:space-between; align-items:center; gap:16px; }
 .show-pass-btn { background:none; border:none; font-size:.75rem; letter-spacing:.5px; font-weight:600; text-transform:uppercase; cursor:pointer; color:#000; padding:4px 8px; border-radius:6px; transition:.25s; }

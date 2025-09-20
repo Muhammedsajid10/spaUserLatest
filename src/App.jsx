@@ -69,15 +69,8 @@ function App() {
             <Route index element={<Services />} />
             <Route path="professionals" element={<ProfessionalsUpdated />} />
             
-            {/* Protected Time route - requires authentication */}
-            <Route 
-              path="time" 
-              element={
-                <ProtectedRoute>
-                  <Time />
-                </ProtectedRoute>
-              } 
-            />
+            {/* Time route - accessible without authentication */}
+            <Route path="time" element={<Time />} />
             
             {/* Protected Payment route - requires authentication */}
             <Route 

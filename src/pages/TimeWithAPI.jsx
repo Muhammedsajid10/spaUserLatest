@@ -214,7 +214,7 @@ const Time = (props) => {
     }
     
     bookingFlow.setSelectedTimeSlot(selectedTime);
-    navigate('/payment');
+    navigate('/signup');
   };
 
   const changeMonth = (months) => {
