@@ -105,11 +105,11 @@ function App() {
             </LayoutWithBooking>
           } />
           
-          {/* <Route path="/payment/process" element={
+          <Route path="/payment/process" element={
             <LayoutWithBooking>
               <PaymentProcess />
             </LayoutWithBooking>
-          } /> */}
+          } />
           
           {/* <Route path="/payment/success" element={
             <LayoutWithBooking>

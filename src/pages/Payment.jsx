@@ -13,17 +13,19 @@ import './Payment.css';
 const stripePublishableKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || 'pk_test_4eC39HqLyjWDarjtT1zdp7dc';
 console.log('[STRIPE] Using publishable key:', stripePublishableKey);
 
-const stripePromise = loadStripe(stripePublishableKey).then(stripe => {
-  if (!stripe) {
-    console.error('[STRIPE] Failed to load Stripe');
-  } else {
+const stripePromise = loadStripe(stripePublishableKey)
+  .then(stripe => {
     console.log('[STRIPE] Stripe loaded successfully');
-  }
-  return stripe;
-}).catch(error => {
-  console.error('[STRIPE] Error loading Stripe:', error);
-  return null;
-});
+    setStripeLoaded(true);
+    setStripeError(null);
+    return stripe;
+  })
+  .catch(error => {
+    console.error('[STRIPE] Error loading Stripe:', error);
+    setStripeError('Failed to load payment processor. Please refresh the page or try again later.');
+    setStripeLoaded(false);
+    return null;
+  });
 
 // Test mode configuration
 const STRIPE_TEST_MODE = import.meta.env.VITE_STRIPE_TEST_MODE === 'true' || import.meta.env.DEV || true;
@@ -262,6 +264,11 @@ const Payment = () => {
   const [paymentSuccess, setPaymentSuccess] = useState(false);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [isNavigating, setIsNavigating] = useState(false);
+  const [showTimeConfirmation, setShowTimeConfirmation] = useState(false);
+  const [bookingConfirmed, setBookingConfirmed] = useState(false);
+  const [createdBooking, setCreatedBooking] = useState(null);
+  const [stripeLoaded, setStripeLoaded] = useState(false);
+  const [stripeError, setStripeError] = useState(null);
 
   // Get booking data from localStorage
   const bookingData = JSON.parse(localStorage.getItem('bookingData') || '{}');
@@ -571,157 +578,132 @@ const Payment = () => {
   };
 
   const handlePayment = async () => {
-  setLoading(true);
-  setProcessing(true);
-    setError(null);
-
+    setLoading(true);
+    setProcessing(true);
+    setError('');
+    
     try {
-      console.log('[PAYMENT] Starting payment process with method:', selectedMethod);
-
-      // Validation: UPI requires VPA
-      if (selectedMethod === 'upi' && !upiVpa.trim()) {
-        setError('Please enter your UPI ID');
-        return;
+      // First, create the booking in the database
+      console.log('[PAYMENT] Creating booking in database...');
+      const createdBooking = await createBookingInDatabase();
+      setCreatedBooking(createdBooking);
+      
+      // Show time confirmation dialog
+      setShowTimeConfirmation(true);
+    } catch (error) {
+      console.error('[PAYMENT] Error creating booking:', error);
+      setError(`Failed to create booking: ${error.message}`);
+      setLoading(false);
+      setProcessing(false);
+    }
+  };
+  
+  const confirmBookingTime = async () => {
+    if (!createdBooking) return;
+    
+    setShowTimeConfirmation(false);
+    setBookingConfirmed(true);
+    processPayment(createdBooking);
+  };
+  
+  const processPayment = async (booking) => {
+    console.log('[PAYMENT] Starting payment process...');
+    setLoading(true);
+    setError('');
+    
+    // Check if Stripe is loaded for card payments
+    if (selectedMethod === 'card' && !stripeLoaded) {
+      console.error('[PAYMENT] Stripe not loaded');
+      setError('Payment processor is not ready. Please refresh the page and try again.');
+      setLoading(false);
+      return;
+    }
+    
+    // Validation: UPI requires VPA
+    if (selectedMethod === 'upi' && !upiVpa?.trim()) {
+      setError('Please enter your UPI ID');
+      setLoading(false);
+      return;
+    }
+    
+    try {
+      // 1. First ensure the booking exists in the database
+      console.log('[PAYMENT] Creating booking in database...');
+      const createdBooking = await createBookingInDatabase();
+      console.log('[PAYMENT] Booking creation response:', createdBooking);
+      
+      // Extract the correct booking ID from the response
+      let newBookingId;
+      let newBookingNumber;
+      
+      if (createdBooking && createdBooking.booking) {
+        newBookingId = createdBooking.booking._id || createdBooking.booking.id;
+        newBookingNumber = createdBooking.booking.bookingNumber;
+      } else if (createdBooking && createdBooking._id) {
+        newBookingId = createdBooking._id;
+        newBookingNumber = createdBooking.bookingNumber;
+      } else if (createdBooking && createdBooking.id) {
+        newBookingId = createdBooking.id;
+        newBookingNumber = createdBooking.bookingNumber;
       }
-
-      // 1. Ensure booking exists in database
-      let bookingData = finalBookingData;
-      if (!bookingData.bookingId || bookingData.bookingId.toString().startsWith('BK')) {
-        console.log('[PAYMENT] Creating booking in database first...');
-        try {
-          const createdBooking = await createBookingInDatabase();
-          console.log('[PAYMENT] Booking creation response:', createdBooking);
-          
-          // Extract the correct booking ID from the response
-          let newBookingId;
-          let newBookingNumber;
-          
-          if (createdBooking && createdBooking.booking) {
-            newBookingId = createdBooking.booking._id || createdBooking.booking.id;
-            newBookingNumber = createdBooking.booking.bookingNumber;
-          } else if (createdBooking && createdBooking._id) {
-            newBookingId = createdBooking._id;
-            newBookingNumber = createdBooking.bookingNumber;
-          } else if (createdBooking && createdBooking.id) {
-            newBookingId = createdBooking.id;
-            newBookingNumber = createdBooking.bookingNumber;
-          }
-          
-          console.log('[PAYMENT] Extracted booking ID:', newBookingId);
-          console.log('[PAYMENT] Extracted booking number:', newBookingNumber);
-          
-          if (!newBookingId) {
-            throw new Error('Failed to extract booking ID from created booking');
-          }
-          
-          bookingData = {
-            ...bookingData,
-            bookingId: newBookingId,
-            bookingNumber: newBookingNumber || newBookingId
-          };
-          
-          console.log('[PAYMENT] Updated booking data:', bookingData);
-        } catch (bookingError) {
-          console.error('[PAYMENT] Failed to create booking:', bookingError);
-          throw new Error(`Failed to create booking: ${bookingError.message}`);
-        }
+      
+      console.log('[PAYMENT] Extracted booking ID:', newBookingId);
+      console.log('[PAYMENT] Extracted booking number:', newBookingNumber);
+      
+      if (!newBookingId) {
+        throw new Error('Failed to extract booking ID from created booking');
       }
-
-      // 2. Prepare payment data
+      
+      // Update booking data with the new booking ID and number
+      const updatedBooking = {
+        ...booking,
+        bookingId: newBookingId,
+        bookingNumber: newBookingNumber || newBookingId,
+        _id: newBookingId // Ensure _id is set for consistency
+      };
+      
+      console.log('[PAYMENT] Updated booking data:', updatedBooking);
+      
+      // 2. Prepare payment data for the processing page
       const paymentData = {
-        // Backend expects bookingId to be the bookingNumber according to the controller
-        bookingId: bookingData.bookingNumber || bookingData.bookingId,
-        amount: bookingData.totalAmount,
-        currency: 'AED',
-        paymentMethod: selectedMethod === 'upi' ? 'digital_wallet' : selectedMethod, // Map UPI to digital_wallet
-        gateway: 'stripe', // Backend only supports stripe gateway
-        
-        // Include method-specific data
-        ...(selectedMethod === 'upi' && { upiVpa }),
-        
-        // Client info
+        amount: updatedBooking.totalAmount,
+        currency: 'aed',
+        paymentMethod: selectedMethod === 'upi' ? 'digital_wallet' : selectedMethod,
+        bookingId: newBookingId,
+        bookingNumber: newBookingNumber || newBookingId,
+        isCash: selectedMethod === 'cash',
+        gateway: 'stripe',
+        // For card payments, we'll handle the client secret in the processing page
+        clientSecret: selectedMethod === 'card' ? 'mock_client_secret_' + Date.now() : null,
+        metadata: {
+          upiVpa: selectedMethod === 'upi' ? upiVpa : null
+        },
+        // Include client info
         clientInfo: {
-          name: `${user.firstName || ''} ${user.lastName || ''}`.trim(),
-          email: user.email,
-          phone: user.phone
+          name: `${user?.firstName || ''} ${user?.lastName || ''}`.trim(),
+          email: user?.email || '',
+          phone: user?.phone || ''
         }
       };
-
-      console.log('[PAYMENT] Payment data prepared:', paymentData);
-
-      // 3. Handle different payment methods (TEST MODE)
-      if (selectedMethod === 'cash') {
-        console.log('[PAYMENT TEST MODE] Processing cash payment');
-        
-        if (STRIPE_TEST_MODE) {
-          // Simulate cash payment in test mode
-          console.log('[PAYMENT TEST MODE] Simulating cash payment');
-          await new Promise(resolve => setTimeout(resolve, 1500));
-          
-          await handlePaymentSuccess({
-            paymentData: {
-              paymentId: 'cash_test_' + Date.now(),
-              status: 'pending',
-              transactionId: 'TXN_CASH_' + Math.random().toString(36).substr(2, 9)
-            },
-            paymentMethod: 'cash'
-          });
-        } else {
-          // Real cash payment processing
-          const paymentResponse = await paymentsAPI.createPayment({
-            ...paymentData,
-            status: 'pending'
-          });
-          
-          if (paymentResponse.success) {
-            await handlePaymentSuccess({
-              paymentData: paymentResponse.data,
-              paymentMethod: 'cash'
-            });
-          } else {
-            throw new Error(paymentResponse.message || 'Cash payment registration failed');
-          }
-        }
-      } else if (selectedMethod === 'upi') {
-        console.log('[PAYMENT TEST MODE] Processing UPI payment');
-        
-        if (STRIPE_TEST_MODE) {
-          // Simulate UPI payment in test mode
-          console.log('[PAYMENT TEST MODE] Simulating UPI payment for:', upiVpa);
-          await new Promise(resolve => setTimeout(resolve, 2000));
-          
-          await handlePaymentSuccess({
-            paymentData: {
-              paymentId: 'upi_test_' + Date.now(),
-              status: 'completed',
-              transactionId: 'TXN_UPI_' + Math.random().toString(36).substr(2, 9),
-              upiVpa: upiVpa
-            },
-            paymentMethod: 'upi'
-          });
-        } else {
-          // Real UPI payment processing
-          const paymentResponse = await paymentsAPI.createPayment(paymentData);
-          
-          if (paymentResponse.success) {
-            // For UPI, you would typically redirect to UPI app or show QR code
-            await handlePaymentSuccess({
-              paymentData: paymentResponse.data,
-              paymentMethod: 'upi'
-            });
-          } else {
-            throw new Error(paymentResponse.message || 'UPI payment failed');
-          }
-        }
-      } else {
-        // Card payment handled by Stripe component
-        setPaymentIntent(paymentData);
-        // stop generic processing spinner so user can enter card details
-        setProcessing(false);
-      }
-
-  } catch (error) {
-      console.error('[PAYMENT] Payment error:', error);
+      
+      console.log('[PAYMENT] Navigating to processing page with data:', { 
+        paymentData, 
+        booking: updatedBooking 
+      });
+      
+      // 3. Navigate to the processing page with all necessary data
+      navigate('/payment/process', {
+        state: {
+          paymentData,
+          bookingData: updatedBooking,
+          selectedMethod,
+          selectedGateway: 'stripe' // or whatever gateway you're using
+        },
+        replace: true
+      });
+      
+    } catch (error) {
+      console.error('[PAYMENT] Error in payment process:', error);
       console.error('[PAYMENT] Error details:', {
         message: error.message,
         stack: error.stack,
@@ -729,25 +711,49 @@ const Payment = () => {
       });
 
       let errorMessage = 'Payment failed. Please try again.';
-
+      
+      // Handle specific error cases
       if (error.message && error.message.includes('User not logged in')) {
         errorMessage = 'Please log in to continue with payment.';
       } else if (error.message && error.message.includes('conflicting booking')) {
         errorMessage = 'This time slot is no longer available. Please select a different time.';
-      } else if (error.message && (error.message.includes('network') || error.message.includes('fetch'))) {
-        errorMessage = 'Network error. Please check your connection and try again.';
-      } else if (error.message && (error.message.includes('401') || error.message.includes('Unauthorized'))) {
-        errorMessage = 'Authentication failed. Please log in again.';
+      }
+      
+      // Set the error message and stop loading
+      setError(`Failed to process payment: ${errorMessage}`);
+      setLoading(false);
+      
+      // Handle different types of errors
+      if (error && error.message) {
+        const msg = String(error.message).toLowerCase();
+        
+        if (msg.includes('failed to create booking') || msg.includes('network error')) {
+          console.error('[PAYMENT] Critical error - redirecting to error page');
+          // You can add navigation to an error page here if needed
+        } else if (msg.includes('network') || msg.includes('fetch')) {
+          errorMessage = 'Network error. Please check your connection and try again.';
+        } else if (msg.includes('401') || msg.includes('unauthorized')) {
+          errorMessage = 'Authentication failed. Please log in again.';
+        } else {
+          errorMessage = error.message || 'Payment failed. Please try again.';
+        }
       } else {
-        errorMessage = (error && error.message) ? error.message : 'Payment failed. Please try again.';
+        errorMessage = 'Payment failed. Please try again.';
       }
 
-  setError(errorMessage);
+      setError(errorMessage);
 
       // If booking creation failed (network/API or explicit create booking error), navigate to cancel flow
       try {
         const msg = (error && error.message) ? String(error.message).toLowerCase() : '';
-        const isBookingCreateError = msg.includes('create booking') || msg.includes('failed to create booking') || msg.includes('failed to create') || msg.includes('booking could not') || msg.includes('no time slot') || msg.includes('network') || msg.includes('fetch');
+        const isBookingCreateError = msg.includes('create booking') || 
+          msg.includes('failed to create booking') || 
+          msg.includes('failed to create') || 
+          msg.includes('booking could not') || 
+          msg.includes('no time slot') || 
+          msg.includes('network') || 
+          msg.includes('fetch');
+          
         if (isBookingCreateError) {
           navigate('/payment/cancel', { state: { error: error.message, booking: finalBookingData } });
           return;
@@ -887,6 +893,62 @@ const Payment = () => {
 
   // Minimal left-only payment panel.
   // The booking summary will be shown by LayoutWithBooking's sidebar (right side).
+  // Time Confirmation Modal
+  if (showTimeConfirmation && createdBooking) {
+    const formattedDate = new Date(createdBooking.appointmentDate).toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+    
+    const startTime = new Date(createdBooking.services[0].startTime).toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true
+    });
+    
+    return (
+      <div className="time-confirmation-modal">
+        <div className="time-confirmation-content">
+          <h3>Confirm Your Booking Time</h3>
+          <div className="booking-time-details">
+            <p>Please confirm your booking time:</p>
+            <div className="time-slot">
+              <i className="far fa-calendar-alt"></i>
+              <span>{formattedDate}</span>
+            </div>
+            <div className="time-slot">
+              <i className="far fa-clock"></i>
+              <span>{startTime}</span>
+            </div>
+          </div>
+          <div className="confirmation-actions">
+            <button 
+              className="btn-confirm"
+              onClick={confirmBookingTime}
+              disabled={loading}
+            >
+              {loading ? 'Processing...' : 'Confirm & Proceed to Payment'}
+            </button>
+            <button 
+              className="btn-cancel"
+              onClick={() => {
+                setShowTimeConfirmation(false);
+                setLoading(false);
+                setProcessing(false);
+              }}
+              disabled={loading}
+            >
+              Change Time
+            </button>
+          </div>
+          {error && <div className="error-message">{error}</div>}
+        </div>
+      </div>
+    );
+  }
+
   if (successResult) {
     return (
       <div className="payment-success-wrapper">
@@ -907,8 +969,33 @@ const Payment = () => {
     );
   }
 
+  // Show error if Stripe failed to load
+  if (stripeError && selectedMethod === 'card') {
+    return (
+      <div className="payment-error">
+        <h3>Payment Error</h3>
+        <p>{stripeError}</p>
+        <button 
+          onClick={() => window.location.reload()} 
+          className="btn-retry"
+        >
+          Refresh Page
+        </button>
+      </div>
+    );
+  }
+
   return (
-    <Elements stripe={stripePromise}>
+    <Elements 
+      stripe={stripePromise}
+      options={{
+        fonts: [
+          {
+            cssSrc: 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap',
+          },
+        ],
+      }}
+    >
       <div className="payment-page">
         <div className="payment-card-main">
           <h2 className="payment-title">Review and confirm</h2>

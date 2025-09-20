@@ -1,3 +1,4 @@
+
 /* ===========================================
    RESPONSIVE SERVICES LAYOUT - CLEAN VERSION
    =========================================== */
@@ -26,12 +27,12 @@ body {
 @media (min-width: 1024px) {
   .services-page-wrapper {
     display: block;
-    width: calc(111vw - 520px);
+    width: calc(100vw - 520px);
     margin: 0;
     padding: 0 2rem;
     margin-left: 0;
     margin-right: auto;
-}
+  }
   
   .services-main-content {
     min-width: 0; /* Prevent grid blowout */
@@ -47,16 +48,6 @@ body {
   .services-main-content::-webkit-scrollbar {
     display: none; /* Hide scrollbar for webkit browsers */
   }
-  
-  /* .booking-sidebar {
-    position: sticky;
-    top: 2rem;
-    height: fit-content;
-    max-height: calc(100vh - 4rem); 
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-  } */
   
   /* Hide mobile bottom bar on desktop */
   .service-bottom-bar {
@@ -74,11 +65,6 @@ body {
     width: 100%;
     padding-bottom: 60px; /* Reduced space for bottom bar */
   }
-  
-  /* Hide sidebar on mobile/tablet */
-  /* .booking-sidebar {
-    display: none !important;
-  } */
   
   /* Show bottom bar on mobile/tablet */
   .service-bottom-bar {
@@ -171,11 +157,6 @@ body {
   margin-bottom: 1rem;
 }
 
-/* --- NAVIGATION --- */
-
-
-
-
 /* --- SERVICES CONTAINER --- */
 .svc-container {
   padding: 2rem;
@@ -184,79 +165,89 @@ body {
   width: 100%;
 }
 
-/* Responsive width constraints for larger screens */
-@media (min-width: 1102px) {
-  .svc-container {
-    max-width: calc(100vw - 520px); /* Account for sidebar width */
-    width: calc(100vw - 520px); /* Fixed width to prevent unbounded growth */
-  }
-  
-  .svc-category-section {
-    max-width: 100%; /* Ensure it doesn't exceed container */
-    width: 100%; /* Full width of container */
-  }
-  
+/* --- SERVICE ITEMS --- */
+.svc-category-section {
+  margin-bottom: 3rem;
+}
+
+.svc-category-title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  border-left: 4px solid #000;
+  padding-left: 1rem;
+}
+
+.svc-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.svc-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  background: #fff;
+  border: 1px solid #555555;
+  border-radius: 12px;
+  padding: 1.5rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  width: 100%; /* Default to full width on smaller screens */
+  max-width: 100%; /* Ensure it doesn't overflow its container */
+}
+
+.svc-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* --- RESPONSIVE WIDTHS FOR .svc-item --- */
+
+/* Laptops and Desktops (1024px to 1440px) */
+@media (min-width: 1024px) and (max-width: 1440px) {
   .svc-item {
-    max-width: 100%; /* Ensure service items stay within bounds */
-    width: 100%; /* Full width of container */
-    box-sizing: border-box; /* Include padding in width calculation */
-  }
-  
-  .svc-info {
-    flex: 1; /* Take available space */
-    min-width: 0; /* Allow shrinking */
-    max-width: calc(100% - 60px); /* Leave space for add button */
-  }
-  
-  .svc-add-btn {
-    flex-shrink: 0; /* Don't shrink the button */
-    width: 40px; /* Fixed button width */
-    height: 40px; /* Fixed button height */
+    max-width: 70%;
   }
 }
 
-/* Large screens (1446px to 2500px) - Align with booking sidebar */
-@media (min-width: 1446px) and (max-width: 2500px) {
-  .svc-container {
-    max-width: calc(100vw - 520px); /* Maintain sidebar space */
-    width: calc(100vw - 520px); /* Prevent unbounded growth */
-  }
-  
-  .svc-category-section {
-    max-width: calc(100vw - 560px); /* Align with sidebar edge, accounting for padding */
-    width: 100%; /* Full width of container */
-    margin-right: 0; /* Ensure right alignment with sidebar */
-  }
-  
+/* Large Desktops (1441px to 2000px) */
+@media (min-width: 1441px) and (max-width: 2000px) {
   .svc-item {
-    max-width: 76%;/* Stay within category section bounds */
+    max-width: 60%;
   }
 }
 
-/* Ultra-wide screens (2500px and above) */
-@media (min-width: 2500px) {
-  .svc-container {
-    max-width: calc(100vw - 520px);
-    width: calc(100vw - 520px);
-  }
-  
-  .svc-category-section {
-    max-width: calc(100vw - 560px); /* Align with sidebar edge */
-    width: 100%;
-    margin-right: 0;
-  }
-  
+/* Extra Large Desktops (2001px to 3000px) */
+@media (min-width: 2001px) and (max-width: 3000px) {
   .svc-item {
-    max-width: 100%;
+    max-width: 45%;
   }
 }
 
+/* 4K Monitors and Wider (3001px to 5000px) */
+@media (min-width: 3001px) and (max-width: 5000px) {
+  .svc-item {
+    max-width: 62%;
+  }
+}
+
+/* Ultra-Wide Screens (5001px and above) */
+@media (min-width: 5001px) {
+  .svc-item {
+    max-width: 55%;
+    min-width: 15%; /* Set the minimal width for very large screens */
+  }
+}
+
+/* Small tablets and mobile */
 @media (max-width: 768px) {
   .svc-container {
     padding: 1rem;
-    padding-top: 206px;
-    padding-bottom: 0; /* Remove any bottom padding */
-    margin-bottom: 0; /* Remove any bottom margin */
+    padding-top: 160px; /* Adjust if header height changes */
+    padding-bottom: 0;
+    margin-bottom: 0;
   }
   
   .svc-header {
@@ -266,9 +257,96 @@ body {
   .svc-header h2 {
     font-size: 2rem;
   }
-  
 
+  .svc-item {
+    flex-direction: column;
+    gap: 1rem;
+    max-width: 100%; /* Ensure full width on mobile */
+  }
+  
+  .svc-info {
+    padding-right: 0;
+  }
+  
+  .svc-add-btn {
+    align-self: flex-end;
+    width: 36px;
+    height: 36px;
+  }
 }
+
+/* Mobile phones */
+@media (max-width: 480px) {
+  .svc-container {
+    padding: 10rem 0.75rem 0 0.75rem;
+    margin-bottom: 0;
+  }
+  
+  .svc-header {
+    padding: 0.75rem;
+  }
+  
+  .svc-header h2 {
+    font-size: 1.75rem;
+  }
+  
+  .svc-item {
+    padding: 1rem;
+  }
+}
+
+.svc-item-selected {
+  border-color: #1976d2;
+  background: #f8f9ff;
+}
+
+.svc-info {
+  flex: 1;
+  padding-right: 1rem;
+  min-width: 0; /* Allow shrinking */
+}
+
+.svc-info h4 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.time {
+  font-size: 0.9rem;
+  color: #777;
+  margin-bottom: 0.5rem;
+}
+
+.svc-info p {
+  font-size: 0.9rem;
+  color: #555;
+  line-height: 1.6;
+  margin-bottom: 0.5rem;
+}
+
+.svc-price {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #000;
+}
+
+.svc-add-btn {
+  background: #f0f0f0;
+  border: none;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  font-size: 1.5rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  flex-shrink: 0; /* Prevent button from shrinking */
+}
+
+.svc-add-btn:hover {
+  background: #ddd;
+}
+
 /* --- NAVIGATION --- */
 .svc-nav {
   display: flex;
@@ -278,7 +356,6 @@ body {
   overflow-y: hidden; /* Prevent vertical scrolling */
   padding: 0 2rem 1rem;
   -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
-  /* scrollbar-width: thin;  */
   scroll-behavior: smooth; /* Smooth programmatic scrolling */
 }
 
@@ -357,164 +434,6 @@ body {
     font-size: 0.85rem;
   }
 }
-
-/* Hide scrollbar on desktop if preferred (optional) */
-@media (min-width: 1025px) {
-  .svc-nav::-webkit-scrollbar {
-    height: 4px; /* Thinner on desktop */
-  }
-  
-  /* Uncomment below to completely hide scrollbar on desktop */
-  /*
-  .svc-nav::-webkit-scrollbar {
-    display: none;
-  }
-  .svc-nav {
-    scrollbar-width: none;
-  }
-  */
-}
-
-/* Optional: Add fade indicators to show scrollable content */
-.svc-nav-container {
-  position: relative;
-}
-
-.svc-nav-container::before,
-.svc-nav-container::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  bottom: 1rem; /* Account for padding */
-  width: 20px;
-  pointer-events: none;
-  z-index: 1;
-}
-
-.svc-nav-container::before {
-  left: 0;
-  background: linear-gradient(to right, #f4f4f4, transparent);
-}
-
-.svc-nav-container::after {
-  right: 0;
-  background: linear-gradient(to left, #f4f4f4, transparent);
-}
-
-@media (max-width: 768px) {
-  .svc-nav-container::before {
-    width: 15px;
-  }
-  
-  .svc-nav-container::after {
-    width: 15px;
-  }
-}
-/* Show horizontal scroll up to 1024px and keep scrollbar visible */
-@media (max-width: 1024px) {
-
-  /* Optional: style scrollbar for WebKit on small screens */
-
-}
-
-/* Hide scrollbar on larger screens */
-@media (min-width: 1025px) {
-}
-
-/* --- SERVICE ITEMS --- */
-.svc-category-section {
-  margin-bottom: 3rem;
-}
-
-.svc-category-title {
-  font-size: 1.5rem;
-  font-weight: 600;
-  margin-bottom: 1rem;
-  border-left: 4px solid #000;
-  padding-left: 1rem;
-}
-
-.svc-list {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.svc-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  background: #fff;
-  border: 1px solid #555555;
-  border-radius: 12px;
-  padding: 1.5rem;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.svc-item:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-.svc-item-selected {
-  border-color: #1976d2;
-  background: #f8f9ff;
-}
-
-.svc-info {
-  flex: 1;
-  padding-right: 1rem;
-}
-
-.svc-info h4 {
-  font-size: 1.1rem;
-  font-weight: 600;
-  margin-bottom: 0.5rem;
-}
-
-.time {
-  font-size: 0.9rem;
-  color: #777;
-  margin-bottom: 0.5rem;
-}
-
-.svc-info p {
-  font-size: 0.9rem;
-  color: #555;
-  line-height: 1.6;
-  margin-bottom: 0.5rem;
-}
-
-.svc-price {
-  font-size: 1rem;
-  font-weight: 700;
-  color: #000;
-}
-
-.svc-add-btn {
-  background: #f0f0f0;
-  border: none;
-  border-radius: 50%;
-  width: 40px;
-  height: 40px;
-  font-size: 1.5rem;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.svc-add-btn:hover {
-  background: #ddd;
-}
-
-/* --- BOOKING SIDEBAR (Desktop Only) --- */
-/* .booking-sidebar {
-  background: #fff;
-  border-radius: 16px;
-  padding: 1.5rem;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-  border: 1px solid #e0e0e0;
-} */
 
 /* --- SERVICE SELECTION MODAL --- */
 .svc-popup-overlay {
@@ -663,186 +582,6 @@ body {
   .svc-popup-body { padding: 16px 20px; }
 }
 
-.booking-summary h3 {
-  font-size: 1.2rem;
-  font-weight: 600;
-  margin-bottom: 1.5rem;
-  color: #333;
-}
-
-/* Scrollable services area with dynamic height */
-.selected-services-scroll {
-  flex: 1;
-  max-height: calc(100vh - 400px); /* Dynamic based on viewport */
-  min-height: 200px;
-  overflow-y: auto;
-  margin-bottom: 1rem;
-  padding-right: 0.5rem;
-}
-
-.selected-services-scroll::-webkit-scrollbar {
-  width: 6px;
-}
-
-.selected-services-scroll::-webkit-scrollbar-track {
-  background: #f1f1f1;
-  border-radius: 10px;
-}
-
-.selected-services-scroll::-webkit-scrollbar-thumb {
-  background: #c1c1c1;
-  border-radius: 10px;
-}
-
-.selected-services-scroll::-webkit-scrollbar-thumb:hover {
-  background: #a8a8a8;
-}
-
-.selected-service {
-  background: #f8f9fa;
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
-  padding: 1rem;
-  margin-bottom: 0.5rem;
-}
-
-.selected-service.simple .service-row-top {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 0.5rem;
-}
-
-.selected-service.simple h4 {
-  font-size: 1rem;
-  font-weight: 600;
-  color: #333;
-  margin: 0;
-}
-
-.selected-service.simple .service-price {
-  font-weight: 700;
-  color: #000;
-}
-
-.selected-service.simple .service-row-sub {
-  font-size: 0.85rem;
-  color: #666;
-}
-
-.no-services {
-  text-align: center;
-  padding: 2rem 1rem;
-  color: #777;
-}
-
-/* Bottom fixed section of sidebar */
-.sidebar-bottom-fixed {
-  margin-top: auto;
-  padding-top: 1rem;
-  border-top: 1px solid #e0e0e0;
-}
-
-.total-summary {
-  background: #f8f9fa;
-  border-radius: 8px;
-  padding: 1rem;
-  margin-bottom: 1rem;
-}
-
-.detail-item {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 0.5rem;
-}
-
-.detail-item:last-child {
-  margin-bottom: 0;
-  font-weight: 700;
-  font-size: 1.1rem;
-}
-
-.progress-steps {
-  display: flex;
-  justify-content: center;
-  gap: 1rem;
-  margin-bottom: 1.5rem;
-}
-
-.step {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.25rem;
-}
-
-.step-number {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: #e0e0e0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 600;
-  font-size: 0.9rem;
-}
-
-.step.active .step-number {
-  background: #000;
-  color: #fff;
-}
-
-.step-label {
-  font-size: 0.75rem;
-  color: #666;
-  text-align: center;
-}
-
-.step.active .step-label {
-  color: #000;
-  font-weight: 600;
-}
-
-.action-buttons {
-  display: flex;
-  gap: 0.75rem;
-}
-
-.btn-back,
-.btn-continue {
-  flex: 1;
-  padding: 0.75rem 1rem;
-  border: none;
-  border-radius: 8px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.btn-back {
-  background: #f0f0f0;
-  color: #333;
-}
-
-.btn-back:hover {
-  background: #e0e0e0;
-}
-
-.btn-continue {
-  background: #000;
-  color: #fff;
-}
-
-.btn-continue:hover {
-  background: #333;
-}
-
-.btn-continue.disabled {
-  background: #ccc;
-  cursor: not-allowed;
-}
-
 /* --- SERVICE BOTTOM BAR (Mobile/Tablet Only) --- */
 .service-bottom-bar {
   gap: 1rem;
@@ -861,66 +600,4 @@ body {
   font-weight: 600;
   border: none;
   cursor: pointer;
-}
-
-/* --- RESPONSIVE BREAKPOINTS --- */
-
-/* Large tablets */
-@media (max-width: 1200px) and (min-width: 1024px) {
-  .services-page-wrapper {
-    grid-template-columns: 1fr 340px;
-    gap: 1.5rem;
-    padding: 0 1.5rem;
-  }
-}
-
-/* Small tablets */
-@media (max-width: 768px) {
-  .svc-item {
-    flex-direction: column;
-    gap: 1rem;
-  }
-  
-  .svc-info {
-    padding-right: 0;
-  }
-  
-  .svc-add-btn {
-    align-self: flex-end;
-    width: 36px;
-    height: 36px;
-  }
-}
-/* @media (min-width:1024) {
-  .svc-header-wrapper{
-    top: 1px;
-  }
-} */
-/* Mobile phones */
-@media (max-width: 480px) {
-  .svc-container {
-    padding: 14rem 0.75rem 0 0.75rem; /* Remove bottom padding */
-    margin-bottom: 0; /* Remove any bottom margin */
-  }
-  
-  .svc-header {
-    padding: 0.75rem;
-  }
-  
-  .svc-header h2 {
-    font-size: 1.75rem;
-  }
-  
-  .svc-item {
-    padding: 1rem;
-  }
-  
-  .service-bottom-bar {
-    padding: 0.75rem;
-    gap: 0.75rem;
-  }
-  
-  .service-bottom-bar span {
-    font-size: 0.8rem;
-  }
 }

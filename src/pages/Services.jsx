@@ -577,7 +577,7 @@ function ServiceModal({ service, selectedOption, setSelectedOption, onClose, onA
                 <strong>{service.title}</strong>
                 <div className="svc-option-time">{service.time}</div>
                 <div className="svc-option-price">
-                  AED {service.price.replace(/^(AED )?/, '')}
+                  AED {service.price.replace(/^(AED |\$)?/, '')}
                 </div>
               </div>
             </label>
@@ -596,7 +596,7 @@ function ServiceModal({ service, selectedOption, setSelectedOption, onClose, onA
                 <strong>Couple</strong>
                 <div className="svc-option-time">{service.time}</div>
                 <div className="svc-option-price">
-                  AED {apiUtils.formatPrice(service.effectivePrice * 2).replace(/^(AED )?/, '')}
+                  AED {apiUtils.formatPrice(service.effectivePrice * 2).replace(/^(AED |\$)?/, '')}
                 </div>
               </div>
             </label>

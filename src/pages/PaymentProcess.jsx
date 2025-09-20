@@ -90,13 +90,40 @@ const PaymentProcess = () => {
   console.log('PaymentProcess: Ready. selectedMethod =', selectedMethod);
   }, [paymentData, bookingData]);
 
-  const handlePaymentSuccess = (paymentIntent) => {
-    console.log('Payment completed successfully:', paymentIntent);
-    navigate('/dashboard', {
-      state: {
-        paymentIntent: paymentIntent,
-        bookingData: bookingData
+  const handlePaymentSuccess = (paymentResult) => {
+    console.log('Payment completed successfully:', paymentResult);
+    
+    // Prepare the success data
+    const successData = {
+      payment: {
+        id: paymentResult.paymentId || paymentResult.id || `pay_${Date.now()}`,
+        status: paymentResult.status || 'succeeded',
+        amount: paymentData?.amount || bookingData?.totalAmount,
+        currency: paymentData?.currency || 'aed',
+        method: selectedMethod,
+        transactionId: paymentResult.transactionId || `txn_${Math.random().toString(36).substr(2, 9)}`,
+        createdAt: new Date().toISOString(),
+        ...(selectedMethod === 'upi' && { upiVpa: paymentResult.upiVpa || upiVpa })
+      },
+      booking: {
+        id: bookingData.bookingId || bookingData._id,
+        bookingNumber: bookingData.bookingNumber,
+        date: bookingData.date || bookingData.appointmentDate,
+        time: bookingData.time || bookingData.appointmentTime,
+        duration: bookingData.duration,
+        services: bookingData.services || [],
+        professional: bookingData.professionalName || bookingData.professional,
+        totalAmount: bookingData.totalAmount,
+        status: 'confirmed'
       }
+    };
+    
+    console.log('Navigating to success page with data:', successData);
+    
+    // Navigate to the success page with all the necessary data
+    navigate('/payment/success', {
+      state: successData,
+      replace: true
     });
   };
 

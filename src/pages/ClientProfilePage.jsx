@@ -12,6 +12,10 @@ import {
   Sun,
   Moon,
   Menu,
+  Clock,
+  MapPin,
+  Phone,
+  Mail,
 } from "lucide-react";
 import Swal from "sweetalert2";
 import "./ClientProfilePage.css";
@@ -43,12 +47,12 @@ const useTheme = () => {
 };
 
 /* -------------------
-   Theme Toggle Button
+   Theme Toggle Button - Only visible on mobile/tablet
    ------------------- */
 const ThemeToggle = ({ theme, onToggle }) => (
   <button
     onClick={onToggle}
-    className="theme-toggle"
+    className="theme-toggle mobile-tablet-only"
     aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
   >
     {theme === 'light' ? <Moon /> : <Sun />}
@@ -102,9 +106,16 @@ const Sidebar = ({ activeTab, onTabChange, isOpen, onClose, isMobile }) => {
       onClose();
     }
   };
-  const navigateToService =()=>{
-    navigate('/')
-  }
+
+  const navigateToService = () => {
+    // navigate('/booking');
+    Swal.fire({
+      title: "Book Service",
+      text: "Service booking functionality would be implemented here.",
+      icon: "info"
+    });
+  };
+
   const sidebarContent = (
     <div className="h-full flex flex-col">
       <div className="p-6 border-b border-gray-200 flex justify-between items-center">
@@ -121,7 +132,7 @@ const Sidebar = ({ activeTab, onTabChange, isOpen, onClose, isMobile }) => {
       </div>
       <div className="p-6 border-b border-gray-200">
         <button
-          onClick={() => navigateToService}
+          onClick={navigateToService}
           className="btn btn-primary w-full"
         >
           <Plus className="w-4 h-4" />
@@ -162,11 +173,19 @@ const ProfileHeader = ({ profile }) => (
   <div className="profile-header">
     <div className="flex items-center space-x-6">
       <div className="profile-avatar">
-        <User className="w-10 h-10 text-gray-400" />
+        {profile?.profileImage ? (
+          <img 
+            src={profile.profileImage} 
+            alt={`${profile.firstName} ${profile.lastName}`}
+            className="w-16 h-16 rounded-full object-cover"
+          />
+        ) : (
+          <User className="w-10 h-10 text-gray-400" />
+        )}
       </div>
       <div className="flex-1">
         <h1 className="text-2xl font-bold text-gray-900">
-          {profile?.firstName} {profile?.lastName}
+          {profile?.fullName || `${profile?.firstName || ''} ${profile?.lastName || ''}`.trim()}
         </h1>
         <p className="profile-meta">
           Member since{" "}
@@ -179,6 +198,12 @@ const ProfileHeader = ({ profile }) => (
           )}
         </p>
         <p className="profile-email">{profile?.email}</p>
+        {profile?.phone && (
+          <p className="profile-phone">
+            <Phone className="w-4 h-4 inline mr-1" />
+            {profile.phone}
+          </p>
+        )}
       </div>
       <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3">
         <button 
@@ -207,6 +232,204 @@ const ProfileHeader = ({ profile }) => (
     </div>
   </div>
 );
+
+/* -------------------
+   Booking Item Component
+   ------------------- */
+const BookingItem = ({ booking }) => {
+  const formatDate = (dateString) => {
+    return new Date(dateString).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+  };
+
+  const formatTime = (dateString) => {
+    return new Date(dateString).toLocaleTimeString("en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
+  const getStatusBadgeClass = (status) => {
+    switch (status?.toLowerCase()) {
+      case 'confirmed':
+        return 'badge-default';
+      case 'pending':
+        return 'badge-secondary';
+      case 'cancelled':
+        return 'badge-destructive';
+      default:
+        return 'badge-secondary';
+    }
+  };
+
+  return (
+    <div className="booking-item">
+      <div className="booking-header">
+        <div className="booking-info">
+          <h4 className="booking-title">
+            Booking #{booking.bookingNumber || booking.id || booking._id}
+          </h4>
+          <div className="booking-meta">
+            <span className="booking-date">
+              <Calendar className="w-4 h-4" />
+              {formatDate(booking.appointmentDate || booking.createdAt)}
+            </span>
+            {booking.appointmentDate && (
+              <span className="booking-time">
+                <Clock className="w-4 h-4" />
+                {formatTime(booking.appointmentDate)}
+              </span>
+            )}
+          </div>
+        </div>
+        <span className={`badge ${getStatusBadgeClass(booking.status)}`}>
+          {booking.status || 'pending'}
+        </span>
+      </div>
+
+      {booking.services && booking.services.length > 0 && (
+        <div className="booking-services">
+          <h5 className="services-title">Services:</h5>
+          <div className="services-list">
+            {booking.services.map((service, index) => (
+              <div key={service.id || service._id || index} className="service-item">
+                <div className="service-info">
+                  <span className="service-name">
+                    {service.service?.name || `Service ${index + 1}`}
+                  </span>
+                  <span className="service-duration">
+                    {service.duration} min
+                  </span>
+                </div>
+                <div className="service-details">
+                  <span className="service-price">
+                    {booking.currency || 'AED'} {service.price}
+                  </span>
+                  {service.employee?.user && (
+                    <span className="service-employee">
+                      with {service.employee.user.firstName} {service.employee.user.lastName}
+                    </span>
+                  )}
+                </div>
+                {service.startTime && service.endTime && (
+                  <div className="service-time">
+                    {formatTime(service.startTime)} - {formatTime(service.endTime)}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="booking-footer">
+        <div className="booking-total">
+          <span className="total-label">Total Amount:</span>
+          <span className="total-amount">
+            {booking.currency || 'AED'} {booking.finalAmount || booking.totalAmount || 0}
+          </span>
+        </div>
+        {booking.paymentStatus && (
+          <div className="payment-status">
+            <span className="payment-label">Payment:</span>
+            <span className={`payment-badge ${booking.paymentStatus === 'paid' ? 'paid' : 'pending'}`}>
+              {booking.paymentStatus}
+            </span>
+          </div>
+        )}
+      </div>
+
+      {booking.client && (
+        <div className="booking-client">
+          <h6 className="client-title">Client Information:</h6>
+          <div className="client-info">
+            <span className="client-name">
+              <User className="w-4 h-4" />
+              {booking.client.fullName || `${booking.client.firstName} ${booking.client.lastName}`}
+            </span>
+            <span className="client-email">
+              <Mail className="w-4 h-4" />
+              {booking.client.email}
+            </span>
+            {booking.client.phone && (
+              <span className="client-phone">
+                <Phone className="w-4 h-4" />
+                {booking.client.phone}
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+/* -------------------
+   Invoice Item Component
+   ------------------- */
+const InvoiceItem = ({ invoice }) => {
+  const formatDate = (dateString) => {
+    return new Date(dateString).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+  };
+
+  const getStatusBadgeClass = (status) => {
+    switch (status?.toLowerCase()) {
+      case 'paid':
+      case 'completed':
+        return 'badge-default';
+      case 'pending':
+        return 'badge-secondary';
+      case 'failed':
+      case 'cancelled':
+        return 'badge-destructive';
+      default:
+        return 'badge-secondary';
+    }
+  };
+
+  return (
+    <div className="invoice-item">
+      <div className="invoice-header">
+        <div className="invoice-date">
+          <Calendar className="w-4 h-4" />
+          <span>{formatDate(invoice.createdAt)}</span>
+        </div>
+        <span className={`badge ${getStatusBadgeClass(invoice.status)}`}>
+          {invoice.status || 'pending'}
+        </span>
+      </div>
+      
+      <div className="invoice-content">
+        <div className="invoice-details">
+          <h4 className="invoice-id">Invoice #{invoice.id}</h4>
+          <p className="invoice-description">
+            Payment via {invoice.paymentMethod || 'card'} • {invoice.paymentGateway || 'stripe'}
+          </p>
+          {invoice.booking && (
+            <p className="invoice-booking">
+              Booking: {invoice.booking.bookingNumber || invoice.booking.id || invoice.booking._id}
+            </p>
+          )}
+        </div>
+        
+        <div className="invoice-amount">
+          <div className="invoice-price">
+            <span className="amount-value">
+              {invoice.currency || 'AED'} {invoice.amount ? invoice.amount.toFixed(2) : '0.00'}
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 /* -------------------
    Enhanced Main Page
@@ -250,7 +473,7 @@ const SpaProfilePage = () => {
     };
   }, [sidebarOpen]);
 
-  // Enhanced data fetching with better error handling
+  // Enhanced data fetching with better error handling - USING ACTUAL API CALLS
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -414,31 +637,7 @@ const SpaProfilePage = () => {
             </h3>
             <div className="space-y-4">
               {bookings.map((booking, index) => (
-                <div key={booking._id || `booking-${index}`} className="booking-item">
-                  <div className="flex justify-between items-start mb-2">
-                    <h4 className="font-semibold text-gray-900">
-                      {booking.serviceName || `Service ${index + 1}`}
-                    </h4>
-                    <span className={`badge ${
-                      booking.status === 'confirmed' ? 'badge-default' : 
-                      booking.status === 'pending' ? 'badge-secondary' : 
-                      'badge-destructive'
-                    }`}>
-                      {booking.status || 'pending'}
-                    </span>
-                  </div>
-                  <p className="text-sm text-gray-600 mb-1">
-                    <strong>Booking ID:</strong> {booking._id || `booking-${index}`}
-                  </p>
-                  <p className="text-sm text-gray-600">
-                    <strong>Date:</strong> {booking.date ? new Date(booking.date).toLocaleDateString() : 'TBD'}
-                  </p>
-                  {booking.time && (
-                    <p className="text-sm text-gray-600">
-                      <strong>Time:</strong> {booking.time}
-                    </p>
-                  )}
-                </div>
+                <BookingItem key={booking._id || booking.id || `booking-${index}`} booking={booking} />
               ))}
             </div>
           </div>
@@ -477,37 +676,7 @@ const SpaProfilePage = () => {
             </h3>
             <div className="space-y-4">
               {invoices.map((invoice, index) => (
-                <div key={invoice._id || `invoice-${index}`} className="invoice-item">
-                  <div className="invoice-header">
-                    <div className="invoice-date">
-                      <Calendar className="w-4 h-4" />
-                      <span>{invoice.date ? new Date(invoice.date).toLocaleDateString() : 'N/A'}</span>
-                    </div>
-                    <span className={`badge ${
-                      invoice.status === 'paid' ? 'badge-default' : 
-                      invoice.status === 'pending' ? 'badge-secondary' : 
-                      'badge-destructive'
-                    }`}>
-                      {invoice.status || 'pending'}
-                    </span>
-                  </div>
-                  <div className="invoice-content">
-                    <div className="invoice-details">
-                      <h4>{invoice.serviceName || `Service ${index + 1}`}</h4>
-                      <p className="invoice-description">
-                        Invoice: {invoice.invoiceNumber || `INV-${index + 1000}`}
-                      </p>
-                    </div>
-                    <div className="invoice-amount">
-                      <div className="invoice-price">
-                        <span>${invoice.amount ? invoice.amount.toFixed(2) : '0.00'}</span>
-                      </div>
-                      <p className="invoice-method">
-                        {invoice.paymentMethod || 'Card'}
-                      </p>
-                    </div>
-                  </div>
-                </div>
+                <InvoiceItem key={invoice.id || `invoice-${index}`} invoice={invoice} />
               ))}
             </div>
           </div>
@@ -533,7 +702,7 @@ const SpaProfilePage = () => {
             </h3>
             <div className="space-y-6">
               {feedback.map((item, index) => (
-                <div key={item._id || `feedback-${index}`} className="feedback-item">
+                <div key={item._id || item.id || `feedback-${index}`} className="feedback-item">
                   <div className="feedback-header">
                     <div>
                       <h4 className="feedback-title">
@@ -608,29 +777,51 @@ const SpaProfilePage = () => {
               <div className="profile-info-item">
                 <User className="profile-info-icon" />
                 <div className="profile-info-content">
-                  <p>Full Name</p>
-                  <p>{profile?.firstName} {profile?.lastName}</p>
+                  <p className="info-label">Full Name</p>
+                  <p className="info-value">{profile?.fullName || `${profile?.firstName || ''} ${profile?.lastName || ''}`.trim()}</p>
                 </div>
               </div>
               <div className="profile-info-item">
-                <MessageSquare className="profile-info-icon" />
+                <Mail className="profile-info-icon" />
                 <div className="profile-info-content">
-                  <p>Email</p>
-                  <p>{profile?.email || 'Not provided'}</p>
+                  <p className="info-label">Email</p>
+                  <p className="info-value">{profile?.email || 'Not provided'}</p>
+                </div>
+              </div>
+              <div className="profile-info-item">
+                <Phone className="profile-info-icon" />
+                <div className="profile-info-content">
+                  <p className="info-label">Phone</p>
+                  <p className="info-value">{profile?.phone || 'Not provided'}</p>
                 </div>
               </div>
               <div className="profile-info-item">
                 <Calendar className="profile-info-icon" />
                 <div className="profile-info-content">
-                  <p>Phone</p>
-                  <p>{profile?.phone || 'Not provided'}</p>
+                  <p className="info-label">Member Since</p>
+                  <p className="info-value">{profile?.createdAt ? new Date(profile.createdAt).toLocaleDateString() : 'N/A'}</p>
                 </div>
               </div>
               <div className="profile-info-item">
                 <Star className="profile-info-icon" />
                 <div className="profile-info-content">
-                  <p>Member Since</p>
-                  <p>{profile?.createdAt ? new Date(profile.createdAt).toLocaleDateString() : 'N/A'}</p>
+                  <p className="info-label">Account Status</p>
+                  <p className="info-value">
+                    <span className={`badge ${profile?.isActive ? 'badge-default' : 'badge-destructive'}`}>
+                      {profile?.isActive ? 'Active' : 'Inactive'}
+                    </span>
+                  </p>
+                </div>
+              </div>
+              <div className="profile-info-item">
+                <MessageSquare className="profile-info-icon" />
+                <div className="profile-info-content">
+                  <p className="info-label">Email Verified</p>
+                  <p className="info-value">
+                    <span className={`badge ${profile?.isEmailVerified ? 'badge-default' : 'badge-secondary'}`}>
+                      {profile?.isEmailVerified ? 'Verified' : 'Not Verified'}
+                    </span>
+                  </p>
                 </div>
               </div>
             </div>
@@ -663,7 +854,7 @@ const SpaProfilePage = () => {
 
   return (
     <div className={`min-h-screen bg-gray-50 flex ${sidebarOpen && isMobile ? 'overflow-hidden' : ''}`}>
-      {/* Theme Toggle */}
+      {/* Theme Toggle - Only visible on mobile/tablet */}
       <ThemeToggle theme={theme} onToggle={toggleTheme} />
       
       {/* Mobile overlay */}
