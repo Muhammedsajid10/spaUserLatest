@@ -5,7 +5,6 @@ import { confirmBookingAndPay } from './services/paymentFlow';
 import { IoMdTime } from "react-icons/io";
 import './layout.css'
 import { CiCalendar } from "react-icons/ci";
-import './Layout.css'; // Assuming this CSS file exists
 import { HeaderTitleProvider, useHeaderTitle } from './Service/HeaderTitleContext'; // Assuming this context exists
 import { useAuth } from './Service/Context'; // Assuming this context exists
 import alloraLogo from './assets/alloraLogo.jpg'; // Assuming logo asset exists
