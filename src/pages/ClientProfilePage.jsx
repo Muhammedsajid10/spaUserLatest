@@ -102,7 +102,9 @@ const Sidebar = ({ activeTab, onTabChange, isOpen, onClose, isMobile }) => {
       onClose();
     }
   };
-
+  const navigateToService =()=>{
+    navigate('/')
+  }
   const sidebarContent = (
     <div className="h-full flex flex-col">
       <div className="p-6 border-b border-gray-200 flex justify-between items-center">
@@ -119,12 +121,7 @@ const Sidebar = ({ activeTab, onTabChange, isOpen, onClose, isMobile }) => {
       </div>
       <div className="p-6 border-b border-gray-200">
         <button
-          onClick={() => Swal.fire({
-            title: "Book Service",
-            text: "Service booking functionality would be implemented here.",
-            icon: "info",
-            confirmButtonText: "Got it!"
-          })}
+          onClick={() => navigateToService}
           className="btn btn-primary w-full"
         >
           <Plus className="w-4 h-4" />

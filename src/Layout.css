@@ -43,7 +43,7 @@
   display: flex !important;
   flex-direction: column;
   width: 100%;
-  height: calc(100vh - 130px);
+  height: calc(94vh - 130px);
   max-height: calc(100vh - 130px);
   padding: 0.75rem;
   margin: 0;
