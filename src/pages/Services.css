@@ -208,7 +208,7 @@ body {
 /* Laptops and Desktops (1024px to 1440px) */
 @media (min-width: 1024px) and (max-width: 1440px) {
   .svc-item {
-    max-width: 70%;
+    max-width: 98%;
   }
 }
 
@@ -222,7 +222,7 @@ body {
 /* Extra Large Desktops (2001px to 3000px) */
 @media (min-width: 2001px) and (max-width: 3000px) {
   .svc-item {
-    max-width: 45%;
+    max-width: 63%;
   }
 }
 

@@ -20,7 +20,7 @@ import {
 import Swal from "sweetalert2";
 import "./ClientProfilePage.css";
 import { authAPI, bookingsAPI, paymentsAPI, feedbackAPI } from "../services/api";
-
+import { useNavigate } from "react-router-dom";
 /* -------------------
    Theme Hook
    ------------------- */
@@ -106,14 +106,10 @@ const Sidebar = ({ activeTab, onTabChange, isOpen, onClose, isMobile }) => {
       onClose();
     }
   };
-
+  const navigate = useNavigate();
   const navigateToService = () => {
-    // navigate('/booking');
-    Swal.fire({
-      title: "Book Service",
-      text: "Service booking functionality would be implemented here.",
-      icon: "info"
-    });
+    navigate('/booking');
+  
   };
 
   const sidebarContent = (
