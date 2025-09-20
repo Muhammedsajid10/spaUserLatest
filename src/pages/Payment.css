@@ -36,6 +36,14 @@ body {
 /* Right Panel - Booking Summary (Mobile First) */
 .payment-right {
   order: -1;
+  display: block; /* Show by default for mobile */
+}
+
+/* Hide booking summary on laptop and desktop */
+@media (min-width: 1024px) {
+  .payment-right {
+    display: none;
+  }
 }
 
 .booking-summary-card {
@@ -209,6 +217,10 @@ body {
   border: 1px solid #e0e0e0;
   border-radius: 8px;
   padding: 20px;
+  margin: 100px 0 0 100px; /* top right bottom left */
+  width: 45%; /* 25% width for laptop and desktop */
+  min-width: 541px;
+  max-width: 432px; /* Maximum width to prevent it from becoming too wide */
 }
 
 .payment-left-inner {
@@ -472,6 +484,10 @@ body {
 
   .payment-left {
     padding: 16px;
+    margin: 20px 0 0 60px; /* Reduced left margin for medium screens */
+    width: auto; /* Reset width for tablet */
+    max-width: calc(100% - 80px);
+    min-width: 0; /* Reset min-width */
   }
 
   .booking-summary-card {
@@ -521,6 +537,10 @@ body {
 
   .payment-left {
     padding: 12px;
+    margin: 20px 0 0 20px; /* Further reduced left margin for small screens */
+    width: auto; /* Full width on mobile */
+    max-width: 100%;
+    min-width: 0; /* Reset min-width */
   }
 
   .summary-header,

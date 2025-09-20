@@ -68,8 +68,27 @@ function App() {
           <Route path="/" element={<LayoutWithBooking />}>
             <Route index element={<Services />} />
             <Route path="professionals" element={<ProfessionalsUpdated />} />
-            <Route path="time" element={<Time />} />
-            <Route path="payment" element={<Payment />} />
+            
+            {/* Protected Time route - requires authentication */}
+            <Route 
+              path="time" 
+              element={
+                <ProtectedRoute>
+                  <Time />
+                </ProtectedRoute>
+              } 
+            />
+            
+            {/* Protected Payment route - requires authentication */}
+            <Route 
+              path="payment" 
+              element={
+                <ProtectedRoute>
+                  <Payment />
+                </ProtectedRoute>
+              } 
+            />
+            
             <Route path="payment/success" element={<PaymentSuccess />} />
           </Route>
 
@@ -81,13 +100,16 @@ function App() {
           <Route path="/reset-password/:token" element={<ResetPassword />} />
           
           {/* Protected payment route - requires authentication */}
-          <Route path="/payment" element={
-            <LayoutWithBooking>
-              {/* <LayoutWithBooking> */}
-                <Payment />
-              {/* </LayoutWithBooking> */}
-            </LayoutWithBooking>
-          } />
+          <Route 
+            path="/payment" 
+            element={
+              <ProtectedRoute>
+                <LayoutWithBooking>
+                  <Payment />
+                </LayoutWithBooking>
+              </ProtectedRoute>
+            } 
+          />
 
           {/* Test payment route without protection */}
           <Route path="/payment-test" element={<Payment />} />

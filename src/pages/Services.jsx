@@ -541,7 +541,7 @@ function ServiceBottomBar({ currentStep = 1, navigate }) {
     <div className="unified-bottom-bar__summary">
       <span className="unified-bottom-bar__primary-info">AED {totalRate}</span>
       <span className="unified-bottom-bar__secondary-info">
-        {serviceCount} service{serviceCount !== 1 ? 's' : ''} • {totalDuration} min
+        {selectedServices.length} service{selectedServices.length !== 1 ? 's' : ''} • {totalDuration} min
       </span>
     </div>
 

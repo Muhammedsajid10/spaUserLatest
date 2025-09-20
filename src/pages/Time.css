@@ -483,13 +483,14 @@
 
 /* Date Grid Styles */
 .date-grid {
-  display: flex;
-  gap: 8px;
-  padding: 8px 0;
-  overflow-x: auto;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-  margin-bottom: 16px;
+    display: flex
+    ;
+        gap: 53px;
+        padding: 8px 0;
+        overflow-x: auto;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+        margin-bottom: 16px;
 }
 
 .date-grid::-webkit-scrollbar {

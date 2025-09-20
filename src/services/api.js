@@ -596,6 +596,12 @@ export const bookingFlow = {
     return bookingFlow.selectedServices.reduce((total, service) => total + service.duration, 0);
   },
   
+  // Set selected time slot
+  setSelectedTimeSlot: (timeSlot) => {
+    bookingFlow.selectedTimeSlot = timeSlot;
+    bookingFlow.save();
+  },
+  
   // Save to localStorage
   save: () => {
     localStorage.setItem('bookingFlow', JSON.stringify({
