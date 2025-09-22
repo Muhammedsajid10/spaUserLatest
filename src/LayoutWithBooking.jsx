@@ -512,10 +512,6 @@ const LayoutWithBooking = ({ children }) => {
               <div className="sidebar-bottom-fixed">
                 <div className="total-summary">
                   <div className="detail-item">
-                    <span className="label">Total Duration:</span>
-                    <span className="value">{apiUtils.formatDuration(bookingFlow.getTotalDuration())}</span>
-                  </div>
-                  <div className="detail-item">
                     <span className="label">Total Price:</span>
                     <span className="value">AED {apiUtils.formatPrice(bookingFlow.getTotalPrice()).replace(/^\$/, '')}</span>
                   </div>

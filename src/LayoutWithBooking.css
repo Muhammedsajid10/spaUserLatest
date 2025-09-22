@@ -223,12 +223,12 @@
 
 /* Selected service styles - No gaps between items */
 .selected-service.simple {
-  height: auto;
-  padding: 0.5rem 0.75rem 0.4rem; /* Reduced padding */
+  height: 90px;
+  padding: 0.5rem 0.75rem 1.4rem; /* Reduced padding */
   border: 1px solid #ececec;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
   border-radius: 8px;
-  margin-bottom: 0.1rem; /* Minimal gap between items */
+  margin-bottom: .5rem; /* Minimal gap between items */
 }
 
 .selected-service.simple .service-row-top {
@@ -281,6 +281,7 @@
 @media (min-width: 1024px) {
   .sidebar-bottom-fixed {
     position: sticky;
+    padding: 1px;
     bottom: 0;
     background: white;
     z-index: 1001;
@@ -309,14 +310,14 @@
   margin-bottom: 0.25rem; /* Minimal margin */
   padding: 0.5rem; /* Minimal padding */
   background: #f8f9fa;
-  border-radius: 8px;
+  border-radius: 1px;
 }
 
 .detail-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 0.25rem; /* Reduced spacing between duration and price */
+  margin-bottom: -0.75rem; /* Reduced spacing between duration and price */
 }
 
 .detail-item:last-child {

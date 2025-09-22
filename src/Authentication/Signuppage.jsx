@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import './Signuppage.css';
-import { useAuth } from '../Service/Context';
-import Swal from 'sweetalert2';
+import React, { useState } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
+import "./Signuppage.css";
+import { useAuth } from "../Service/Context";
+import Swal from "sweetalert2";
+import PhoneInput from "react-phone-input-2";
+import "react-phone-input-2/lib/style.css";
 
 const SignInPage = () => {
   const navigate = useNavigate();
@@ -11,70 +13,70 @@ const SignInPage = () => {
   const from = location.state?.from?.pathname || null;
 
   // Tabs
-  const [activeTab, setActiveTab] = useState('login');
+  const [activeTab, setActiveTab] = useState("login");
 
   // Signup state
-  const [formData, setFormData] = useState({ 
-    firstName: '', 
-    lastName: '', 
-    email: '', 
-    password: '', 
-    phone: '' 
+  const [formData, setFormData] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    password: "",
+    phone: "",
   });
   const [showSignupPassword, setShowSignupPassword] = useState(false);
   const [signupLoading, setSignupLoading] = useState(false);
-  const [signupError, setSignupError] = useState('');
+  const [signupError, setSignupError] = useState("");
 
   // Login state
-  const [loginData, setLoginData] = useState({ email: '', password: '' });
+  const [loginData, setLoginData] = useState({ email: "", password: "" });
   const [showLoginPassword, setShowLoginPassword] = useState(false);
   const [loginLoading, setLoginLoading] = useState(false);
-  const [loginError, setLoginError] = useState('');
+  const [loginError, setLoginError] = useState("");
 
   // Forgot password state
-  const [forgotPasswordEmail, setForgotPasswordEmail] = useState('');
+  const [forgotPasswordEmail, setForgotPasswordEmail] = useState("");
   const [forgotPasswordLoading, setForgotPasswordLoading] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
 
   const handleSignupChange = (e) => {
     const { name, value } = e.target;
-    setFormData(p => ({ ...p, [name]: value }));
-    if (signupError) setSignupError('');
+    setFormData((p) => ({ ...p, [name]: value }));
+    if (signupError) setSignupError("");
   };
 
   const handleLoginChange = (e) => {
     const { name, value } = e.target;
-    setLoginData(p => ({ ...p, [name]: value }));
-    if (loginError) setLoginError('');
+    setLoginData((p) => ({ ...p, [name]: value }));
+    if (loginError) setLoginError("");
   };
 
   const handleSignupSubmit = async (e) => {
     e.preventDefault();
     setSignupLoading(true);
-    setSignupError('');
+    setSignupError("");
     try {
       const result = await register({
         firstName: formData.firstName,
         lastName: formData.lastName,
         email: formData.email,
         password: formData.password,
-        phone: formData.phone.replace(/\s+/g, '')
+        phone: formData.phone.replace(/\s+/g, ""),
       });
       if (result.success) {
-        Swal.fire({ 
-          title: 'Account created', 
-          text: 'Signup successful. Please sign in.', 
-          icon: 'success', 
-          timer: 1400, 
-          showConfirmButton: false 
+        Swal.fire({
+          title: "Account created",
+          text: "Signup successful. Please sign in.",
+          icon: "success",
+          timer: 1400,
+          showConfirmButton: false,
         });
-        setActiveTab('login');
+        setActiveTab("login");
       } else {
-        setSignupError(result.message || 'Signup failed.');
+        setSignupError(result.message || "Signup failed.");
       }
     } catch (err) {
-      console.error('Signup Error:', err);
-      setSignupError(err.message || 'Signup failed.');
+      console.error("Signup Error:", err);
+      setSignupError(err.message || "Signup failed.");
     } finally {
       setSignupLoading(false);
     }
@@ -83,38 +85,41 @@ const SignInPage = () => {
   const getRedirectPath = (role) => {
     if (from) return from;
     switch (role) {
-      case 'admin': return '/admin/dashboard';
-      case 'employee': return '/employee/dashboard';
-      default: return '/payment';
+      case "admin":
+        return "/admin/dashboard";
+      case "employee":
+        return "/employee/dashboard";
+      default:
+        return "/payment";
     }
   };
 
   const handleLoginSubmit = async (e) => {
     e.preventDefault();
     setLoginLoading(true);
-    setLoginError('');
+    setLoginError("");
     try {
-      const result = await login({ 
-        email: loginData.email, 
-        password: loginData.password 
+      const result = await login({
+        email: loginData.email,
+        password: loginData.password,
       });
       if (result.success) {
         const userData = result.user;
-        Swal.fire({ 
-          title: 'Success', 
-          text: 'Logged in successfully', 
-          icon: 'success', 
-          timer: 1400, 
-          showConfirmButton: false 
+        Swal.fire({
+          title: "Success",
+          text: "Logged in successfully",
+          icon: "success",
+          timer: 1400,
+          showConfirmButton: false,
         });
         const redirect = getRedirectPath(userData.role);
         setTimeout(() => navigate(redirect, { replace: true }), 400);
       } else {
-        setLoginError(result.message || 'Login failed.');
+        setLoginError(result.message || "Login failed.");
       }
     } catch (err) {
-      console.error('Login Error:', err);
-      setLoginError(err.message || 'Login failed.');
+      console.error("Login Error:", err);
+      setLoginError(err.message || "Login failed.");
     } finally {
       setLoginLoading(false);
     }
@@ -124,54 +129,52 @@ const SignInPage = () => {
     e.preventDefault();
     if (!forgotPasswordEmail.trim()) {
       Swal.fire({
-        title: 'Email Required',
-        text: 'Please enter your email address.',
-        icon: 'warning',
-        confirmButtonText: 'OK'
+        title: "Email Required",
+        text: "Please enter your email address.",
+        icon: "warning",
+        confirmButtonText: "OK",
       });
       return;
     }
 
     setForgotPasswordLoading(true);
     try {
-      // If resetPassword function exists in context, use it
       if (resetPassword) {
         const result = await resetPassword({ email: forgotPasswordEmail });
         if (result.success) {
           Swal.fire({
-            title: 'Reset Link Sent',
-            text: 'Please check your email for password reset instructions.',
-            icon: 'success',
-            confirmButtonText: 'OK'
+            title: "Reset Link Sent",
+            text: "Please check your email for password reset instructions.",
+            icon: "success",
+            confirmButtonText: "OK",
           });
           setShowForgotPassword(false);
-          setForgotPasswordEmail('');
+          setForgotPasswordEmail("");
         } else {
           Swal.fire({
-            title: 'Error',
-            text: result.message || 'Failed to send reset email.',
-            icon: 'error',
-            confirmButtonText: 'OK'
+            title: "Error",
+            text: result.message || "Failed to send reset email.",
+            icon: "error",
+            confirmButtonText: "OK",
           });
         }
       } else {
-        // Fallback: Show success message (for demo purposes)
         Swal.fire({
-          title: 'Reset Link Sent',
-          text: 'Please check your email for password reset instructions.',
-          icon: 'success',
-          confirmButtonText: 'OK'
+          title: "Reset Link Sent",
+          text: "Please check your email for password reset instructions.",
+          icon: "success",
+          confirmButtonText: "OK",
         });
         setShowForgotPassword(false);
-        setForgotPasswordEmail('');
+        setForgotPasswordEmail("");
       }
     } catch (err) {
-      console.error('Forgot Password Error:', err);
+      console.error("Forgot Password Error:", err);
       Swal.fire({
-        title: 'Error',
-        text: err.message || 'Failed to send reset email.',
-        icon: 'error',
-        confirmButtonText: 'OK'
+        title: "Error",
+        text: err.message || "Failed to send reset email.",
+        icon: "error",
+        confirmButtonText: "OK",
       });
     } finally {
       setForgotPasswordLoading(false);
@@ -179,309 +182,380 @@ const SignInPage = () => {
   };
 
   const handleForgotPasswordClick = () => {
-    setForgotPasswordEmail(loginData.email || '');
+    setForgotPasswordEmail(loginData.email || "");
     setShowForgotPassword(true);
   };
 
   const handleBackToLogin = () => {
     setShowForgotPassword(false);
-    setForgotPasswordEmail('');
+    setForgotPasswordEmail("");
   };
 
   return (
-    <div className="signin-container">
-      <div className="left-section" aria-hidden>
-        <div className="brand-content">
-          <h1 className="brand-title">Allora</h1>
-          <p className="brand-subtitle">The most popular Spa centre</p>
-        </div>
-      </div>
-
-      <div className="right-section">
-        <div className="signin-form-container">
-          <div className="signin-card">
-            {!showForgotPassword ? (
-              <>
-                <div className="auth-tabs">
-                  <button 
-                    type="button" 
-                    className={activeTab === 'login' ? 'tab active' : 'tab'} 
-                    onClick={() => setActiveTab('login')}
-                  >
-                    Login
-                  </button>
-                  <button 
-                    type="button" 
-                    className={activeTab === 'signup' ? 'tab active' : 'tab'} 
-                    onClick={() => setActiveTab('signup')}
-                  >
-                    Sign Up
-                  </button>
-                </div>
-
-                <div className="form-header">
-                  <h2 className="form-title">
-                    {activeTab === 'login' ? 'Sign in to your account' : 'Create an account'}
-                  </h2>
-                  <p className="form-subtitle">
-                    {activeTab === 'login' 
-                      ? 'Access your bookings and profile' 
-                      : 'Join Allora to manage bookings'
-                    }
-                  </p>
-                </div>
-
-                {activeTab === 'signup' && signupError && (
-                  <div className="error-message">{signupError}</div>
-                )}
-                {activeTab === 'login' && loginError && (
-                  <div className="error-message">{loginError}</div>
-                )}
-
-                {activeTab === 'signup' ? (
-                  <form className="signin-form" onSubmit={handleSignupSubmit}>
-                    <div className="form-row">
-                      <input 
-                        name="firstName" 
-                        type="text" 
-                        placeholder="First Name" 
-                        value={formData.firstName} 
-                        onChange={handleSignupChange} 
-                        className="form-input half-width" 
-                        required 
-                        disabled={signupLoading} 
-                      />
-                      <input 
-                        name="lastName" 
-                        type="text" 
-                        placeholder="Last Name" 
-                        value={formData.lastName} 
-                        onChange={handleSignupChange} 
-                        className="form-input half-width" 
-                        required 
-                        disabled={signupLoading} 
-                      />
-                    </div>
-                    <input 
-                      name="email" 
-                      type="email" 
-                      placeholder="Email Address" 
-                      value={formData.email} 
-                      onChange={handleSignupChange} 
-                      className="form-input" 
-                      required 
-                      disabled={signupLoading} 
-                    />
-                    <div className="password-input-container">
-                      <input 
-                        name="password" 
-                        type={showSignupPassword ? 'text' : 'password'} 
-                        placeholder="Password" 
-                        value={formData.password} 
-                        onChange={handleSignupChange} 
-                        className="form-input" 
-                        required 
-                        disabled={signupLoading} 
-                      />
-                      <button 
-                        type="button" 
-                        className={`show-pass-btn ${signupLoading ? 'disabled' : ''}`} 
-                        onClick={() => setShowSignupPassword(s => !s)} 
-                        disabled={signupLoading}
-                        aria-label={showSignupPassword ? 'Hide password' : 'Show password'}
-                      >
-                        {showSignupPassword ? (
-                          <>
-                            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-                              <path d="M12 6.5a9.77 9.77 0 0 1 8.82 5.5 9.647 9.647 0 0 1-2.41 3.12l1.41 1.41c1.39-1.23 2.49-2.77 3.18-4.53C21.27 7.11 17 4 12 4c-1.27 0-2.49.2-3.64.57l1.65 1.65c1.36-.28 2.8-.72 4.99-.72zm-9.5-2l-1.41-1.41-1.68 1.68 1.37 1.37C.39 8.12 0 10.04 0 12c0 3.7 2.01 6.92 4.99 8.65l1.01-1.75A8.02 8.02 0 0 1 4 12c0-1.27.27-2.48.74-3.57l-1.24-1.93zM12 17.5a9.77 9.77 0 0 1-8.82-5.5.5.5 0 0 1 0-.5C3.73 7.11 8 4 13 4c1.27 0 2.49.2 3.64.57l-1.65 1.65c-1.36-.28-2.8-.72-4.99-.72-3.3 0-5.88 2.25-6.85 5.5C4.5 14.43 7.97 17.5 12 17.5zm6.5-3c0 .36-.04.72-.11 1.07l1.61 1.61c.47-.83.75-1.78.75-2.78 0-3.7-2.01-6.92-4.99-8.65l-1.01 1.75A8.02 8.02 0 0 1 20 12v.5z"/>
-                            </svg>
-                            Hide
-                          </>
-                        ) : (
-                          <>
-                            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-                              <path d="M12 6.5a9.77 9.77 0 0 1 8.82 5.5 9.647 9.647 0 0 1-2.41 3.12l1.41 1.41c1.39-1.23 2.49-2.77 3.18-4.53C21.27 7.11 17 4 12 4c-1.27 0-2.49.2-3.64.57l1.65 1.65c1.36-.28 2.8-.72 4.99-.72zm-9.5-2l-1.41-1.41-1.68 1.68 1.37 1.37C.39 8.12 0 10.04 0 12c0 3.7 2.01 6.92 4.99 8.65l1.01-1.75A8.02 8.02 0 0 1 4 12c0-1.27.27-2.48.74-3.57l-1.24-1.93zM12 17.5a9.77 9.77 0 0 1-8.82-5.5.5.5 0 0 1 0-.5C3.73 7.11 8 4 13 4c1.27 0 2.49.2 3.64.57l-1.65 1.65c-1.36-.28-2.8-.72-4.99-.72-3.3 0-5.88 2.25-6.85 5.5C4.5 14.43 7.97 17.5 12 17.5z"/>
-                            </svg>
-                            Show
-                          </>
-                        )}
-                      </button>
-                    </div>
-                    <input 
-                      name="phone" 
-                      type="tel" 
-                      placeholder="Phone (e.g. +918089391497)" 
-                      value={formData.phone} 
-                      onChange={handleSignupChange} 
-                      className="form-input" 
-                      required 
-                      disabled={signupLoading} 
-                    />
-                    <button 
-                      type="submit" 
-                      className={`signin-btn ${signupLoading ? 'loading' : ''}`} 
-                      disabled={signupLoading}
-                    >
-                      {signupLoading ? 'Creating Account...' : 'Sign Up'}
-                    </button>
-                    <div className="login-link">
-                      <p>
-                        Already have an account? 
-                        <button 
-                          type="button" 
-                          onClick={() => setActiveTab('login')} 
-                          className="login-btn-link"
-                        >
-                          Login
-                        </button>
-                      </p>
-                    </div>
-                  </form>
-                ) : (
-                  <form className="signin-form" onSubmit={handleLoginSubmit}>
-                    <div className="form-group">
-                      <label htmlFor="login-email">Email</label>
-                      <input 
-                        id="login-email" 
-                        name="email" 
-                        type="email" 
-                        value={loginData.email} 
-                        onChange={handleLoginChange} 
-                        required 
-                        disabled={loginLoading} 
-                        placeholder="you@example.com" 
-                      />
-                    </div>
-                    <div className="form-group">
-                      <label htmlFor="login-password">Password</label>
-                      <div className="password-input-container">
-                        <input 
-                          id="login-password" 
-                          name="password" 
-                          type={showLoginPassword ? 'text' : 'password'} 
-                          value={loginData.password} 
-                          onChange={handleLoginChange} 
-                          required 
-                          disabled={loginLoading} 
-                          placeholder="••••••" 
-                          minLength={6} 
-                          className="form-input"
-                        />
-                        <button 
-                          type="button" 
-                          className={`show-pass-btn ${loginLoading ? 'disabled' : ''}`} 
-                          onClick={() => setShowLoginPassword(s => !s)} 
-                          disabled={loginLoading}
-                          aria-label={showLoginPassword ? 'Hide password' : 'Show password'}
-                        >
-                          {showLoginPassword ? (
-                            <>
-                              <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-                                <path d="M12 6.5a9.77 9.77 0 0 1 8.82 5.5 9.647 9.647 0 0 1-2.41 3.12l1.41 1.41c1.39-1.23 2.49-2.77 3.18-4.53C21.27 7.11 17 4 12 4c-1.27 0-2.49.2-3.64.57l1.65 1.65c1.36-.28 2.8-.72 4.99-.72zm-9.5-2l-1.41-1.41-1.68 1.68 1.37 1.37C.39 8.12 0 10.04 0 12c0 3.7 2.01 6.92 4.99 8.65l1.01-1.75A8.02 8.02 0 0 1 4 12c0-1.27.27-2.48.74-3.57l-1.24-1.93zM12 17.5a9.77 9.77 0 0 1-8.82-5.5.5.5 0 0 1 0-.5C3.73 7.11 8 4 13 4c1.27 0 2.49.2 3.64.57l-1.65 1.65c-1.36-.28-2.8-.72-4.99-.72-3.3 0-5.88 2.25-6.85 5.5C4.5 14.43 7.97 17.5 12 17.5zm6.5-3c0 .36-.04.72-.11 1.07l1.61 1.61c.47-.83.75-1.78.75-2.78 0-3.7-2.01-6.92-4.99-8.65l-1.01 1.75A8.02 8.02 0 0 1 20 12v.5z"/>
-                              </svg>
-                              Hide
-                            </>
-                          ) : (
-                            <>
-                              <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-                                <path d="M12 6.5a9.77 9.77 0 0 1 8.82 5.5 9.647 9.647 0 0 1-2.41 3.12l1.41 1.41c1.39-1.23 2.49-2.77 3.18-4.53C21.27 7.11 17 4 12 4c-1.27 0-2.49.2-3.64.57l1.65 1.65c1.36-.28 2.8-.72 4.99-.72zm-9.5-2l-1.41-1.41-1.68 1.68 1.37 1.37C.39 8.12 0 10.04 0 12c0 3.7 2.01 6.92 4.99 8.65l1.01-1.75A8.02 8.02 0 0 1 4 12c0-1.27.27-2.48.74-3.57l-1.24-1.93zM12 17.5a9.77 9.77 0 0 1-8.82-5.5.5.5 0 0 1 0-.5C3.73 7.11 8 4 13 4c1.27 0 2.49.2 3.64.57l-1.65 1.65c-1.36-.28-2.8-.72-4.99-.72-3.3 0-5.88 2.25-6.85 5.5C4.5 14.43 7.97 17.5 12 17.5z"/>
-                              </svg>
-                              Show
-                            </>
-                          )}
-                        </button>
-                      </div>
-                    </div>
-                    <div className="form-meta-row">
-                      <div className="remember-wrap">
-                        <input 
-                          id="remember-login" 
-                          type="checkbox" 
-                          disabled={loginLoading} 
-                        />
-                        <label htmlFor="remember-login">Remember me</label>
-                      </div>
-                      <button
-                        type="button"
-                        className="forgot-password-link"
-                        onClick={handleForgotPasswordClick}
-                        disabled={loginLoading}
-                      >
-                        Forgot Password?
-                      </button>
-                    </div>
-                    <button 
-                      type="submit" 
-                      className="auth-submit" 
-                      disabled={loginLoading}
-                    >
-                      {loginLoading ? 'Signing in...' : 'Sign In'}
-                    </button>
-                    <div className="divider"><span>Or</span></div>
-                    <p className="signup-text">
-                      Don't have an account? 
-                      <button 
-                        type="button" 
-                        onClick={() => setActiveTab('signup')} 
-                        className="link-btn"
-                      >
-                        Create one
-                      </button>
-                    </p>
-                  </form>
-                )}
-              </>
-            ) : (
-              // Forgot Password Form
-              <div>
-                <div className="form-header">
-                  <h2 className="form-title">Reset Password</h2>
-                  <p className="form-subtitle">
-                    Enter your email address and we'll send you a link to reset your password.
-                  </p>
-                </div>
-
-                <form className="signin-form" onSubmit={handleForgotPassword}>
-                  <div className="form-group">
-                    <label htmlFor="forgot-email">Email Address</label>
-                    <input 
-                      id="forgot-email"
-                      type="email" 
-                      value={forgotPasswordEmail}
-                      onChange={(e) => setForgotPasswordEmail(e.target.value)}
-                      placeholder="you@example.com"
-                      className="form-input"
-                      required
-                      disabled={forgotPasswordLoading}
-                    />
-                  </div>
-                  
-                  <button 
-                    type="submit" 
-                    className={`auth-submit ${forgotPasswordLoading ? 'loading' : ''}`}
-                    disabled={forgotPasswordLoading}
-                  >
-                    {forgotPasswordLoading ? 'Sending...' : 'Send Reset Link'}
-                  </button>
-                  
-                  <div className="signup-text">
-                    <button 
-                      type="button" 
-                      onClick={handleBackToLogin}
-                      className="login-btn-link"
-                      disabled={forgotPasswordLoading}
-                    >
-                      ← Back to Login
-                    </button>
-                  </div>
-                </form>
-              </div>
-            )}
-
-            <footer className="auth-footer">
-              © {new Date().getFullYear()} Allora Spa. All rights reserved.
-            </footer>
+    <div className="modern-auth-wrapper">
+      <div className="modern-auth-container">
+        <div className="modern-auth-card">
+          <div className="modern-auth-header">
+            <h1 className="modern-auth-title">
+              {showForgotPassword
+                ? "Reset Password"
+                : activeTab === "login"
+                ? "Sign in to your account"
+                : "Create Account"}
+            </h1>
+            <p className="modern-auth-subtitle">
+              {showForgotPassword
+                ? "Enter your email to reset your password"
+                : activeTab === "login"
+                ? "Access your bookings and profile"
+                : "Join Allora to manage your profile"}
+            </p>
           </div>
+
+          {!showForgotPassword && (
+            <div className="modern-tab-switcher">
+              <button
+                type="button"
+                className={`modern-tab-btn ${
+                  activeTab === "login" ? "modern-tab-active" : ""
+                }`}
+                onClick={() => setActiveTab("login")}
+              >
+                Sign In
+              </button>
+              <button
+                type="button"
+                className={`modern-tab-btn ${
+                  activeTab === "signup" ? "modern-tab-active" : ""
+                }`}
+                onClick={() => setActiveTab("signup")}
+              >
+                Sign Up
+              </button>
+            </div>
+          )}
+
+          {signupError && activeTab === "signup" && (
+            <div className="modern-error-alert">{signupError}</div>
+          )}
+          {loginError && activeTab === "login" && (
+            <div className="modern-error-alert">{loginError}</div>
+          )}
+
+          {showForgotPassword ? (
+            <form className="modern-auth-form" onSubmit={handleForgotPassword}>
+              <div className="modern-field-group">
+                <label className="modern-field-label">Email Address</label>
+                <div className="modern-input-wrapper">
+                  <svg
+                    className="modern-input-icon"
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                  >
+                    <path
+                      d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"
+                      fill="currentColor"
+                    />
+                  </svg>
+                  <input
+                    type="email"
+                    className="modern-input-field"
+                    value={forgotPasswordEmail}
+                    onChange={(e) => setForgotPasswordEmail(e.target.value)}
+                    placeholder="Enter your email"
+                    required
+                    disabled={forgotPasswordLoading}
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                className={`modern-primary-btn ${
+                  forgotPasswordLoading ? "modern-btn-loading" : ""
+                }`}
+                disabled={forgotPasswordLoading}
+              >
+                {forgotPasswordLoading ? "Sending..." : "Send Reset Link"}
+              </button>
+
+              <button
+                type="button"
+                onClick={handleBackToLogin}
+                className="modern-secondary-btn"
+                disabled={forgotPasswordLoading}
+              >
+                ← Back to Sign In
+              </button>
+            </form>
+          ) : activeTab === "login" ? (
+            <form className="modern-auth-form" onSubmit={handleLoginSubmit}>
+              <div className="modern-field-group">
+                <label className="modern-field-label">Email</label>
+                <div className="modern-input-wrapper">
+                  <svg
+                    className="modern-input-icon"
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                  >
+                    <path
+                      d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"
+                      fill="currentColor"
+                    />
+                  </svg>
+                  <input
+                    name="email"
+                    type="email"
+                    className="modern-input-field"
+                    value={loginData.email}
+                    onChange={handleLoginChange}
+                    placeholder="Enter your email"
+                    required
+                    disabled={loginLoading}
+                  />
+                </div>
+              </div>
+
+              <div className="modern-field-group">
+                <label className="modern-field-label">Password</label>
+                <div className="modern-input-wrapper">
+                  <svg
+                    className="modern-input-icon"
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                  >
+                    <path
+                      d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"
+                      fill="currentColor"
+                    />
+                  </svg>
+                  <input
+                    name="password"
+                    type={showLoginPassword ? "text" : "password"}
+                    className="modern-input-field modern-input-with-btn"
+                    value={loginData.password}
+                    onChange={handleLoginChange}
+                    placeholder="Enter your password"
+                    required
+                    disabled={loginLoading}
+                  />
+                  <button
+                    type="button"
+                    className="modern-password-toggle"
+                    onClick={() => setShowLoginPassword((s) => !s)}
+                    disabled={loginLoading}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                      {showLoginPassword ? (
+                        <path
+                          d="M12 7c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.83l2.92 2.92c1.51-1.26 2.7-2.89 3.43-4.75-1.73-4.39-6-7.5-11-7.5-1.4 0-2.74.25-3.98.7l2.16 2.16C10.74 7.13 11.35 7 12 7zM2 4.27l2.28 2.28.46.46C3.08 8.3 1.78 10.02 1 12c1.73 4.39 6 7.5 11 7.5 1.55 0 3.03-.3 4.38-.84l.42.42L19.73 22 21 20.73 3.27 3 2 4.27zM7.53 9.8l1.55 1.55c-.05.21-.08.43-.08.65 0 1.66 1.34 3 3 3 .22 0 .44-.03.65-.08l1.55 1.55c-.67.33-1.41.53-2.2.53-2.76 0-5-2.24-5-5 0-.79.2-1.53.53-2.2zm4.31-.78l3.15 3.15.02-.16c0-1.66-1.34-3-3-3l-.17.01z"
+                          fill="currentColor"
+                        />
+                      ) : (
+                        <path
+                          d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"
+                          fill="currentColor"
+                        />
+                      )}
+                    </svg>
+                  </button>
+                </div>
+              </div>
+
+              <div className="modern-form-extras">
+                <label className="modern-checkbox-wrapper">
+                  <input type="checkbox" disabled={loginLoading} />
+                  <span className="modern-checkbox-label">Remember me</span>
+                </label>
+                <button
+                  type="button"
+                  className="modern-link-btn"
+                  onClick={handleForgotPasswordClick}
+                  disabled={loginLoading}
+                >
+                  Forgot Password?
+                </button>
+              </div>
+
+              <button
+                type="submit"
+                className={`modern-primary-btn ${
+                  loginLoading ? "modern-btn-loading" : ""
+                }`}
+                disabled={loginLoading}
+              >
+                {loginLoading ? "Signing in..." : "Sign In"}
+              </button>
+
+              <div className="modern-divider">
+                <span>Or</span>
+              </div>
+
+              <p className="modern-switch-text">
+                Don't have an account?{" "}
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("signup")}
+                  className="modern-link-btn modern-link-highlight"
+                >
+                  Create an account
+                </button>
+              </p>
+            </form>
+          ) : (
+            <form className="modern-auth-form" onSubmit={handleSignupSubmit}>
+              <div className="modern-form-row">
+                <div className="modern-field-group">
+                  <label className="modern-field-label">First Name</label>
+                  <input
+                    name="firstName"
+                    type="text"
+                    className="modern-input-field"
+                    value={formData.firstName}
+                    onChange={handleSignupChange}
+                    placeholder="First Name"
+                    required
+                    disabled={signupLoading}
+                  />
+                </div>
+                <div className="modern-field-group">
+                  <label className="modern-field-label">Last Name</label>
+                  <input
+                    name="lastName"
+                    type="text"
+                    className="modern-input-field"
+                    value={formData.lastName}
+                    onChange={handleSignupChange}
+                    placeholder="Last Name"
+                    required
+                    disabled={signupLoading}
+                  />
+                </div>
+              </div>
+
+              <div className="modern-field-group">
+                <label className="modern-field-label">Email Address</label>
+                <div className="modern-input-wrapper">
+                  <svg
+                    className="modern-input-icon"
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                  >
+                    <path
+                      d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"
+                      fill="currentColor"
+                    />
+                  </svg>
+                  <input
+                    name="email"
+                    type="email"
+                    className="modern-input-field"
+                    value={formData.email}
+                    onChange={handleSignupChange}
+                    placeholder="Email Address"
+                    required
+                    disabled={signupLoading}
+                  />
+                </div>
+              </div>
+
+              <div className="modern-field-group">
+                <label className="modern-field-label">Password</label>
+                <div className="modern-input-wrapper">
+                  <svg
+                    className="modern-input-icon"
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                  >
+                    <path
+                      d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"
+                      fill="currentColor"
+                    />
+                  </svg>
+                  <input
+                    name="password"
+                    type={showSignupPassword ? "text" : "password"}
+                    className="modern-input-field modern-input-with-btn"
+                    value={formData.password}
+                    onChange={handleSignupChange}
+                    placeholder="Password"
+                    required
+                    disabled={signupLoading}
+                  />
+                  <button
+                    type="button"
+                    className="modern-password-toggle"
+                    onClick={() => setShowSignupPassword((s) => !s)}
+                    disabled={signupLoading}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                      {showSignupPassword ? (
+                        <path
+                          d="M12 7c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.83l2.92 2.92c1.51-1.26 2.7-2.89 3.43-4.75-1.73-4.39-6-7.5-11-7.5-1.4 0-2.74.25-3.98.7l2.16 2.16C10.74 7.13 11.35 7 12 7zM2 4.27l2.28 2.28.46.46C3.08 8.3 1.78 10.02 1 12c1.73 4.39 6 7.5 11 7.5 1.55 0 3.03-.3 4.38-.84l.42.42L19.73 22 21 20.73 3.27 3 2 4.27zM7.53 9.8l1.55 1.55c-.05.21-.08.43-.08.65 0 1.66 1.34 3 3 3 .22 0 .44-.03.65-.08l1.55 1.55c-.67.33-1.41.53-2.2.53-2.76 0-5-2.24-5-5 0-.79.2-1.53.53-2.2zm4.31-.78l3.15 3.15.02-.16c0-1.66-1.34-3-3-3l-.17.01z"
+                          fill="currentColor"
+                        />
+                      ) : (
+                        <path
+                          d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"
+                          fill="currentColor"
+                        />
+                      )}
+                    </svg>
+                  </button>
+                </div>
+              </div>
+
+              <div className="modern-field-group">
+                <label className="modern-field-label">Phone Number</label>
+                <PhoneInput
+                  country={"ae"} // default country (India)
+                  value={formData.phone}
+                  onChange={(phone) => setFormData((p) => ({ ...p, phone }))}
+                  inputClass="modern-input-field"
+                  dropdownClass="modern-input-dropdown"
+                  inputProps={{
+                    name: "phone",
+                    required: true,
+                    disabled: signupLoading,
+                  }}
+                />
+              </div>
+
+              <button
+                type="submit"
+                className={`modern-primary-btn ${
+                  signupLoading ? "modern-btn-loading" : ""
+                }`}
+                disabled={signupLoading}
+              >
+                {signupLoading ? "Creating Account..." : "Sign Up"}
+              </button>
+
+              <p className="modern-switch-text">
+                Already have an account?{" "}
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("login")}
+                  className="modern-link-btn modern-link-highlight"
+                >
+                  Sign In
+                </button>
+              </p>
+            </form>
+          )}
+          <footer className="auth-footer">
+            © {new Date().getFullYear()} Allora Spa. All rights reserved.
+          </footer>
         </div>
       </div>
     </div>
@@ -489,4 +563,3 @@ const SignInPage = () => {
 };
 
 export default SignInPage;
-

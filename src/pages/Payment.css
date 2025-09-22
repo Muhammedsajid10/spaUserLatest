@@ -27,7 +27,7 @@ body {
 /* Payment Grid Layout */
 .payment-grid {
   display: grid;
-  grid-template-columns: 1fr 380px;
+
   gap: 20px;
   align-items: start;
   margin-top: 16px;

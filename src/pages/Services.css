@@ -1,9 +1,5 @@
 
-/* ===========================================
-   RESPONSIVE SERVICES LAYOUT - CLEAN VERSION
-   =========================================== */
 
-/* --- GLOBAL RESET --- */
 * {
   box-sizing: border-box;
   margin: 0;
@@ -690,3 +686,11 @@ body {
   border: none;
   cursor: pointer;
 }
+
+/* ---------- */
+
+.svc-category-section {
+  scroll-margin-top: 220px; /* adjust based on your header height */
+}
+
+

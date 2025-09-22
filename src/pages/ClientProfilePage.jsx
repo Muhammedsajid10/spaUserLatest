@@ -19,46 +19,13 @@ import {
 } from "lucide-react";
 import Swal from "sweetalert2";
 import "./ClientProfilePage.css";
-import { authAPI, bookingsAPI, paymentsAPI, feedbackAPI } from "../services/api";
+import {
+  authAPI,
+  bookingsAPI,
+  paymentsAPI,
+  feedbackAPI,
+} from "../services/api";
 import { useNavigate } from "react-router-dom";
-
-/* -------------------
-   Theme Hook
-   ------------------- */
-const useTheme = () => {
-  const [theme, setTheme] = useState(() => {
-    // Check localStorage first, then system preference
-    const savedTheme = localStorage.getItem('spa-theme');
-    if (savedTheme) return savedTheme;
-    
-    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-  });
-
-  useEffect(() => {
-    // Apply theme to document
-    document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem('spa-theme', theme);
-  }, [theme]);
-
-  const toggleTheme = () => {
-    setTheme(prev => prev === 'light' ? 'dark' : 'light');
-  };
-
-  return { theme, toggleTheme };
-};
-
-/* -------------------
-   Theme Toggle Button - Only visible on mobile/tablet
-   ------------------- */
-const ThemeToggle = ({ theme, onToggle }) => (
-  <button
-    onClick={onToggle}
-    className="theme-toggle mobile-tablet-only"
-    aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
-  >
-    {theme === 'light' ? <Moon /> : <Sun />}
-  </button>
-);
 
 /* -------------------
    Utility UI States
@@ -109,8 +76,7 @@ const Sidebar = ({ activeTab, onTabChange, isOpen, onClose, isMobile }) => {
   };
   const navigate = useNavigate();
   const navigateToService = () => {
-    navigate('/booking');
-  
+    navigate("/booking");
   };
 
   const sidebarContent = (
@@ -118,8 +84,8 @@ const Sidebar = ({ activeTab, onTabChange, isOpen, onClose, isMobile }) => {
       <div className="p-6 border-b border-gray-200 flex justify-between items-center">
         <h2 className="text-xl font-bold text-gray-900">Dashboard</h2>
         {isMobile && (
-          <button 
-            className="btn btn-ghost btn-sm" 
+          <button
+            className="btn btn-ghost btn-sm"
             onClick={onClose}
             aria-label="Close menu"
           >
@@ -128,10 +94,7 @@ const Sidebar = ({ activeTab, onTabChange, isOpen, onClose, isMobile }) => {
         )}
       </div>
       <div className="p-6 border-b border-gray-200">
-        <button
-          onClick={navigateToService}
-          className="btn btn-primary w-full"
-        >
+        <button onClick={navigateToService} className="btn btn-primary w-full">
           <Plus className="w-4 h-4" />
           <span>Book a Service</span>
         </button>
@@ -171,8 +134,8 @@ const ProfileHeader = ({ profile }) => (
     <div className="flex items-center space-x-6">
       <div className="profile-avatar">
         {profile?.profileImage ? (
-          <img 
-            src={profile.profileImage} 
+          <img
+            src={profile.profileImage}
             alt={`${profile.firstName} ${profile.lastName}`}
             className="w-16 h-16 rounded-full object-cover"
           />
@@ -182,7 +145,8 @@ const ProfileHeader = ({ profile }) => (
       </div>
       <div className="flex-1">
         <h1 className="text-2xl font-bold text-gray-900">
-          {profile?.fullName || `${profile?.firstName || ''} ${profile?.lastName || ''}`.trim()}
+          {profile?.fullName ||
+            `${profile?.firstName || ""} ${profile?.lastName || ""}`.trim()}
         </h1>
         <p className="profile-meta">
           Member since{" "}
@@ -233,7 +197,7 @@ const ProfileHeader = ({ profile }) => (
 /* -------------------
    Booking Item Component
    ------------------- */
-const BookingItem = ({ booking }) => {
+const BookingItem = ({ booking, onGiveRating }) => {
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString("en-US", {
       year: "numeric",
@@ -251,14 +215,14 @@ const BookingItem = ({ booking }) => {
 
   const getStatusBadgeClass = (status) => {
     switch (status?.toLowerCase()) {
-      case 'confirmed':
-        return 'badge-default';
-      case 'pending':
-        return 'badge-secondary';
-      case 'cancelled':
-        return 'badge-destructive';
+      case "confirmed":
+        return "badge-default";
+      case "pending":
+        return "badge-secondary";
+      case "cancelled":
+        return "badge-destructive";
       default:
-        return 'badge-secondary';
+        return "badge-secondary";
     }
   };
 
@@ -283,7 +247,7 @@ const BookingItem = ({ booking }) => {
           </div>
         </div>
         <span className={`badge ${getStatusBadgeClass(booking.status)}`}>
-          {booking.status || 'pending'}
+          {booking.status || "pending"}
         </span>
       </div>
 
@@ -292,7 +256,10 @@ const BookingItem = ({ booking }) => {
           <h5 className="services-title">Services:</h5>
           <div className="services-list">
             {booking.services.map((service, index) => (
-              <div key={service.id || service._id || index} className="service-item">
+              <div
+                key={service.id || service._id || index}
+                className="service-item"
+              >
                 <div className="service-info">
                   <span className="service-name">
                     {service.service?.name || `Service ${index + 1}`}
@@ -303,17 +270,19 @@ const BookingItem = ({ booking }) => {
                 </div>
                 <div className="service-details">
                   <span className="service-price">
-                    {booking.currency || 'AED'} {service.price}
+                    {booking.currency || "AED"} {service.price}
                   </span>
                   {service.employee?.user && (
                     <span className="service-employee">
-                      with {service.employee.user.firstName} {service.employee.user.lastName}
+                      with {service.employee.user.firstName}{" "}
+                      {service.employee.user.lastName}
                     </span>
                   )}
                 </div>
                 {service.startTime && service.endTime && (
                   <div className="service-time">
-                    {formatTime(service.startTime)} - {formatTime(service.endTime)}
+                    {formatTime(service.startTime)} -{" "}
+                    {formatTime(service.endTime)}
                   </div>
                 )}
               </div>
@@ -326,17 +295,28 @@ const BookingItem = ({ booking }) => {
         <div className="booking-total">
           <span className="total-label">Total Amount:</span>
           <span className="total-amount">
-            {booking.currency || 'AED'} {booking.finalAmount || booking.totalAmount || 0}
+            {booking.currency || "AED"}{" "}
+            {booking.finalAmount || booking.totalAmount || 0}
           </span>
         </div>
         {booking.paymentStatus && (
           <div className="payment-status">
             <span className="payment-label">Payment:</span>
-            <span className={`payment-badge ${booking.paymentStatus === 'paid' ? 'paid' : 'pending'}`}>
+            <span
+              className={`payment-badge ${
+                booking.paymentStatus === "paid" ? "paid" : "pending"
+              }`}
+            >
               {booking.paymentStatus}
             </span>
           </div>
         )}
+        <button
+          className="btn btn-secondary btn-sm mt-2"
+          onClick={() => onGiveRating(booking._id || booking.id)}
+        >
+          Give Rating
+        </button>
       </div>
 
       {booking.client && (
@@ -345,7 +325,8 @@ const BookingItem = ({ booking }) => {
           <div className="client-info">
             <span className="client-name">
               <User className="w-4 h-4" />
-              {booking.client.fullName || `${booking.client.firstName} ${booking.client.lastName}`}
+              {booking.client.fullName ||
+                `${booking.client.firstName} ${booking.client.lastName}`}
             </span>
             <span className="client-email">
               <Mail className="w-4 h-4" />
@@ -365,7 +346,7 @@ const BookingItem = ({ booking }) => {
 };
 
 /* -------------------
-   Invoice Item Component
+   Invoice Item Component (Expanded)
    ------------------- */
 const InvoiceItem = ({ invoice }) => {
   const formatDate = (dateString) => {
@@ -376,54 +357,132 @@ const InvoiceItem = ({ invoice }) => {
     });
   };
 
+  const formatTime = (dateString) => {
+    return new Date(dateString).toLocaleTimeString("en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
   const getStatusBadgeClass = (status) => {
     switch (status?.toLowerCase()) {
-      case 'paid':
-      case 'completed':
-        return 'badge-default';
-      case 'pending':
-        return 'badge-secondary';
-      case 'failed':
-      case 'cancelled':
-        return 'badge-destructive';
+      case "paid":
+      case "completed":
+        return "badge-default";
+      case "pending":
+        return "badge-secondary";
+      case "failed":
+      case "cancelled":
+        return "badge-destructive";
       default:
-        return 'badge-secondary';
+        return "badge-secondary";
     }
   };
 
   return (
     <div className="invoice-item">
+      {/* Invoice Header */}
       <div className="invoice-header">
         <div className="invoice-date">
           <Calendar className="w-4 h-4" />
           <span>{formatDate(invoice.createdAt)}</span>
         </div>
         <span className={`badge ${getStatusBadgeClass(invoice.status)}`}>
-          {invoice.status || 'pending'}
+          {invoice.status || "pending"}
         </span>
       </div>
-      
+
+      {/* Invoice Core Info */}
       <div className="invoice-content">
         <div className="invoice-details">
           <h4 className="invoice-id">Invoice #{invoice.id}</h4>
           <p className="invoice-description">
-            Payment via {invoice.paymentMethod || 'card'} • {invoice.paymentGateway || 'stripe'}
+            Payment via {invoice.paymentMethod || "N/A"} •{" "}
+            {invoice.paymentGateway || "N/A"}
           </p>
           {invoice.booking && (
             <p className="invoice-booking">
-              Booking: {invoice.booking.bookingNumber || invoice.booking.id || invoice.booking._id}
+              Booking: {invoice.booking.id || "N/A"} •{" "}
+              <span
+                className={`badge ${getStatusBadgeClass(
+                  invoice.booking.status
+                )}`}
+              >
+                {invoice.booking.status}
+              </span>
             </p>
           )}
         </div>
-        
+
         <div className="invoice-amount">
           <div className="invoice-price">
             <span className="amount-value">
-              {invoice.currency || 'AED'} {invoice.amount ? invoice.amount.toFixed(2) : '0.00'}
+              {invoice.currency || "AED"}{" "}
+              {invoice.amount ? invoice.amount.toFixed(2) : "0.00"}
             </span>
           </div>
         </div>
       </div>
+
+      {/* Services Section */}
+      {invoice.booking?.services?.length > 0 && (
+        <div className="booking-services">
+          <h5 className="services-title">Services:</h5>
+          <div className="services-list">
+            {invoice.booking.services.map((service, index) => (
+              <div key={service.id || index} className="service-item">
+                <div className="service-info">
+                  <span className="service-name">
+                    {service.service?.name || `Service ${index + 1}`}
+                  </span>
+                  <span className="service-duration">
+                    {service.duration} min
+                  </span>
+                </div>
+                <div className="service-details">
+                  <span className="service-price">
+                    {invoice.currency || "AED"} {service.price}
+                  </span>
+                  {service.employee?.user && (
+                    <span className="service-employee">
+                      with {service.employee.user.fullName}
+                    </span>
+                  )}
+                </div>
+                {service.startTime && service.endTime && (
+                  <div className="service-time">
+                    {formatTime(service.startTime)} -{" "}
+                    {formatTime(service.endTime)}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Client Section */}
+      {invoice.booking?.client && (
+        <div className="booking-client">
+          <h6 className="client-title">Client Information:</h6>
+          <div className="client-info">
+            <span className="client-name">
+              <User className="w-4 h-4" />
+              {invoice.booking.client.fullName}
+            </span>
+            <span className="client-email">
+              <Mail className="w-4 h-4" />
+              {invoice.booking.client.email}
+            </span>
+            {invoice.booking.client.phone && (
+              <span className="client-phone">
+                <Phone className="w-4 h-4" />
+                {invoice.booking.client.phone}
+              </span>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -438,38 +497,48 @@ const SpaProfilePage = () => {
   const [invoices, setInvoices] = useState([]);
   const [feedback, setFeedback] = useState([]);
   const [showPasswordForm, setShowPasswordForm] = useState(false);
-  const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
   const [changingPassword, setChangingPassword] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [editProfile, setEditProfile] = useState({});
   const [isUpdating, setIsUpdating] = useState(false);
   const [error, setError] = useState(null);
-  
-  const { theme, toggleTheme } = useTheme();
+  const [showRatingPopup, setShowRatingPopup] = useState(false);
+  const [ratingBookingId, setRatingBookingId] = useState(null);
+  const [ratingValue, setRatingValue] = useState(0);
+  const [ratingComment, setRatingComment] = useState("");
+
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
   const [loading, setLoading] = useState(true);
+  const [editingFeedbackId, setEditingFeedbackId] = useState(null);
+  const [editFeedbackValue, setEditFeedbackValue] = useState(0);
+  const [editFeedbackComment, setEditFeedbackComment] = useState("");
 
   // Enhanced responsive check with debouncing
   useEffect(() => {
     let timeoutId;
-    
+
     const checkMobile = () => {
       clearTimeout(timeoutId);
       timeoutId = setTimeout(() => {
         const newIsMobile = window.innerWidth < 1024;
         setIsMobile(newIsMobile);
-        
+
         // Auto-close sidebar when switching to desktop
         if (!newIsMobile && sidebarOpen) {
           setSidebarOpen(false);
         }
       }, 100);
     };
-    
+
     checkMobile();
     window.addEventListener("resize", checkMobile);
-    
+
     return () => {
       window.removeEventListener("resize", checkMobile);
       clearTimeout(timeoutId);
@@ -480,11 +549,11 @@ const SpaProfilePage = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        console.log('Starting to fetch profile data...');
+        console.log("Starting to fetch profile data...");
         setLoading(true);
         setError(null);
 
-        console.log('Making API requests...');
+        console.log("Making API requests...");
         const [profileRes, bookingsRes, invoicesRes, feedbackRes] =
           await Promise.allSettled([
             authAPI.getCurrentUser(),
@@ -493,43 +562,67 @@ const SpaProfilePage = () => {
             feedbackAPI.getUserFeedback(),
           ]);
 
-        console.log('API Responses:', {
-          profile: profileRes.status === 'fulfilled' ? profileRes.value?.data : profileRes.reason,
-          bookings: bookingsRes.status === 'fulfilled' ? bookingsRes.value?.data : bookingsRes.reason,
-          payments: invoicesRes.status === 'fulfilled' ? invoicesRes.value?.data : invoicesRes.reason,
-          feedback: feedbackRes.status === 'fulfilled' ? feedbackRes.value?.data : feedbackRes.reason
+        console.log("API Responses:", {
+          profile:
+            profileRes.status === "fulfilled"
+              ? profileRes.value?.data
+              : profileRes.reason,
+          bookings:
+            bookingsRes.status === "fulfilled"
+              ? bookingsRes.value?.data
+              : bookingsRes.reason,
+          payments:
+            invoicesRes.status === "fulfilled"
+              ? invoicesRes.value?.data
+              : invoicesRes.reason,
+          feedback:
+            feedbackRes.status === "fulfilled"
+              ? feedbackRes.value?.data
+              : feedbackRes.reason,
         });
 
         // Set states with proper fallbacks and error handling
         setProfile(
-          profileRes.status === 'fulfilled' 
-            ? profileRes.value?.data?.user || null 
+          profileRes.status === "fulfilled"
+            ? profileRes.value?.data?.user || null
             : null
         );
         setBookings(
-          bookingsRes.status === 'fulfilled' 
-            ? bookingsRes.value?.data?.bookings || [] 
+          bookingsRes.status === "fulfilled"
+            ? bookingsRes.value?.data?.bookings || []
             : []
         );
         setInvoices(
-          invoicesRes.status === 'fulfilled' 
-            ? invoicesRes.value?.data?.payments || [] 
+          invoicesRes.status === "fulfilled"
+            ? invoicesRes.value?.data?.payments || []
             : []
         );
         setFeedback(
-          feedbackRes.status === 'fulfilled' 
-            ? feedbackRes.value?.data?.feedback || [] 
+          feedbackRes.status === "fulfilled"
+            ? feedbackRes.value?.data?.feedback || []
             : []
         );
-        
-        console.log('State after update:', {
-          profile: profileRes.status === 'fulfilled' ? profileRes.value?.data?.user || null : null,
-          bookingsCount: bookingsRes.status === 'fulfilled' ? bookingsRes.value?.data?.bookings?.length || 0 : 0,
-          invoicesCount: invoicesRes.status === 'fulfilled' ? invoicesRes.value?.data?.payments?.length || 0 : 0,
-          feedbackCount: feedbackRes.status === 'fulfilled' ? feedbackRes.value?.data?.feedback?.length || 0 : 0
+
+        console.log("State after update:", {
+          profile:
+            profileRes.status === "fulfilled"
+              ? profileRes.value?.data?.user || null
+              : null,
+          bookingsCount:
+            bookingsRes.status === "fulfilled"
+              ? bookingsRes.value?.data?.bookings?.length || 0
+              : 0,
+          invoicesCount:
+            invoicesRes.status === "fulfilled"
+              ? invoicesRes.value?.data?.payments?.length || 0
+              : 0,
+          feedbackCount:
+            feedbackRes.status === "fulfilled"
+              ? feedbackRes.value?.data?.feedback?.length || 0
+              : 0,
         });
       } catch (err) {
-        console.error('Unexpected error:', err);
+        console.error("Unexpected error:", err);
         setError("An unexpected error occurred while loading data.");
       } finally {
         setLoading(false);
@@ -548,9 +641,9 @@ const SpaProfilePage = () => {
 
   const handleProfileChange = (e) => {
     const { name, value } = e.target;
-    setEditProfile(prev => ({
+    setEditProfile((prev) => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }));
   };
 
@@ -562,27 +655,99 @@ const SpaProfilePage = () => {
       setProfile(response.data.user);
       setEditMode(false);
       Swal.fire({
-        title: 'Success!',
-        text: 'Profile updated successfully',
-        icon: 'success',
+        title: "Success!",
+        text: "Profile updated successfully",
+        icon: "success",
         timer: 2000,
-        showConfirmButton: false
+        showConfirmButton: false,
       });
     } catch (error) {
-      console.error('Update failed:', error);
+      console.error("Update failed:", error);
       Swal.fire({
-        title: 'Error!',
-        text: error.response?.data?.message || 'Failed to update profile',
-        icon: 'error'
+        title: "Error!",
+        text: error.response?.data?.message || "Failed to update profile",
+        icon: "error",
       });
     } finally {
       setIsUpdating(false);
     }
   };
 
+  // 2. Handler functions for rating popup
+  const openRatingPopup = (bookingId) => {
+    setRatingBookingId(bookingId);
+    setShowRatingPopup(true);
+    setRatingValue(0);
+    setRatingComment("");
+  };
+
+  const closeRatingPopup = () => {
+    setShowRatingPopup(false);
+    setRatingBookingId(null);
+    setRatingValue(0);
+    setRatingComment("");
+  };
+
+  const handleRatingSubmit = async () => {
+    // You can replace this with an API call to save feedback
+    const booking = bookings.find((b) => (b._id || b.id) === ratingBookingId);
+    const newFeedback = {
+      id: Date.now(),
+      bookingId: ratingBookingId,
+      rating: ratingValue,
+      comment: ratingComment,
+      date: new Date(),
+      serviceName: booking?.services?.[0]?.service?.name || "Service",
+    };
+    setFeedback((prev) => [newFeedback, ...prev]);
+    closeRatingPopup();
+    Swal.fire({
+      title: "Thank you!",
+      text: "Your feedback has been submitted.",
+      icon: "success",
+      timer: 1500,
+      showConfirmButton: false,
+    });
+  };
+
+  // Start editing feedback
+  const handleEditFeedback = (item) => {
+    setEditingFeedbackId(item._id || item.id);
+    setEditFeedbackValue(item.rating || 0);
+    setEditFeedbackComment(item.comment || "");
+  };
+
+  // Save edited feedback locally
+  const handleSaveEditedFeedback = () => {
+    setFeedback((prev) =>
+      prev.map((item) =>
+        (item._id || item.id) === editingFeedbackId
+          ? { ...item, rating: editFeedbackValue, comment: editFeedbackComment }
+          : item
+      )
+    );
+    setEditingFeedbackId(null);
+    setEditFeedbackValue(0);
+    setEditFeedbackComment("");
+    Swal.fire({
+      title: "Updated!",
+      text: "Your feedback has been updated.",
+      icon: "success",
+      timer: 1200,
+      showConfirmButton: false,
+    });
+  };
+
+  // Cancel editing
+  const handleCancelEditFeedback = () => {
+    setEditingFeedbackId(null);
+    setEditFeedbackValue(0);
+    setEditFeedbackComment("");
+  };
+
   // Enhanced sidebar management
   const toggleSidebar = () => {
-    setSidebarOpen(prev => !prev);
+    setSidebarOpen((prev) => !prev);
   };
 
   const closeSidebar = () => {
@@ -594,74 +759,76 @@ const SpaProfilePage = () => {
     if (!isMobile || !sidebarOpen) return;
 
     const handleClickOutside = (event) => {
-      const sidebar = document.querySelector('.sidebar-container');
-      const toggleButton = document.querySelector('.mobile-menu-button');
-      
-      if (sidebar && 
-          !sidebar.contains(event.target) && 
-          toggleButton &&
-          !toggleButton.contains(event.target)) {
+      const sidebar = document.querySelector(".sidebar-container");
+      const toggleButton = document.querySelector(".mobile-menu-button");
+
+      if (
+        sidebar &&
+        !sidebar.contains(event.target) &&
+        toggleButton &&
+        !toggleButton.contains(event.target)
+      ) {
         closeSidebar();
       }
     };
 
     const handleEscapeKey = (event) => {
-      if (event.key === 'Escape') {
+      if (event.key === "Escape") {
         closeSidebar();
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
-    document.addEventListener('touchstart', handleClickOutside);
-    document.addEventListener('keydown', handleEscapeKey);
-    
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("touchstart", handleClickOutside);
+    document.addEventListener("keydown", handleEscapeKey);
+
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('touchstart', handleClickOutside);
-      document.removeEventListener('keydown', handleEscapeKey);
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("touchstart", handleClickOutside);
+      document.removeEventListener("keydown", handleEscapeKey);
     };
   }, [isMobile, sidebarOpen]);
 
   // Enhanced body scroll lock
   useEffect(() => {
     if (isMobile && sidebarOpen) {
-      document.body.classList.add('menu-open');
-      document.body.style.overflow = 'hidden';
+      document.body.classList.add("menu-open");
+      document.body.style.overflow = "hidden";
     } else {
-      document.body.classList.remove('menu-open');
-      document.body.style.overflow = '';
+      document.body.classList.remove("menu-open");
+      document.body.style.overflow = "";
     }
 
     return () => {
-      document.body.classList.remove('menu-open');
-      document.body.style.overflow = '';
+      document.body.classList.remove("menu-open");
+      document.body.style.overflow = "";
     };
   }, [isMobile, sidebarOpen]);
 
   // Enhanced content renderer with better accessibility
   const renderContent = () => {
-    console.log('Rendering content, current state:', {
+    console.log("Rendering content, current state:", {
       loading,
       error,
       activeTab,
       hasProfile: !!profile,
       bookingsCount: bookings?.length || 0,
       invoicesCount: invoices?.length || 0,
-      feedbackCount: feedback?.length || 0
+      feedbackCount: feedback?.length || 0,
     });
 
     if (loading) {
-      console.log('Showing loading state');
+      console.log("Showing loading state");
       return <LoadingState />;
     }
-    
+
     if (error) {
-      console.log('Showing error state:', error);
+      console.log("Showing error state:", error);
       return (
         <ErrorState
           message={error}
           onRetry={() => {
-            console.log('Retry button clicked');
+            console.log("Retry button clicked");
             window.location.reload();
           }}
         />
@@ -669,10 +836,10 @@ const SpaProfilePage = () => {
     }
 
     console.log(`Rendering tab: ${activeTab}`);
-    
+
     switch (activeTab) {
       case "bookings":
-        console.log('Bookings data:', bookings);
+        console.log("Bookings data:", bookings);
         return bookings?.length > 0 ? (
           <div className="card">
             <h3 className="card-title">
@@ -681,7 +848,11 @@ const SpaProfilePage = () => {
             </h3>
             <div className="space-y-4">
               {bookings.map((booking, index) => (
-                <BookingItem key={booking._id || booking.id || `booking-${index}`} booking={booking} />
+                <BookingItem
+                  key={booking._id || booking.id || `booking-${index}`}
+                  booking={booking}
+                  onGiveRating={openRatingPopup}
+                />
               ))}
             </div>
           </div>
@@ -691,16 +862,19 @@ const SpaProfilePage = () => {
               <Calendar className="empty-state-icon" />
               <h3 className="empty-state-title">No Bookings Found</h3>
               <p className="empty-state-description">
-                You don't have any bookings yet. Book your first service to get started!
+                You don't have any bookings yet. Book your first service to get
+                started!
               </p>
               <div className="empty-state-actions">
-                <button 
+                <button
                   className="btn btn-primary"
-                  onClick={() => Swal.fire({
-                    title: "Book Service",
-                    text: "Service booking functionality would be implemented here.",
-                    icon: "info"
-                  })}
+                  onClick={() =>
+                    Swal.fire({
+                      title: "Book Service",
+                      text: "Service booking functionality would be implemented here.",
+                      icon: "info",
+                    })
+                  }
                 >
                   <Plus className="w-4 h-4" />
                   Book a Service
@@ -709,9 +883,9 @@ const SpaProfilePage = () => {
             </div>
           </div>
         );
-        
+
       case "invoices":
-        console.log('Invoices data:', invoices);
+        console.log("Invoices data:", invoices);
         return invoices?.length > 0 ? (
           <div className="card">
             <h3 className="card-title">
@@ -720,7 +894,10 @@ const SpaProfilePage = () => {
             </h3>
             <div className="space-y-4">
               {invoices.map((invoice, index) => (
-                <InvoiceItem key={invoice.id || `invoice-${index}`} invoice={invoice} />
+                <InvoiceItem
+                  key={invoice.id || `invoice-${index}`}
+                  invoice={invoice}
+                />
               ))}
             </div>
           </div>
@@ -730,14 +907,15 @@ const SpaProfilePage = () => {
               <CreditCard className="empty-state-icon" />
               <h3 className="empty-state-title">No Invoices Found</h3>
               <p className="empty-state-description">
-                Your payment history will appear here once you complete a booking.
+                Your payment history will appear here once you complete a
+                booking.
               </p>
             </div>
           </div>
         );
-        
+
       case "feedback":
-        console.log('Feedback data:', feedback);
+        console.log("Feedback data:", feedback);
         return feedback?.length > 0 ? (
           <div className="card">
             <h3 className="card-title">
@@ -745,56 +923,131 @@ const SpaProfilePage = () => {
               My Feedback ({feedback.length})
             </h3>
             <div className="space-y-6">
-              {feedback.map((item, index) => (
-                <div key={item._id || item.id || `feedback-${index}`} className="feedback-item">
-                  <div className="feedback-header">
-                    <div>
-                      <h4 className="feedback-title">
-                        {item.serviceName || `Service ${index + 1}`}
-                      </h4>
-                      <div className="feedback-date">
-                        <Calendar className="w-4 h-4" />
-                        <span>{item.date ? new Date(item.date).toLocaleDateString() : 'N/A'}</span>
-                      </div>
-                    </div>
-                    <div className="feedback-rating">
-                      <div className="star-rating">
-                        {[1, 2, 3, 4, 5].map((star) => (
-                          <Star
-                            key={star}
-                            className={`star ${star <= (item.rating || 0) ? 'filled' : ''}`}
-                          />
-                        ))}
-                      </div>
-                      <span className="feedback-rating-text">
-                        {item.rating || 0}/5
-                      </span>
-                    </div>
-                  </div>
-                  {item.comment && (
-                    <div className="feedback-comment">
-                      <p>{item.comment}</p>
-                    </div>
-                  )}
-                  {item.breakdown && (
-                    <div className="feedback-breakdown">
-                      {Object.entries(item.breakdown).map(([key, value]) => (
-                        <div key={key} className="feedback-breakdown-item">
-                          <span className="feedback-breakdown-label">{key}</span>
-                          <div className="star-rating">
-                            {[1, 2, 3, 4, 5].map((star) => (
-                              <Star
-                                key={star}
-                                className={`star ${star <= value ? 'filled' : ''}`}
-                              />
-                            ))}
+              {feedback.map((item, index) => {
+                const isEditing = (item._id || item.id) === editingFeedbackId;
+                return (
+                  <div
+                    key={item._id || item.id || `feedback-${index}`}
+                    className="feedback-item"
+                  >
+                    {isEditing ? (
+                      <div>
+                        <div className="feedback-header">
+                          <div>
+                            <h4 className="feedback-title">
+                              {item.serviceName || `Service ${index + 1}`}
+                            </h4>
+                          </div>
+                          <div className="feedback-rating">
+                            <div className="star-rating">
+                              {[1, 2, 3, 4, 5].map((star) => (
+                                <Star
+                                  key={star}
+                                  className={`star ${
+                                    star <= editFeedbackValue ? "filled" : ""
+                                  } cursor-pointer`}
+                                  onClick={() => setEditFeedbackValue(star)}
+                                />
+                              ))}
+                            </div>
+                            <span className="feedback-rating-text">
+                              {editFeedbackValue}/5
+                            </span>
                           </div>
                         </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ))}
+                        <textarea
+                          className="w-full border border-gray-200 rounded-lg p-3 mb-2"
+                          rows={3}
+                          value={editFeedbackComment}
+                          onChange={(e) => setEditFeedbackComment(e.target.value)}
+                          maxLength={300}
+                        />
+                        <div className="flex gap-2 mt-2">
+                          <button
+                            className="btn btn-primary btn-sm"
+                            onClick={handleSaveEditedFeedback}
+                            disabled={editFeedbackValue === 0}
+                          >
+                            Save
+                          </button>
+                          <button
+                            className="btn btn-secondary btn-sm"
+                            onClick={handleCancelEditFeedback}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="feedback-header">
+                          <div>
+                            <h4 className="feedback-title">
+                              {item.serviceName || `Service ${index + 1}`}
+                            </h4>
+                            <div className="feedback-date">
+                              <Calendar className="w-4 h-4" />
+                              <span>
+                                {item.date
+                                  ? new Date(item.date).toLocaleDateString()
+                                  : "N/A"}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="feedback-rating">
+                            <div className="star-rating">
+                              {[1, 2, 3, 4, 5].map((star) => (
+                                <Star
+                                  key={star}
+                                  className={`star ${
+                                    star <= (item.rating || 0) ? "filled" : ""
+                                  }`}
+                                />
+                              ))}
+                            </div>
+                            <span className="feedback-rating-text">
+                              {item.rating || 0}/5
+                            </span>
+                          </div>
+                        </div>
+                        {item.comment && (
+                          <div className="feedback-comment">
+                            <p>{item.comment}</p>
+                          </div>
+                        )}
+                        <button
+                          className="btn btn-secondary btn-xs mt-2"
+                          onClick={() => handleEditFeedback(item)}
+                        >
+                          <Edit className="w-3 h-3" /> Edit
+                        </button>
+                      </>
+                    )}
+                    {/* ...existing breakdown code if any... */}
+                    {item.breakdown && !isEditing && (
+                      <div className="feedback-breakdown">
+                        {Object.entries(item.breakdown).map(([key, value]) => (
+                          <div key={key} className="feedback-breakdown-item">
+                            <span className="feedback-breakdown-label">
+                              {key}
+                            </span>
+                            <div className="star-rating">
+                              {[1, 2, 3, 4, 5].map((star) => (
+                                <Star
+                                  key={star}
+                                  className={`star ${
+                                    star <= value ? "filled" : ""
+                                  }`}
+                                />
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
         ) : (
@@ -803,77 +1056,187 @@ const SpaProfilePage = () => {
               <Star className="empty-state-icon" />
               <h3 className="empty-state-title">No Feedback Yet</h3>
               <p className="empty-state-description">
-                Your feedback will appear here after you complete a booking and leave a review.
+                Your feedback will appear here after you complete a booking and
+                leave a review.
               </p>
             </div>
           </div>
         );
-        
+
       case "profile":
-        console.log('Profile data:', profile);
         return (
-          <div className="card">
-            <h3 className="card-title">
-              <User className="w-5 h-5" />
-              Profile Information
+          <div className="card relative">
+            <h3 className="card-title flex justify-between items-center">
+              <span className="flex items-center gap-2">
+                <User className="w-5 h-5" />
+                Profile Information
+              </span>
+              {!editMode && (
+                <button
+                  onClick={() => setEditMode(true)}
+                  className="btn btn-secondary btn-sm"
+                >
+                  <Edit className="w-4 h-4" />
+                  Edit
+                </button>
+              )}
             </h3>
-            <div className="profile-info-grid">
-              <div className="profile-info-item">
-                <User className="profile-info-icon" />
-                <div className="profile-info-content">
-                  <p className="info-label">Full Name</p>
-                  <p className="info-value">{profile?.fullName || `${profile?.firstName || ''} ${profile?.lastName || ''}`.trim()}</p>
+
+            {editMode ? (
+              <form
+                onSubmit={handleProfileSave}
+                className="edit-profile-form grid grid-cols-2 gap-6"
+              >
+                <div className="form-group">
+                  <label className="label">First Name</label>
+                  <input
+                    type="text"
+                    name="firstName"
+                    value={editProfile.firstName || ""}
+                    onChange={handleProfileChange}
+                    className="input"
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="label">Last Name</label>
+                  <input
+                    type="text"
+                    name="lastName"
+                    value={editProfile.lastName || ""}
+                    onChange={handleProfileChange}
+                    className="input"
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="label">Email</label>
+                  <input
+                    type="email"
+                    name="email"
+                    value={editProfile.email || ""}
+                    onChange={handleProfileChange}
+                    className="input"
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="label">Phone</label>
+                  <input
+                    type="text"
+                    name="phone"
+                    value={editProfile.phone || ""}
+                    onChange={handleProfileChange}
+                    className="input"
+                  />
+                </div>
+
+                <div className="form-actions flex gap-4 mt-6 col-span-2">
+                  <button
+                    type="submit"
+                    className="btn btn-primary"
+                    disabled={isUpdating}
+                  >
+                    {isUpdating ? "Saving..." : "Save Changes"}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => setEditMode(false)}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <div className="profile-info-grid">
+                <div className="profile-info-item">
+                  <User className="profile-info-icon" />
+                  <div className="profile-info-content">
+                    <p className="info-label">Full Name</p>
+                    <p className="info-value">
+                      {profile?.fullName ||
+                        `${profile?.firstName || ""} ${
+                          profile?.lastName || ""
+                        }`.trim()}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="profile-info-item">
+                  <Mail className="profile-info-icon" />
+                  <div className="profile-info-content">
+                    <p className="info-label">Email</p>
+                    <p className="info-value">
+                      {profile?.email || "Not provided"}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="profile-info-item">
+                  <Phone className="profile-info-icon" />
+                  <div className="profile-info-content">
+                    <p className="info-label">Phone</p>
+                    <p className="info-value">
+                      {profile?.phone || "Not provided"}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="profile-info-item">
+                  <Calendar className="profile-info-icon" />
+                  <div className="profile-info-content">
+                    <p className="info-label">Member Since</p>
+                    <p className="info-value">
+                      {profile?.createdAt
+                        ? new Date(profile.createdAt).toLocaleDateString()
+                        : "N/A"}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="profile-info-item">
+                  <Star className="profile-info-icon" />
+                  <div className="profile-info-content">
+                    <p className="info-label">Account Status</p>
+                    <p className="info-value">
+                      <span
+                        className={`badge ${
+                          profile?.isActive
+                            ? "badge-default"
+                            : "badge-destructive"
+                        }`}
+                      >
+                        {profile?.isActive ? "Active" : "Inactive"}
+                      </span>
+                    </p>
+                  </div>
+                </div>
+
+                <div className="profile-info-item">
+                  <MessageSquare className="profile-info-icon" />
+                  <div className="profile-info-content">
+                    <p className="info-label">Email Verified</p>
+                    <p className="info-value">
+                      <span
+                        className={`badge ${
+                          profile?.isEmailVerified
+                            ? "badge-default"
+                            : "badge-secondary"
+                        }`}
+                      >
+                        {profile?.isEmailVerified ? "Verified" : "Not Verified"}
+                      </span>
+                    </p>
+                  </div>
                 </div>
               </div>
-              <div className="profile-info-item">
-                <Mail className="profile-info-icon" />
-                <div className="profile-info-content">
-                  <p className="info-label">Email</p>
-                  <p className="info-value">{profile?.email || 'Not provided'}</p>
-                </div>
-              </div>
-              <div className="profile-info-item">
-                <Phone className="profile-info-icon" />
-                <div className="profile-info-content">
-                  <p className="info-label">Phone</p>
-                  <p className="info-value">{profile?.phone || 'Not provided'}</p>
-                </div>
-              </div>
-              <div className="profile-info-item">
-                <Calendar className="profile-info-icon" />
-                <div className="profile-info-content">
-                  <p className="info-label">Member Since</p>
-                  <p className="info-value">{profile?.createdAt ? new Date(profile.createdAt).toLocaleDateString() : 'N/A'}</p>
-                </div>
-              </div>
-              <div className="profile-info-item">
-                <Star className="profile-info-icon" />
-                <div className="profile-info-content">
-                  <p className="info-label">Account Status</p>
-                  <p className="info-value">
-                    <span className={`badge ${profile?.isActive ? 'badge-default' : 'badge-destructive'}`}>
-                      {profile?.isActive ? 'Active' : 'Inactive'}
-                    </span>
-                  </p>
-                </div>
-              </div>
-              <div className="profile-info-item">
-                <MessageSquare className="profile-info-icon" />
-                <div className="profile-info-content">
-                  <p className="info-label">Email Verified</p>
-                  <p className="info-value">
-                    <span className={`badge ${profile?.isEmailVerified ? 'badge-default' : 'badge-secondary'}`}>
-                      {profile?.isEmailVerified ? 'Verified' : 'Not Verified'}
-                    </span>
-                  </p>
-                </div>
-              </div>
-            </div>
+            )}
           </div>
         );
-        
+
       default:
-        console.log('Unknown tab:', activeTab);
+        console.log("Unknown tab:", activeTab);
         return (
           <div className="empty-state">
             <div className="empty-state-card">
@@ -883,9 +1246,9 @@ const SpaProfilePage = () => {
                 The requested page could not be found.
               </p>
               <div className="empty-state-actions">
-                <button 
+                <button
                   className="btn btn-primary"
-                  onClick={() => setActiveTab('bookings')}
+                  onClick={() => setActiveTab("bookings")}
                 >
                   Go to Bookings
                 </button>
@@ -897,23 +1260,24 @@ const SpaProfilePage = () => {
   };
 
   return (
-    <div className={`min-h-screen bg-gray-50 flex ${sidebarOpen && isMobile ? 'overflow-hidden' : ''}`}>
-      {/* Theme Toggle - Only visible on mobile/tablet */}
-      <ThemeToggle theme={theme} onToggle={toggleTheme} />
-      
+    <div
+      className={`min-h-screen bg-gray-50 flex ${
+        sidebarOpen && isMobile ? "overflow-hidden" : ""
+      }`}
+    >
       {/* Mobile overlay */}
       {isMobile && (
-        <div 
-          className={`mobile-overlay ${sidebarOpen ? 'open' : ''}`}
+        <div
+          className={`mobile-overlay ${sidebarOpen ? "open" : ""}`}
           onClick={closeSidebar}
           aria-hidden="true"
         />
       )}
 
       {/* Enhanced Sidebar */}
-      <aside 
+      <aside
         className={`sidebar-container ${
-          sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+          sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         }`}
         aria-label="Main navigation"
       >
@@ -953,10 +1317,85 @@ const SpaProfilePage = () => {
             {renderContent()}
           </div>
         </main>
+        {/* Rating Popup */}
+        {showRatingPopup && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm">
+            <div
+              className="relative bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md animate-fade-in"
+              style={{
+                boxShadow: "0 8px 32px 0 rgba(31, 38, 135, 0.37)",
+                border: "1px solid rgba(255,255,255,0.18)",
+                borderRadius: "30px",
+              }}
+            >
+              {/* Close Button */}
+              <button
+                className="absolute top-3 right-3 
+                   flex items-center justify-center
+                   w-9 h-9 bg-white text-black
+                   hover:bg-black hover:text-white
+                   shadow-sm transition-all duration-200 ease-in-out"
+                onClick={closeRatingPopup}
+                aria-label="Close"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+              <h3 className="text-2xl font-bold mb-2 text-center text-gray-800">
+                Give Rating
+              </h3>
+              <p className="mb-4 text-center text-gray-500 text-sm">
+                How was your experience?
+              </p>
+
+              {/* Rating Stars */}
+              <div className="flex items-center justify-center mb-4 gap-1">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <Star
+                    key={star}
+                    className={`w-9 h-9 cursor-pointer transition-transform duration-150 ${
+                      star <= ratingValue
+                        ? "text-yellow-400 scale-110 drop-shadow"
+                        : "text-gray-300 hover:text-yellow-300"
+                    }`}
+                    onClick={() => setRatingValue(star)}
+                    fill={star <= ratingValue ? "#facc15" : "none"}
+                    style={{ transition: "color 0.2s, transform 0.2s" }}
+                  />
+                ))}
+              </div>
+
+              {/* Comment Box */}
+              <textarea
+                className="w-full border border-gray-200 rounded-lg p-3 mb-4 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition"
+                rows={3}
+                placeholder="Write your feedback..."
+                value={ratingComment}
+                onChange={(e) => setRatingComment(e.target.value)}
+                maxLength={300}
+              />
+
+              {/* Submit Button */}
+              <button
+                className={`w-full py-2 text-lg font-semibold shadow transition 
+                   ${ratingValue === 0 ? "opacity-60 cursor-not-allowed" : ""}`}
+                onClick={handleRatingSubmit}
+                disabled={ratingValue === 0}
+                style={{
+                  background: "#000", // pure black background
+                  color: "#fff", // white text
+                  border: "none", // no border
+                  borderRadius: "5px", // no border radius
+                }}
+              >
+                Submit
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
 };
 
 export default SpaProfilePage;
-

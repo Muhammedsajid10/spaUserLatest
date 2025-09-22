@@ -1,6 +1,5 @@
 import React, { useEffect, useState, useRef } from "react";
 import "./Services.css";
-
 import { servicesAPI, apiUtils, bookingFlow } from "../services/api";
 import { useNavigate } from "react-router-dom";
 import Swal from 'sweetalert2';
