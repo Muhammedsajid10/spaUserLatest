@@ -145,6 +145,22 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Send reset password email
+  const resetPassword = async ({ email }) => {
+    try {
+      const response = await fetch('https://spabacklat.onrender.com/api/v1/auth/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      const text = await response.text();
+      const data = text ? JSON.parse(text) : {};
+      return data;
+    } catch (error) {
+      return { success: false, message: error.message || 'Failed to send reset link' };
+    }
+  };
+
   // Check if user has specific role
   const hasRole = (role) => {
     return user && user.role === role;
@@ -177,7 +193,8 @@ export const AuthProvider = ({ children }) => {
     hasRole,
     isAdmin,
     isEmployee,
-    isClient
+    isClient,
+    resetPassword
   };
 
   console.log('Context: Current state:', { user, token, isAuthenticated, loading });

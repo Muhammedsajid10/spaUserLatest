@@ -31,8 +31,8 @@ import PaymentSuccess from "./pages/PaymentSuccess";
 // import Selectcalander from "./Clientsidepage/Selectcalander";
 // import LoginPage from "./Clientsidepage/Loginpage";
 import Signuppage from "./Authentication/Signuppage";
-import ForgotPassword from "./Authentication/ForgotPassword";
-import ResetPassword from "./Authentication/ResetPassword";
+// import ForgotPassword from "./Authentication/ForgotPassword";
+// import ResetPassword from "./Authentication/ResetPassword";
 import VerifyEmailPage from './pages/VerifyEmailPage';
 
 // Import the new/updated components
@@ -89,8 +89,8 @@ function App() {
           {/* Authentication routes */}
           <Route path="/login" element={<Signuppage />} />
           <Route path="/signup" element={<Signuppage />} />
-          <Route path="/forgot-password" element={<ForgotPassword />} />
-          <Route path="/reset-password/:token" element={<ResetPassword />} />
+          {/* <Route path="/forgot-password" element={<ForgotPassword />} /> */}
+          {/* <Route path="/reset-password/:token" element={<ResetPassword />} /> */}
           
           {/* Protected payment route - requires authentication */}
           <Route 

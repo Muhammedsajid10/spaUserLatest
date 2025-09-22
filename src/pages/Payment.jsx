@@ -448,13 +448,13 @@ const Payment = () => {
                     <span className="method-text">Card</span>
                   </button>
 
-                  <button
+                  {/* <button
                     type="button"
                     className={`payment-method-btn ${selectedMethod === 'upi' ? 'selected' : ''}`}
                     onClick={() => setSelectedMethod('upi')}
                   >
                     <span className="method-text">UPI</span>
-                  </button>
+                  </button> */}
 
                   <button
                     type="button"

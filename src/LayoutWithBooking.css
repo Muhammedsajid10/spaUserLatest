@@ -223,7 +223,7 @@
 
 /* Selected service styles - No gaps between items */
 .selected-service.simple {
-  height: 90px;
+  height: 61px;
   padding: 0.5rem 0.75rem 1.4rem; /* Reduced padding */
   border: 1px solid #ececec;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);

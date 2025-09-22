@@ -194,7 +194,7 @@ const SignInPage = () => {
   return (
     <div className="modern-auth-wrapper">
       <div className="modern-auth-container">
-        <div className="modern-auth-card">
+        <div className=" ">
           <div className="modern-auth-header">
             <h1 className="modern-auth-title">
               {showForgotPassword

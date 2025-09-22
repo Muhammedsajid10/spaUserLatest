@@ -238,9 +238,9 @@ body {
 
 /* Payment Methods Grid */
 .payment-methods-grid {
-  display: grid;
+ display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
+  gap: 20px; /* Increased from 8px to 20px for more space */
   margin-bottom: 16px;
 }
 

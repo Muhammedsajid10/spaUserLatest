@@ -47,7 +47,7 @@ function Services() {
       setError(null);
 
       const response = await servicesAPI.getAllServices();
-
+   
       if (response.success) {
         const groupedServices = {};
         response.data.services.forEach((service) => {
@@ -147,12 +147,14 @@ function Services() {
   }, []);
 
   // Navigation functions
-  const scrollToSection = (key) => {
-    const element = sectionRefs.current[key];
-    if (element) {
-      element.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
-  };
+const scrollToSection = (key) => {
+  const element = sectionRefs.current[key];
+  if (element) {
+    element.scrollIntoView({ behavior: "smooth", block: "start" });
+    setActiveSection(key); // ✅ immediately update highlight
+  }
+};
+
 
   // Service interaction functions
   const toggleReadMore = (category, index) => {

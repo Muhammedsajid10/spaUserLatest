@@ -33,6 +33,16 @@ const LoadingDots = () => (
   </div>
 );
 
+function toMinutes(timeStr) {
+  if (!timeStr) return 0;
+  if (timeStr.includes('T')) {
+    const d = new Date(timeStr);
+    return d.getHours() * 60 + d.getMinutes();
+  }
+  const [h, m] = timeStr.split(':').map(Number);
+  return h * 60 + (m || 0);
+}
+
 const Time = (props) => {
   // Get start of current week (Sunday)
   const getStartOfWeek = (date = new Date()) => {
@@ -67,6 +77,7 @@ const Time = (props) => {
   const [selectedServices, setSelectedServices] = useState([]);
   const [currentStep] = useState(3);
   const [processingTimeSlotId, setProcessingTimeSlotId] = useState(null);
+  const [initialLoad, setInitialLoad] = useState(true);
 
   // Refs
   const popupRef = useRef(null);
@@ -218,20 +229,20 @@ const Time = (props) => {
   };
 
   const changeMonth = (months) => {
-    const newDate = new Date(selectedDate);
-    newDate.setMonth(newDate.getMonth() + months);
-    setSelectedDate(newDate);
+    const selectedDate = new Date(selectedDate);
+    selectedDate.setMonth(selectedDate.getMonth() + months);
+    setSelectedDate(selectedDate);
   };
 
   const changeWeek = (weeks) => {
-    const newDate = new Date(selectedDate);
-    newDate.setDate(newDate.getDate() + weeks * 7);
+    const selectedDate = new Date(selectedDate);
+    selectedDate.setDate(selectedDate.getDate() + weeks * 7);
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    if (newDate >= today) {
-      setSelectedDate(newDate);
+    if (selectedDate >= today) {
+      setSelectedDate(selectedDate);
     }
   };
 
@@ -525,15 +536,15 @@ const Time = (props) => {
 
   const handleDateClick = async (day, month, year) => {
     console.log('[Time] handleDateClick start (local computation)', { day, month, year, selectedService, selectedProfessional });
-    const newDate = new Date(year || selectedDate.getFullYear(), month !== undefined ? month : selectedDate.getMonth(), day);
+    const selectedDate = new Date(year || selectedDate.getFullYear(), month !== undefined ? month : selectedDate.getMonth(), day);
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    if (newDate < today) {
+    if (selectedDate < today) {
       console.log('[Time] Attempted to select past date, ignoring');
       return;
     }
-    setSelectedDate(newDate);
+    setSelectedDate(selectedDate);
     setCalendarOpen(false);
     setLoadingTimeSlots(true);
     setAvailableTimeSlots([]);
@@ -542,7 +553,7 @@ const Time = (props) => {
       const flow = bookingFlow.load();
       const services = (flow.selectedServices && flow.selectedServices.length) ? flow.selectedServices : ([selectedService].filter(Boolean));
 
-      const { appointmentsIndex } = await fetchDateData(newDate);
+      const { appointmentsIndex } = await fetchDateData(selectedDate);
 
       if (!services || services.length <= 1) {
         const svc = services && services[0] || selectedService;
@@ -554,7 +565,7 @@ const Time = (props) => {
           console.log('[Time] single-service ANY -> fetching employees for union slots');
           let employees = [];
           try {
-            const resp = await bookingsAPI.getAvailableProfessionals(svc._id, apiUtils.formatDate(newDate));
+            const resp = await bookingsAPI.getAvailableProfessionals(svc._id, apiUtils.formatDate(selectedDate));
             employees = resp?.data?.professionals ?? resp?.professionals ?? resp?.data ?? resp ?? [];
             employees = employees.filter(emp => emp.isActive !== false);
           } catch (err) {
@@ -562,13 +573,19 @@ const Time = (props) => {
             employees = [];
           }
 
-          const avail = getAvailableProfessionalsForService(svc._id, newDate, employees, appointmentsIndex, flow.selectedServices || [svc]);
+          const avail = getAvailableProfessionalsForService(
+            svc._id, 
+            selectedDate, 
+            employees, 
+            appointmentsIndex, 
+            flow.selectedServices || [svc]
+          );
           const union = [];
           (avail || []).forEach(r => (r.slots || []).forEach(s => union.push(s)));
           const uniq = Array.from(new Set(union)).sort();
 
           const now = new Date();
-          const isToday = newDate.toDateString() === now.toDateString();
+          const isToday = selectedDate.toDateString() === now.toDateString();
           const currentTime = isToday ? `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}` : null;
 
           const futureFilteredUniq = isToday ? uniq.filter(slotTime => {
@@ -605,12 +622,12 @@ const Time = (props) => {
 
         const duration = svc.duration || 30;
         const empId = assigned._id || assigned.id;
-        console.log('[Time] computing local slots for employee', { employeeId: empId, date: localDateKey(newDate), duration });
-        const slotsArr = getValidTimeSlotsForProfessional(assigned, new Date(newDate), duration, appointmentsIndex);
+        console.log('[Time] computing local slots for employee', { employeeId: empId, date: localDateKey(selectedDate), duration });
+        const slotsArr = getValidTimeSlotsForProfessional(assigned, new Date(selectedDate), duration, appointmentsIndex);
         console.log('[Time] local slots computed count', slotsArr.length, slotsArr.slice(0, 6));
 
         const now = new Date();
-        const isToday = newDate.toDateString() === now.toDateString();
+        const isToday = selectedDate.toDateString() === now.toDateString();
         const currentTime = isToday ? `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}` : null;
 
         const futureFilteredSlotsArr = isToday ? slotsArr.filter(slotTime => {
@@ -657,8 +674,8 @@ const Time = (props) => {
         professionalsMap[svc._id] = flow.selectedProfessionals[svc._id];
       });
 
-      console.log('[Time] computing sequential service start times locally (with bookings)', { services: services.map(s => s._id), date: localDateKey(newDate) });
-      const sequences = await computeSequentialServiceStartTimesWithBookings(services, professionalsMap, newDate, appointmentsIndex);
+      console.log('[Time] computing sequential service start times locally (with bookings)', { services: services.map(s => s._id), date: localDateKey(selectedDate) });
+      const sequences = await computeSequentialServiceStartTimesWithBookings(services, professionalsMap, selectedDate, appointmentsIndex);
       console.log('[Time] sequences found', sequences?.length);
       if (!sequences || sequences.length === 0) {
         setAvailableTimeSlots([]);
@@ -808,16 +825,10 @@ const Time = (props) => {
 
   useEffect(() => {
     const fetchTimeSlots = async () => {
-      console.log('[Time] useEffect fetchTimeSlots TRIGGERED - checking dependencies:', {
-        selectedServiceId: selectedService?._id,
-        selectedProfessionalId: selectedProfessional?._id || selectedProfessional?.id,
-        selectedDateString: selectedDate.toDateString(),
-        timestamp: new Date().toISOString()
-      });
-
-      if (!selectedService || !selectedDate) {
-        console.log('[Time] fetchTimeSlots abort - missing service or date');
+      if (!selectedService) {
+        setError('Please select a service first');
         setAvailableTimeSlots([]);
+        setLoadingTimeSlots(false);
         return;
       }
 
@@ -825,525 +836,165 @@ const Time = (props) => {
       setError(null);
 
       try {
-        console.log('[Time] FIXED WORKFLOW - Starting with employee schedule first', {
-          selectedServiceId: selectedService?._id,
-          selectedDate: selectedDate.toDateString(),
-          timestamp: new Date().toISOString()
-        });
-
+        const { appointmentsIndex } = await fetchDateData(selectedDate);
+        
         const flow = bookingFlow.load();
-        const services = flow.selectedServices && flow.selectedServices.length ? flow.selectedServices : [selectedService];
+        const services = flow.selectedServices?.length ? flow.selectedServices : [selectedService];
 
-        if (services.length > 1) {
-          console.log('[Time] FIXED WORKFLOW - Multi-service flow starting');
-          const missing = services.filter(s => !flow.selectedProfessionals?.[s._id]);
-          if (missing.length) {
-            console.log('[Time] multi-service abort - missing assignments', missing.map(m => m._id));
-            setAvailableTimeSlots([]);
-            return;
-          }
+        if (!services || services.length <= 1) {
+          const svc = services?.[0] || selectedService;
+          if (!svc) throw new Error('No service selected');
 
-          const professionalsMap = {};
-          const employeeIds = [];
-          services.forEach(svc => {
-            const emp = flow.selectedProfessionals[svc._id];
-            professionalsMap[svc._id] = emp;
-            const id = emp?._id || emp?.id;
-            if (id) employeeIds.push(id);
-          });
+          const assigned = flow.selectedProfessionals?.[svc._id] || selectedProfessional;
 
-          console.log('[Time] FIXED WORKFLOW - Multi-service: Fetching booking conflicts after professional assignment');
-          const { appointmentsIndex } = await fetchDateData(selectedDate);
-
-          employeeIds.forEach(id => {
-            if (!appointmentsIndex[id]) {
-              const alt = Object.keys(appointmentsIndex).find(k => String(k).endsWith(String(id)) || String(id).endsWith(String(k)));
-              if (alt) {
-                appointmentsIndex[id] = appointmentsIndex[alt];
-                console.log('[Time] normalized appointments key', { want: id, using: alt });
-              } else {
-                appointmentsIndex[id] = appointmentsIndex[id] || {};
-                appointmentsIndex[id][localDateKey(selectedDate)] = appointmentsIndex[id][localDateKey(selectedDate)] || {};
-              }
+          if (!assigned || assigned.id === 'any' || assigned._id === 'any') {
+            let employees = [];
+            try {
+              const resp = await bookingsAPI.getAvailableProfessionals(
+                svc._id, 
+                apiUtils.formatDate(selectedDate)  // Using selectedDate instead of selectedDate
+              );
+              employees = resp?.data?.professionals ?? resp?.professionals ?? [];
+              employees = employees.filter(emp => emp.isActive !== false);
+            } catch (err) {
+              console.warn('[Time] Failed to fetch professionals:', err);
             }
-          });
 
-          const sequences = await computeSequentialServiceStartTimesWithBookings(services, professionalsMap, selectedDate, appointmentsIndex);
-          console.log('[Time] sequences computed with bookings count', sequences?.length);
-          if (!sequences || sequences.length === 0) {
-            setAvailableTimeSlots([]);
-            setError('No sequential time slots available for assigned professionals on this date. Try another date or change professionals.');
-            return;
-          }
-          const slots = sequences.map((s, idx) => ({
-            id: idx,
-            time: formatTimeToAMPM(s.startTime),
-            timeValue: s.startTime,
-            startTime: s.startTime,
-            endTime: s.sequence[s.sequence.length - 1].endTime,
-            available: true,
-            sequence: s.sequence
-          }));
-          setAvailableTimeSlots(slots);
-          setLoadingTimeSlots(false);
-          return;
-        }
+            const avail = getAvailableProfessionalsForService(
+              svc._id, 
+              selectedDate,  // Using selectedDate instead of selectedDate
+              employees, 
+              appointmentsIndex,
+              [svc]
+            );
+            
+            const union = [];
+            (avail || []).forEach(r => (r.slots || []).forEach(s => union.push(s)));
+            const uniq = Array.from(new Set(union)).sort();
 
-        const svc = services[0];
-        const assigned = flow.selectedProfessionals?.[svc._id] || selectedProfessional;
+            const now = new Date();
+            const isToday = selectedDate.toDateString() === now.toDateString();
+            const currentTime = isToday ? `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}` : null;
 
-        console.log('[Time] FIXED WORKFLOW - Single-service assignment check:', {
-          serviceId: svc._id,
-          assignedFromFlow: flow.selectedProfessionals?.[svc._id],
-          assignedFromState: selectedProfessional,
-          finalAssigned: assigned,
-          assignedId: assigned?.id || assigned?._id,
-          assignedName: assigned?.user ? `${assigned.user.firstName} ${assigned.user.lastName}` : assigned?.name,
-          isAny: !assigned || assigned.id === 'any' || assigned._id === 'any'
-        });
-
-        if (!assigned || assigned.id === 'any' || assigned._id === 'any') {
-          console.log('[Time] single-service ANY -> using old workflow (fetch bookings first)');
-          const { appointmentsIndex } = await fetchDateData(selectedDate);
-
-          let availableEmployees = [];
-          try {
-            const resp = await bookingsAPI.getAvailableProfessionals(svc._id, apiUtils.formatDate(selectedDate));
-            availableEmployees = resp?.data?.professionals ?? resp?.professionals ?? resp?.data ?? resp ?? [];
-            availableEmployees = availableEmployees.filter(emp => emp.isActive !== false);
-          } catch (err) {
-            console.warn('[Time] Failed to fetch professionals for Any selection:', err);
-            availableEmployees = [];
-          }
-
-          const profsResult = getAvailableProfessionalsForService(svc._id, selectedDate, availableEmployees, appointmentsIndex, services);
-          const union = [];
-          (profsResult || []).forEach(r => (r.slots || []).forEach(s => union.push(s)));
-          const uniq = Array.from(new Set(union)).sort();
-
-          const now = new Date();
-          const isToday = selectedDate.toDateString() === now.toDateString();
-          const currentTime = isToday ? `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}` : null;
-
-          const futureFilteredUniq = isToday ? uniq.filter(slotTime => {
-            const isCurrentOrFuture = slotTime >= currentTime;
-            console.log('[Time] Any professional slot time comparison:', {
-              slotTime,
-              currentTime,
-              isCurrentOrFuture,
-              action: isCurrentOrFuture ? 'KEEP' : 'REMOVE'
-            });
-            return isCurrentOrFuture;
-          }) : uniq;
-
-          console.log('[Time] Any professional past time filtering:', {
-            isToday,
-            currentTime,
-            beforeFilter: uniq.length,
-            afterFilter: futureFilteredUniq.length,
-            removedPastSlots: uniq.length - futureFilteredUniq.length
-          });
-
-          const slots = futureFilteredUniq.map((t, i) => ({
-            id: i,
-            time: formatTimeToAMPM(t),
-            timeValue: t,
-            startTime: t,
-            endTime: addMinutesToTime(t, svc.duration || 30),
-            available: true
-          }));
-          console.log('[Time] union slots count', slots.length);
-          setAvailableTimeSlots(slots);
-          setLoadingTimeSlots(false);
-          return;
-        }
-
-        const duration = svc.duration || 30;
-        const empId = assigned._id || assigned.id;
-        const formattedDate = apiUtils.formatDate(selectedDate);
-
-        console.log('[Time] FIXED WORKFLOW - Fetching employee schedule FIRST (before bookings):', {
-          assignedEmployee: assigned,
-          employeeId: empId,
-          employeeName: assigned?.user ? `${assigned.user.firstName} ${assigned.user.lastName}` : assigned?.name,
-          formattedDate,
-          selectedDate: selectedDate.toString()
-        });
-
-        try {
-          console.log('[Time] STEP 1 - Fetching employee schedule template first', { employeeId: empId, date: formattedDate });
-          const response = await bookingsAPI.getEmployeeSchedule(empId, formattedDate);
-          const scheduleData = response?.data || response;
-
-          console.log('[Time] STEP 1 - Employee schedule template fetched:', {
-            scheduledShifts: scheduleData.scheduledShifts,
-            rawAvailableSlots: scheduleData.availableTimeSlots?.length || 0
-          });
-
-          console.log('[Time] STEP 2 - Fetching booking conflicts for specific employee using new method');
-          const { appointmentsIndex } = await fetchEmployeeBookingConflicts(selectedDate, empId);
-
-          const rawScheduleSlots = scheduleData.availableTimeSlots || [];
-          console.log('[Time] STEP 2 - Raw schedule slots from API:', { count: rawScheduleSlots.length, sample: rawScheduleSlots.slice(0, 6) });
-
-          const dateKey = localDateKey(selectedDate);
-          const employeeBookings = appointmentsIndex[empId]?.[dateKey] || {};
-          const bookingCount = Object.keys(employeeBookings).length;
-
-          const employeeShifts = scheduleData.scheduledShifts || [];
-          let shiftEndTime = null;
-
-          console.log('[Time] DEBUG - Schedule data structure:', {
-            scheduledShifts: scheduleData.scheduledShifts,
-            shiftsCount: employeeShifts.length,
-            firstShift: employeeShifts[0],
-            allShiftData: employeeShifts,
-            scheduleDataKeys: Object.keys(scheduleData),
-            fullScheduleData: scheduleData
-          });
-
-          if (employeeShifts.length > 0 && employeeShifts[0] && employeeShifts[0].endTime) {
-            shiftEndTime = employeeShifts[0].endTime;
-            console.log('[Time] ✅ METHOD 1 - Shift end time from scheduledShifts:', {
-              shiftEndTime,
-              shiftData: employeeShifts[0],
-              method: 'scheduledShifts[0].endTime'
-            });
-          } else if (scheduleData.workingHours && scheduleData.workingHours.endTime) {
-            shiftEndTime = scheduleData.workingHours.endTime;
-            console.log('[Time] ✅ METHOD 2 - Shift end time from workingHours:', {
-              shiftEndTime,
-              workingHours: scheduleData.workingHours,
-              method: 'workingHours.endTime'
-            });
-          } else if (scheduleData.shift && scheduleData.shift.endTime) {
-            shiftEndTime = scheduleData.shift.endTime;
-            console.log('[Time] ✅ METHOD 3 - Shift end time from shift object:', {
-              shiftEndTime,
-              shift: scheduleData.shift,
-              method: 'shift.endTime'
-            });
-          } else if (rawScheduleSlots.length > 0) {
-            const lastSlot = rawScheduleSlots[rawScheduleSlots.length - 1];
-            if (lastSlot) {
-              const lastSlotTime = lastSlot.time || lastSlot.startTime;
-              shiftEndTime = addMinutesToTime(lastSlotTime, duration);
-              console.log('[Time] ⚠️ METHOD 4 FALLBACK - Estimated shift end from last slot:', {
-                lastSlotTime,
-                serviceDuration: duration,
-                estimatedShiftEnd: shiftEndTime,
-                method: 'lastSlot + serviceDuration',
-                warningMessage: 'Using fallback estimation - may not be accurate!'
+            const futureFilteredUniq = isToday ? uniq.filter(slotTime => {
+              const isCurrentOrFuture = slotTime >= currentTime;
+              console.log('[Time] handleDateClick Any professional slot time comparison:', {
+                slotTime,
+                currentTime,
+                isCurrentOrFuture,
+                action: isCurrentOrFuture ? 'KEEP' : 'REMOVE'
               });
-            }
+              return isCurrentOrFuture;
+            }) : uniq;
+
+            console.log('[Time] handleDateClick Any professional past time filtering:', {
+              isToday,
+              currentTime,
+              beforeFilter: uniq.length,
+              afterFilter: futureFilteredUniq.length,
+              removedPastSlots: uniq.length - futureFilteredUniq.length
+            });
+
+            const slots = futureFilteredUniq.map((t, i) => ({
+              id: i,
+              time: formatTimeToAMPM(t),
+              timeValue: t,
+              startTime: t,
+              endTime: addMinutesToTime(t, svc.duration || 30),
+              available: true
+            }));
+            console.log('[Time] union slots count', slots.length);
+            setAvailableTimeSlots(slots);
+            return;
           } else {
-            shiftEndTime = "18:00";
-            console.error('[Time] 🚨 METHOD 5 EMERGENCY - Using default shift end time:', {
-              defaultShiftEnd: shiftEndTime,
-              method: 'hardcoded default',
-              errorMessage: 'Could not determine shift end time from any source!',
-              availableData: {
-                hasScheduledShifts: !!scheduleData.scheduledShifts,
-                hasWorkingHours: !!scheduleData.workingHours,
-                hasShift: !!scheduleData.shift,
-                hasSlots: rawScheduleSlots.length > 0,
-                scheduleDataStructure: Object.keys(scheduleData)
-              }
+            // Handle specific professional selection
+            console.log('[Time] Computing slots for specific professional', {
+              date: localDateKey(selectedDate),
+              professional: assigned.name || assigned.id
             });
+            
+            const duration = svc.duration || 30;
+            const empId = assigned._id || assigned.id;
+            console.log('[Time] computing local slots for employee', { employeeId: empId, date: localDateKey(selectedDate), duration });
+            const slotsArr = getValidTimeSlotsForProfessional(assigned, selectedDate, duration, appointmentsIndex);
+            console.log('[Time] local slots computed count', slotsArr.length, slotsArr.slice(0, 6));
+
+            const now = new Date();
+            const isToday = selectedDate.toDateString() === now.toDateString();
+            const currentTime = isToday ? `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}` : null;
+
+            const futureFilteredSlotsArr = isToday ? slotsArr.filter(slotTime => {
+              const isCurrentOrFuture = slotTime >= currentTime;
+              console.log('[Time] handleDateClick specific professional slot time comparison:', {
+                slotTime,
+                currentTime,
+                isCurrentOrFuture,
+                action: isCurrentOrFuture ? 'KEEP' : 'REMOVE'
+              });
+              return isCurrentOrFuture;
+            }) : slotsArr;
+
+            console.log('[Time] handleDateClick specific professional past time filtering:', {
+              isToday,
+              currentTime,
+              beforeFilter: slotsArr.length,
+              afterFilter: futureFilteredSlotsArr.length,
+              removedPastSlots: slotsArr.length - futureFilteredSlotsArr.length
+            });
+
+            const mapped = futureFilteredSlotsArr.map((t, i) => ({
+              id: i,
+              time: formatTimeToAMPM(t),
+              timeValue: t,
+              startTime: t,
+              endTime: addMinutesToTime(t, duration),
+              available: true
+            }));
+            setAvailableTimeSlots(mapped);
+            return;
           }
-
-          console.log('[Time] STEP 3 - Applying conflict filtering AND shift boundary validation:', {
-            employeeId: empId,
-            dateKey,
-            rawScheduleSlots: rawScheduleSlots.length,
-            employeeBookings: bookingCount,
-            shiftEndTime: shiftEndTime,
-            serviceDuration: duration,
-            bookingTimes: Object.values(employeeBookings).map(b => `${b.startTime}-${b.endTime}`)
-          });
-
-          const filteredSlots = rawScheduleSlots.filter(slot => {
-            const slotStartTime = slot.time || slot.startTime;
-            const slotEndTime = slot.endTime || addMinutesToTime(slotStartTime, duration);
-
-            const normalizeTime = (timeStr) => {
-              if (!timeStr) return null;
-
-              console.log('[Time] 🕐 NORMALIZING TIME:', {
-                inputTime: timeStr,
-                inputType: timeStr.includes('T') ? 'ISO DateTime' : 'HH:mm format'
-              });
-
-              if (timeStr.includes('T')) {
-                if (timeStr.endsWith('Z')) {
-                  const timePart = timeStr.split('T')[1].substring(0, 5);
-                  console.log('[Time] 🌍 UTC TIME EXTRACTION (FIXED):', {
-                    originalISOString: timeStr,
-                    extractedTime: timePart,
-                    method: 'Direct extraction from UTC ISO string',
-                    reason: 'Avoids timezone conversion issues'
-                  });
-                  return timePart;
-                } else {
-                  const date = new Date(timeStr);
-                  const localTime = `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
-                  console.log('[Time] 🌍 LOCAL TIME CONVERSION:', {
-                    originalISOString: timeStr,
-                    localTime: localTime,
-                    timezoneOffset: date.getTimezoneOffset()
-                  });
-                  return localTime;
-                }
-              }
-
-              if (timeStr.includes(':') && timeStr.length <= 5) {
-                console.log('[Time] ✅ TIME ALREADY NORMALIZED:', {
-                  inputTime: timeStr,
-                  outputTime: timeStr,
-                  format: 'HH:mm'
-                });
-                return timeStr;
-              }
-
-              console.log('[Time] ⚠️ UNKNOWN TIME FORMAT:', {
-                inputTime: timeStr,
-                fallbackOutput: timeStr
-              });
-              return timeStr;
-            };
-
-            const normalizedSlotStart = normalizeTime(slotStartTime);
-            const normalizedSlotEnd = normalizeTime(slotEndTime);
-            const actualServiceEndTime = addMinutesToTime(normalizedSlotStart, duration);
-
-            let exceedsShiftBoundary = false;
-            if (shiftEndTime) {
-              const normalizedShiftEnd = normalizeTime(shiftEndTime);
-
-              console.log('[Time] DEBUGGING - Shift boundary check for slot:', {
-                slotStartTime: normalizedSlotStart,
-                slotEndTime: normalizedSlotEnd,
-                actualServiceEndTime: actualServiceEndTime,
-                shiftEndTime: normalizedShiftEnd,
-                serviceDuration: `${duration} minutes`,
-                wouldExceed: actualServiceEndTime > normalizedShiftEnd
-              });
-
-              exceedsShiftBoundary = actualServiceEndTime > normalizedShiftEnd;
-
-              if (exceedsShiftBoundary) {
-                console.log('[Time] ❌ SHIFT BOUNDARY VIOLATION - Removing slot:', {
-                  slotTime: `${normalizedSlotStart}-${actualServiceEndTime}`,
-                  shiftEndTime: normalizedShiftEnd,
-                  serviceDuration: `${duration} minutes`,
-                  violation: `Service ends at ${actualServiceEndTime}, but shift ends at ${normalizedShiftEnd}`,
-                  reason: 'Service would extend beyond employee shift end time',
-                  example: 'If shift ends at 08:00 and service needs 1 hour, 07:45 slot would end at 08:45 → REJECTED'
-                });
-              } else {
-                console.log('[Time] ✅ SHIFT BOUNDARY OK - Slot fits within shift:', {
-                  slotTime: `${normalizedSlotStart}-${actualServiceEndTime}`,
-                  shiftEndTime: normalizedShiftEnd,
-                  margin: `Service ends at ${actualServiceEndTime}, shift ends at ${normalizedShiftEnd}`
-                });
-              }
-            } else {
-              console.warn('[Time] ⚠️ SHIFT BOUNDARY WARNING - No shift end time available for validation:', {
-                slotTime: `${normalizedSlotStart}-${actualServiceEndTime}`,
-                serviceDuration: `${duration} minutes`,
-                warningMessage: 'Cannot validate shift boundaries - allowing slot (POTENTIALLY UNSAFE!)'
-              });
-              exceedsShiftBoundary = false;
-            }
-
-            const hasBookingConflict = Object.values(employeeBookings).some(booking => {
-              const normalizedBookingStart = normalizeTime(booking.startTime);
-              const normalizedBookingEnd = normalizeTime(booking.endTime);
-
-              console.log('[Time] 🔍 DETAILED BOOKING CONFLICT CHECK - Slot vs Booking:', {
-                slotBeingChecked: {
-                  startTime: normalizedSlotStart,
-                  endTime: normalizedSlotEnd,
-                  actualServiceEndTime: actualServiceEndTime,
-                  duration: `${duration} minutes`,
-                  rawSlotData: slot
-                },
-                existingBooking: {
-                  startTime: normalizedBookingStart,
-                  endTime: normalizedBookingEnd,
-                  serviceName: booking.serviceName,
-                  bookingId: booking.bookingId,
-                  duration: `${booking.duration} minutes`,
-                  rawBookingStartTime: booking.startTime,
-                  rawBookingEndTime: booking.endTime
-                },
-                overlapCalculation: {
-                  condition1: `${normalizedSlotStart} < ${normalizedBookingEnd}`,
-                  condition1Result: normalizedSlotStart < normalizedBookingEnd,
-                  condition2: `${actualServiceEndTime} > ${normalizedBookingStart}`,
-                  condition2Result: actualServiceEndTime > normalizedBookingStart,
-                  overlapFormula: 'slot_start < booking_end AND service_end > booking_start'
-                }
-              });
-
-              const overlap = (normalizedSlotStart < normalizedBookingEnd && actualServiceEndTime > normalizedBookingStart);
-
-              if (overlap) {
-                console.log('🚫 BOOKING CONFLICT DETECTED - This slot WILL BE REMOVED:', {
-                  conflictedSlot: `${normalizedSlotStart}-${actualServiceEndTime}`,
-                  conflictsWith: `${normalizedBookingStart}-${normalizedBookingEnd}`,
-                  bookingService: booking.serviceName,
-                  bookingId: booking.bookingId,
-                  overlapType: normalizedSlotStart === normalizedBookingStart ? 'exact-match' : 'partial-overlap',
-                  reason: 'Time slot overlaps with existing booking'
-                });
-              } else {
-                console.log('✅ NO CONFLICT - Slot is clear of this booking:', {
-                  slotTime: `${normalizedSlotStart}-${actualServiceEndTime}`,
-                  bookingTime: `${normalizedBookingStart}-${normalizedBookingEnd}`,
-                  bookingService: booking.serviceName,
-                  reason: normalizedSlotStart >= normalizedBookingEnd ?
-                    'Slot starts after booking ends' :
-                    'Service ends before booking starts'
-                });
-              }
-              return overlap;
-            });
-
-            const isValidSlot = !exceedsShiftBoundary && !hasBookingConflict;
-
-            if (isValidSlot) {
-              console.log('✅ SLOT APPROVED for chosen employee on chosen date:', {
-                employeeId: empId,
-                date: dateKey,
-                approvedSlot: `${normalizedSlotStart}-${actualServiceEndTime}`,
-                duration: `${duration} minutes`,
-                shiftBoundaryCheck: shiftEndTime ? '✅ Valid' : '⚠️ Unchecked',
-                bookingConflictCheck: '✅ No conflicts',
-                message: 'This slot will be shown as available to the user',
-                slotDisplayTime: formatTimeToAMPM(normalizedSlotStart)
-              });
-            } else {
-              console.log('❌ SLOT REJECTED for chosen employee on chosen date:', {
-                employeeId: empId,
-                date: dateKey,
-                rejectedSlot: `${normalizedSlotStart}-${actualServiceEndTime}`,
-                duration: `${duration} minutes`,
-                rejectionReasons: {
-                  shiftBoundaryViolation: exceedsShiftBoundary,
-                  bookingConflict: hasBookingConflict
-                },
-                message: 'This slot will NOT be shown to the user',
-                slotDisplayTime: formatTimeToAMPM(normalizedSlotStart)
-              });
-            }
-
-            return isValidSlot;
-          });
-
-          console.log('[Time] STEP 3 - ENHANCED WORKFLOW RESULT after conflict + shift boundary validation:', {
-            beforeFilter: rawScheduleSlots.length,
-            afterFilter: filteredSlots.length,
-            removedConflicts: rawScheduleSlots.length - filteredSlots.length,
-            shiftEndTime: shiftEndTime,
-            serviceDuration: duration,
-            validationTypes: ['booking conflicts', 'shift boundary violations'],
-            finalSlots: filteredSlots.slice(0, 6).map(s => s.time || s.startTime)
-          });
-
-          const now = new Date();
-          const isToday = selectedDate.toDateString() === now.toDateString();
-          const currentTime = isToday ? `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}` : null;
-
-          const futureFilteredSlots = isToday ? filteredSlots.filter(slot => {
-            const slotTime = slot.time || slot.startTime;
-            const normalizedSlotTime = slotTime.includes('T') ?
-              slotTime.split('T')[1].substring(0, 5) : slotTime;
-
-            const isCurrentOrFuture = normalizedSlotTime >= currentTime;
-
-            console.log('[Time] Slot time comparison:', {
-              slotTime: normalizedSlotTime,
-              currentTime,
-              isCurrentOrFuture,
-              action: isCurrentOrFuture ? 'KEEP' : 'REMOVE'
-            });
-
-            return isCurrentOrFuture;
-          }) : filteredSlots;
-
-          console.log('[Time] Past time filtering:', {
-            isToday,
-            currentTime,
-            beforeFilter: filteredSlots.length,
-            afterFilter: futureFilteredSlots.length,
-            removedPastSlots: filteredSlots.length - futureFilteredSlots.length
-          });
-
-          const mapped = futureFilteredSlots.map((slot, i) => ({
-            id: i,
-            time: formatTimeToAMPM(slot.time || slot.startTime),
-            timeValue: slot.time || slot.startTime,
-            startTime: slot.startTime || slot.time,
-            endTime: slot.endTime || addMinutesToTime(slot.time || slot.startTime, duration),
-            available: true
-          }));
-          setAvailableTimeSlots(mapped);
-          console.log('[Time] SUCCESS: Using FIXED WORKFLOW filtered time slots for', assigned?.user?.firstName, assigned?.user?.lastName);
-        } catch (apiError) {
-          console.error('[Time] DETAILED ERROR: getEmployeeSchedule API failed', {
-            error: apiError,
-            errorMessage: apiError.message,
-            employeeId: empId,
-            date: formattedDate,
-            employeeName: assigned?.user ? `${assigned.user.firstName} ${assigned.user.lastName}` : assigned?.name
-          });
-          console.warn('[Time] getEmployeeSchedule API failed, falling back to local computation', apiError.message);
-
-          const slotsArr = getValidTimeSlotsForProfessional(assigned, selectedDate, duration, appointmentsIndex);
-          console.log('[Time] fallback local slots computed count', slotsArr.length, slotsArr.slice(0, 6));
-
-          const now = new Date();
-          const isToday = selectedDate.toDateString() === now.toDateString();
-          const currentTime = isToday ? `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}` : null;
-
-          const futureFilteredSlotsArr = isToday ? slotsArr.filter(slotTime => {
-            const isCurrentOrFuture = slotTime >= currentTime;
-            console.log('[Time] Fallback slot time comparison:', {
-              slotTime,
-              currentTime,
-              isCurrentOrFuture,
-              action: isCurrentOrFuture ? 'KEEP' : 'REMOVE'
-            });
-            return isCurrentOrFuture;
-          }) : slotsArr;
-
-          console.log('[Time] Fallback past time filtering:', {
-            isToday,
-            currentTime,
-            beforeFilter: slotsArr.length,
-            afterFilter: futureFilteredSlotsArr.length,
-            removedPastSlots: slotsArr.length - futureFilteredSlotsArr.length
-          });
-
-          const mapped = futureFilteredSlotsArr.map((t, i) => ({
-            id: i,
-            time: formatTimeToAMPM(t),
-            timeValue: t,
-            startTime: t,
-            endTime: addMinutesToTime(t, duration),
-            available: true
-          }));
-          setAvailableTimeSlots(mapped);
         }
+
+        const missing = services.filter(s => !flow.selectedProfessionals?.[s._id]);
+        if (missing.length) {
+          console.log('[Time] multi-service missing assigned professionals', missing.map(m => m._id));
+          setAvailableTimeSlots([]);
+          setError('Please assign professionals to all services first');
+          return;
+        }
+
+        const professionalsMap = {};
+        services.forEach(svc => {
+          professionalsMap[svc._id] = flow.selectedProfessionals[svc._id];
+        });
+
+        console.log('[Time] computing sequential service start times locally (with bookings)', { services: services.map(s => s._id), date: localDateKey(selectedDate) });
+        const sequences = await computeSequentialServiceStartTimesWithBookings(services, professionalsMap, selectedDate, appointmentsIndex);
+        console.log('[Time] sequences found', sequences?.length);
+        if (!sequences || sequences.length === 0) {
+          setAvailableTimeSlots([]);
+          setError('No sequential time slots available for assigned professionals on this date.');
+          return;
+        }
+        const slots = sequences.map((s, idx) => ({
+          id: idx,
+          time: formatTimeToAMPM(s.startTime),
+          timeValue: s.startTime,
+          startTime: s.startTime,
+          endTime: s.sequence[s.sequence.length - 1].endTime,
+          available: true,
+          sequence: s.sequence
+        }));
+        setAvailableTimeSlots(slots);
       } catch (err) {
-        console.error('[Time] fetchTimeSlots error', err);
+        console.error('[Time] handleDateClick local computation error', err);
+        setError(err.message || 'Failed to compute time slots locally');
         setAvailableTimeSlots([]);
-        setError(err.message || 'Failed to compute time slots');
       } finally {
         setLoadingTimeSlots(false);
       }
     };
+
     fetchTimeSlots();
   }, [selectedService?._id, selectedProfessional?._id, selectedDate.toDateString()]);
 
@@ -1473,10 +1124,10 @@ const Time = (props) => {
           <button
             className={`nav-btn ${isPastDate(selectedDate) ? 'nav-btn-disabled' : ''}`}
             onClick={() => {
-              const newDate = new Date(selectedDate);
-              newDate.setDate(newDate.getDate() - 7);
-              if (!isPastDate(newDate)) {
-                setSelectedDate(newDate);
+              const selectedDate = new Date(selectedDate);
+              selectedDate.setDate(selectedDate.getDate() - 7);
+              if (!isPastDate(selectedDate)) {
+                setSelectedDate(selectedDate);
               }
             }}
             aria-label="Previous week"
@@ -1487,9 +1138,9 @@ const Time = (props) => {
           <button
             className="nav-btn nav-btn-active"
             onClick={() => {
-              const newDate = new Date(selectedDate);
-              newDate.setDate(newDate.getDate() + 7);
-              setSelectedDate(newDate);
+              const selectedDate = new Date(selectedDate);
+              selectedDate.setDate(selectedDate.getDate() + 7);
+              setSelectedDate(selectedDate);
             }}
             aria-label="Next week"
           >
@@ -1543,9 +1194,13 @@ const Time = (props) => {
             <LoadingDots />
             <p>Loading available time slots...</p>
           </div>
-        ) : availableTimeSlots.length === 0 ? (
+        ) : error ? (
+          <div className="info-container error-state">
+            <p>{error}</p>
+          </div>
+        ) : availableTimeSlots.length === 0 && !initialLoad ? (
           <div className="info-container no-slots">
-            <p>Please select another date or professional or another service </p>
+            <p>No available time slots found for this date. Please try another date.</p>
           </div>
         ) : (
           <div className="time-slots-grid">
@@ -1553,11 +1208,15 @@ const Time = (props) => {
               <button
                 key={index}
                 onClick={() => handleTimeSelect(timeSlot)}
-                className={`time-slot ${selectedTime?.id === timeSlot.id ? "time-slot-selected" : ""} ${!timeSlot.available ? "time-slot-disabled" : ""}`}
-                disabled={!timeSlot.available || processingTimeSlotId !== null}
+                className={`time-slot ${selectedTime?.id === timeSlot.id ? "time-slot-selected" : ""}`}
+                disabled={processingTimeSlotId !== null}
               >
                 {selectedTime?.id === timeSlot.id && processingTimeSlotId === timeSlot.id ? (
-                  <div className="loading-dots white"><div className="dot"></div><div className="dot"></div><div className="dot"></div></div>
+                  <div className="loading-dots white">
+                    <div className="dot"></div>
+                    <div className="dot"></div>
+                    <div className="dot"></div>
+                  </div>
                 ) : (
                   <span className="time-text">{timeSlot.time}</span>
                 )}
