@@ -110,24 +110,26 @@ function Services() {
   }, []);
 
   // Intersection observer for active section
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            setActiveSection(entry.target.getAttribute("data-key"));
-          }
-        });
-      },
-      { rootMargin: "-50% 0px -40% 0px", threshold: 0.1 }
-    );
+useEffect(() => {
+  const observer = new IntersectionObserver(
+    (entries) => {
+      if (isManualScroll.current) return; // prevent override
 
-    Object.values(sectionRefs.current).forEach((ref) => {
-      if (ref) observer.observe(ref);
-    });
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          setActiveSection(entry.target.getAttribute("data-key"));
+        }
+      });
+    },
+    { rootMargin: "-30% 0px -50% 0px", threshold: 0.25 }
+  );
 
-    return () => observer.disconnect();
-  }, [services]);
+  Object.values(sectionRefs.current).forEach((ref) => {
+    if (ref) observer.observe(ref);
+  });
+
+  return () => observer.disconnect();
+}, [services]);
 
   // Track selected services count
   useEffect(() => {
@@ -149,11 +151,19 @@ function Services() {
   }, []);
 
   // Navigation functions
+const isManualScroll = useRef(false);
+
 const scrollToSection = (key) => {
   const element = sectionRefs.current[key];
   if (element) {
+    isManualScroll.current = true;
     element.scrollIntoView({ behavior: "smooth", block: "start" });
-    setActiveSection(key); 
+    setActiveSection(key);
+
+    // release lock after smooth scroll ends (~1s)
+    setTimeout(() => {
+      isManualScroll.current = false;
+    }, 1000);
   }
 };
 
