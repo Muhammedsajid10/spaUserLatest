@@ -34,6 +34,8 @@ function Services() {
   const [selectedOption, setSelectedOption] = useState(null);
   const [selectedServicesCount, setSelectedServicesCount] = useState(0);
   const [currentStep, setCurrentStep] = useState(1);
+  const headerRef = useRef(null);
+
 
   // Refs and hooks
   const sectionRefs = useRef({});
@@ -113,7 +115,7 @@ function Services() {
       (entries) => {
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
-            setActiveSection(entry.target.getAttribute("data-title"));
+            setActiveSection(entry.target.getAttribute("data-key"));
           }
         });
       },
@@ -151,7 +153,7 @@ const scrollToSection = (key) => {
   const element = sectionRefs.current[key];
   if (element) {
     element.scrollIntoView({ behavior: "smooth", block: "start" });
-    setActiveSection(key); // ✅ immediately update highlight
+    setActiveSection(key); 
   }
 };
 
@@ -323,7 +325,7 @@ const scrollToSection = (key) => {
               key={category}
               id={category.replace(/\s+/g, "-").toLowerCase()}
               className="svc-category-section"
-              data-title={category}
+              data-key={category}
               ref={(el) => (sectionRefs.current[category] = el)}
             >
               <h3 className="svc-category-title">{category}</h3>

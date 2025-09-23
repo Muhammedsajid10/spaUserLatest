@@ -359,12 +359,22 @@ body {
     height: 36px;
   }
 }
-
+@media (max-width: 853px) {
+  .svc-container {
+    margin-top: 180px; /* Adjust if header height changes */
+  }
+  
+  .svc-header h2 {
+    font-size: 1.85rem;
+  }
+  
+}
 /* Mobile phones */
 @media (max-width: 480px) {
   .svc-container {
     padding: 10rem 0.75rem 0 0.75rem;
     margin-bottom: 0;
+    margin-top: 20px;
   }
   
   .svc-header {
