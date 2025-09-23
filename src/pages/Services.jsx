@@ -28,6 +28,7 @@ function Services() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeSection, setActiveSection] = useState("");
+  
   const [expandedStates, setExpandedStates] = useState({});
   const [selectedService, setSelectedService] = useState(null);
   const [showModal, setShowModal] = useState(false);
@@ -35,6 +36,8 @@ function Services() {
   const [selectedServicesCount, setSelectedServicesCount] = useState(0);
   const [currentStep, setCurrentStep] = useState(1);
   const headerRef = useRef(null);
+    const [isScrolling, setIsScrolling] = useState(false);
+  
 
 
   // Refs and hooks
@@ -110,26 +113,30 @@ function Services() {
   }, []);
 
   // Intersection observer for active section
-useEffect(() => {
-  const observer = new IntersectionObserver(
-    (entries) => {
-      if (isManualScroll.current) return; // prevent override
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        // Don't update active section if we're programmatically scrolling
+        if (isScrolling) return;
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            const key = entry.target.getAttribute('data-key');
+            if (key) setActiveSection(key);
+          }
+        });
+      },
+      {
+        rootMargin: "-150px 0px -50% 0px",
+        threshold: 0.1
+      }
+    );
 
-      entries.forEach((entry) => {
-        if (entry.isIntersecting) {
-          setActiveSection(entry.target.getAttribute("data-key"));
-        }
-      });
-    },
-    { rootMargin: "-30% 0px -50% 0px", threshold: 0.25 }
-  );
+    Object.values(sectionRefs.current).forEach((ref) => {
+      if (ref) observer.observe(ref);
+    });
 
-  Object.values(sectionRefs.current).forEach((ref) => {
-    if (ref) observer.observe(ref);
-  });
-
-  return () => observer.disconnect();
-}, [services]);
+    return () => observer.disconnect();
+  }, [services, isScrolling]);
 
   // Track selected services count
   useEffect(() => {
@@ -153,19 +160,52 @@ useEffect(() => {
   // Navigation functions
 const isManualScroll = useRef(false);
 
-const scrollToSection = (key) => {
-  const element = sectionRefs.current[key];
-  if (element) {
-    isManualScroll.current = true;
-    element.scrollIntoView({ behavior: "smooth", block: "start" });
-    setActiveSection(key);
-
-    // release lock after smooth scroll ends (~1s)
-    setTimeout(() => {
-      isManualScroll.current = false;
-    }, 1000);
-  }
-};
+  const scrollToSection = (key) => {
+    const element = sectionRefs.current[key];
+    if (element) {
+      // Set scrolling flag and immediately update active section
+      setIsScrolling(true);
+      setActiveSection(key);
+      
+      // Get the fixed header element to calculate its actual height
+      const headerWrapper = document.querySelector('.svc-header-wrapper');
+      const headerHeight = headerWrapper ? headerWrapper.offsetHeight : 150;
+      
+      // Add some extra padding to ensure the category title is clearly visible
+      const extraPadding = 20;
+      const totalOffset = headerHeight + extraPadding;
+      
+      // Calculate the target scroll position
+      const elementPosition = element.offsetTop - totalOffset;
+      
+      // Debug logging
+      console.log('Scrolling to:', key);
+      console.log('Element:', element);
+      console.log('Element offsetTop:', element.offsetTop);
+      console.log('Header height:', headerHeight);
+      console.log('Target position:', elementPosition);
+      
+      // Use scrollTo with smooth behavior and proper offset
+      window.scrollTo({
+        top: Math.max(0, elementPosition), // Ensure we don't scroll to negative position
+        behavior: "smooth"
+      });
+      
+      // Alternative method if the first one doesn't work
+      element.scrollIntoView({ 
+        behavior: "smooth", 
+        block: "start" 
+      });
+      
+      // Clear scrolling flag after animation completes
+      setTimeout(() => {
+        setIsScrolling(false);
+      }, 1000);
+    } else {
+      console.log('Element not found for key:', key);
+      console.log('Available refs:', Object.keys(sectionRefs.current));
+    }
+  };
 
 
   // Service interaction functions
@@ -316,15 +356,15 @@ const scrollToSection = (key) => {
           
           {/* Navigation */}
           <nav className="svc-nav">
-            {Object.keys(services).map((category) => (
-              <button
-                key={category}
-                className={activeSection === category ? "active" : ""}
-                onClick={() => scrollToSection(category)}
-              >
-                {category}
-              </button>
-            ))}
+             {Object.keys(services).map((category) => (
+            <button
+              key={category}
+              className={activeSection === category ? "active" : ""}
+              onClick={() => scrollToSection(category)}
+            >
+              {category}
+            </button>
+          ))}
           </nav>
         </div>
 
@@ -558,7 +598,6 @@ function ServiceBottomBar({ currentStep = 1, navigate }) {
       </span>
     </div>
 
-    {/* Action Button */}
     <button
       className="unified-bottom-bar__button"
       onClick={handleContinue}

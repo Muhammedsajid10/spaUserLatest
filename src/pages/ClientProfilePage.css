@@ -1233,6 +1233,13 @@ body {
   margin-bottom: var(--spacing-1);
 }
 
+.feedback-professional {
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  margin-bottom: var(--spacing-1);
+  font-weight: 500;
+}
+
 .feedback-date {
   display: flex;
   align-items: center;

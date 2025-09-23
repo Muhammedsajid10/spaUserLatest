@@ -86,13 +86,126 @@ body {
   border-radius: 6px;
   padding: 12px;
   border: 1px solid #e8e8e8;
+  position: relative; /* For potential scroll indicators */
 }
 
 .service-name {
   font-size: 14px;
   font-weight: 600;
   color: #1a1a1a;
-  margin-bottom: 6px;
+  margin-bottom: 8px; /* Increased from 6px for better spacing */
+}
+
+/* Selected Services Scrollable List */
+.selected-services-scroll {
+  max-height: 320px; /* Increased from 200px to give more space */
+  overflow-y: auto; /* Enable vertical scrolling */
+  padding-right: 4px; /* Add space for scrollbar */
+  margin-bottom: 8px;
+  
+  /* Smooth scrolling behavior */
+  scroll-behavior: smooth;
+  
+  /* Touch scrolling on mobile */
+  -webkit-overflow-scrolling: touch;
+  
+  /* Better momentum scrolling on iOS */
+  -webkit-scroll-snap-type: y proximity;
+  scroll-snap-type: y proximity;
+  
+  /* Minimum height to ensure scrolling area is visible */
+  min-height: 120px;
+  
+  /* Visual indication of scrollable area */
+  border: 1px solid #e8e8e8;
+  border-radius: 4px;
+  background-color: #ffffff;
+  padding: 8px;
+  margin: 4px 0;
+  
+  /* Subtle inner shadow to indicate depth */
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+/* Custom scrollbar styling for webkit browsers */
+.selected-services-scroll::-webkit-scrollbar {
+  width: 4px;
+}
+
+.selected-services-scroll::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 2px;
+}
+
+.selected-services-scroll::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 2px;
+  transition: background-color 0.2s ease;
+}
+
+.selected-services-scroll::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+/* For Firefox scrollbar styling */
+.selected-services-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: #c1c1c1 #f1f1f1;
+}
+
+/* Individual service item in the list */
+.selected-service-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 0; /* Increased from 8px to give more height per item */
+  border-bottom: 1px solid #e0e0e0;
+  
+  /* Smooth transitions */
+  transition: background-color 0.15s ease;
+  
+  /* Better touch targets on mobile */
+  min-height: 56px; /* Increased from 44px for better touch targets */
+}
+
+.selected-service-item:last-child {
+  border-bottom: none;
+}
+
+/* Hover effect for better interaction feedback */
+.selected-service-item:hover {
+  background-color: rgba(0, 0, 0, 0.02);
+  border-radius: 4px;
+  margin: 0 -4px;
+  padding: 12px 4px; /* Updated to match new padding */
+}
+
+.selected-service-info {
+  flex: 1;
+}
+.service-row-sub{
+      height: 111px;
+}
+.selected-service-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin-bottom: 2px;
+  line-height: 1.3;
+}
+
+.selected-service-duration {
+  font-size: 12px;
+  color: #666666;
+  line-height: 1.2;
+}
+
+.selected-service-price {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1a1a1a;
+  text-align: right;
+  min-width: 60px; /* Ensure consistent spacing */
 }
 
 .service-meta {
@@ -536,6 +649,30 @@ body {
     margin-top: 30px;
     border-radius: 7px;
   }
+
+  /* Tablet-specific scrolling improvements */
+  .selected-services-scroll {
+    max-height: 280px; /* Increased from 180px for better tablet experience */
+    min-height: 100px; /* Ensure minimum visible area */
+  }
+
+  .selected-service-item {
+    min-height: 50px; /* Increased from 42px for better touch targets */
+    padding: 10px 0; /* Increased padding for tablets */
+  }
+
+  .selected-service-name {
+    font-size: 12.5px; /* Medium text size for tablets */
+  }
+
+  .selected-service-duration {
+    font-size: 11.5px; /* Medium text size for tablets */
+  }
+
+  .selected-service-price {
+    font-size: 12.5px; /* Medium text size for tablets */
+    min-width: 55px; /* Medium minimum width for tablets */
+  }
 }
 
 /* Mobile View - 480px and below */
@@ -582,6 +719,36 @@ body {
     padding: 8px 12px;
     font-size: 13px;
     min-width: 70px;
+  }
+
+  /* Mobile-specific scrolling improvements */
+  .selected-services-scroll {
+    max-height: 240px; /* Increased from 150px for better mobile experience */
+    padding-right: 2px; /* Less space for scrollbar on mobile */
+    min-height: 80px; /* Ensure minimum visible area on mobile */
+  }
+
+  .selected-service-item {
+    padding: 10px 0; /* Increased from 6px for better mobile experience */
+    min-height: 48px; /* Increased from 40px for better touch targets */
+  }
+
+  .selected-service-item:hover {
+    margin: 0 -2px; /* Smaller hover effect on mobile */
+    padding: 10px 2px; /* Updated to match new padding */
+  }
+
+  .selected-service-name {
+    font-size: 12px; /* Smaller text on mobile */
+  }
+
+  .selected-service-duration {
+    font-size: 11px; /* Smaller text on mobile */
+  }
+
+  .selected-service-price {
+    font-size: 12px; /* Smaller text on mobile */
+    min-width: 50px; /* Smaller minimum width on mobile */
   }
 }
 /* ===================================================

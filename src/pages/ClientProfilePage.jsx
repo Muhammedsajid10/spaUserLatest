@@ -313,7 +313,13 @@ const BookingItem = ({ booking, onGiveRating }) => {
         )}
         <button
           className="btn btn-secondary btn-sm mt-2"
-          onClick={() => onGiveRating(booking._id || booking.id)}
+          onClick={() => {
+            // Get the first service's IDs for rating
+            const firstService = booking.services?.[0];
+            const serviceId = firstService?.service?._id || firstService?.serviceId;
+            const employeeId = firstService?.employee?._id || firstService?.employeeId;
+            onGiveRating(booking._id || booking.id, serviceId, employeeId);
+          }}
         >
           Give Rating
         </button>
@@ -509,8 +515,11 @@ const SpaProfilePage = () => {
   const [error, setError] = useState(null);
   const [showRatingPopup, setShowRatingPopup] = useState(false);
   const [ratingBookingId, setRatingBookingId] = useState(null);
+  const [ratingServiceId, setRatingServiceId] = useState(null);
+  const [ratingEmployeeId, setRatingEmployeeId] = useState(null);
   const [ratingValue, setRatingValue] = useState(0);
   const [ratingComment, setRatingComment] = useState("");
+  const [isSubmittingRating, setIsSubmittingRating] = useState(false);
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
@@ -674,8 +683,10 @@ const SpaProfilePage = () => {
   };
 
   // 2. Handler functions for rating popup
-  const openRatingPopup = (bookingId) => {
+  const openRatingPopup = (bookingId, serviceId = null, employeeId = null) => {
     setRatingBookingId(bookingId);
+    setRatingServiceId(serviceId);
+    setRatingEmployeeId(employeeId);
     setShowRatingPopup(true);
     setRatingValue(0);
     setRatingComment("");
@@ -684,30 +695,93 @@ const SpaProfilePage = () => {
   const closeRatingPopup = () => {
     setShowRatingPopup(false);
     setRatingBookingId(null);
+    setRatingServiceId(null);
+    setRatingEmployeeId(null);
     setRatingValue(0);
     setRatingComment("");
   };
 
   const handleRatingSubmit = async () => {
-    // You can replace this with an API call to save feedback
-    const booking = bookings.find((b) => (b._id || b.id) === ratingBookingId);
-    const newFeedback = {
-      id: Date.now(),
-      bookingId: ratingBookingId,
-      rating: ratingValue,
-      comment: ratingComment,
-      date: new Date(),
-      serviceName: booking?.services?.[0]?.service?.name || "Service",
-    };
-    setFeedback((prev) => [newFeedback, ...prev]);
-    closeRatingPopup();
-    Swal.fire({
-      title: "Thank you!",
-      text: "Your feedback has been submitted.",
-      icon: "success",
-      timer: 1500,
-      showConfirmButton: false,
-    });
+    if (isSubmittingRating) return; // Prevent double submission
+    
+    try {
+      setIsSubmittingRating(true);
+      
+      // Get the booking to extract service and employee information if not provided
+      const booking = bookings.find((b) => (b._id || b.id) === ratingBookingId);
+      
+      // Use provided IDs or extract from booking
+      const serviceId = ratingServiceId || booking?.services?.[0]?.service?._id || booking?.services?.[0]?.serviceId;
+      const employeeId = ratingEmployeeId || booking?.services?.[0]?.employee?._id || booking?.services?.[0]?.employeeId;
+      
+      // Validate required fields
+      if (!ratingBookingId) {
+        throw new Error("Booking ID is required");
+      }
+      if (!serviceId) {
+        throw new Error("Service ID is required");
+      }
+      if (!employeeId) {
+        throw new Error("Employee ID is required");
+      }
+      
+      const feedbackData = {
+        bookingId: ratingBookingId,
+        serviceId: serviceId,
+        employeeId: employeeId,
+        // Main user inputs
+        ratings: { 
+          overall: ratingValue
+        },
+        comment: ratingComment,
+        // Dummy fields with proper types
+        comments: "",
+        wouldRecommend: true,
+        wouldReturnAsCustomer: true,
+        visitFrequency: "first-time",
+        discoveryMethod: "friend-referral",
+        suggestions: ""
+      };
+
+      console.log('Submitting feedback:', feedbackData);
+      console.log('Available booking data:', booking);
+      console.log('Service ID extracted:', serviceId);
+      console.log('Employee ID extracted:', employeeId);
+
+      // Call the API to create feedback
+      const response = await feedbackAPI.createFeedback(feedbackData);
+      
+      if (response.success) {
+        // Add the new feedback to local state for immediate UI update
+        const newFeedback = {
+          ...response.data,
+          serviceName: booking?.services?.[0]?.service?.name || "Service",
+          date: new Date()
+        };
+        setFeedback((prev) => [newFeedback, ...prev]);
+        
+        closeRatingPopup();
+        Swal.fire({
+          title: "Thank you!",
+          text: "Your feedback has been submitted successfully.",
+          icon: "success",
+          timer: 2000,
+          showConfirmButton: false,
+        });
+      } else {
+        throw new Error(response.message || "Failed to submit feedback");
+      }
+    } catch (error) {
+      console.error("Error submitting feedback:", error);
+      Swal.fire({
+        title: "Error!",
+        text: error.message || "Failed to submit feedback. Please try again.",
+        icon: "error",
+        confirmButtonText: "OK"
+      });
+    } finally {
+      setIsSubmittingRating(false);
+    }
   };
 
   // Start editing feedback
@@ -717,25 +791,62 @@ const SpaProfilePage = () => {
     setEditFeedbackComment(item.comment || "");
   };
 
-  // Save edited feedback locally
-  const handleSaveEditedFeedback = () => {
-    setFeedback((prev) =>
-      prev.map((item) =>
-        (item._id || item.id) === editingFeedbackId
-          ? { ...item, rating: editFeedbackValue, comment: editFeedbackComment }
-          : item
-      )
-    );
-    setEditingFeedbackId(null);
-    setEditFeedbackValue(0);
-    setEditFeedbackComment("");
-    Swal.fire({
-      title: "Updated!",
-      text: "Your feedback has been updated.",
-      icon: "success",
-      timer: 1200,
-      showConfirmButton: false,
-    });
+  // Save edited feedback using API
+  const handleSaveEditedFeedback = async () => {
+    try {
+      const feedbackData = {
+        // Main user inputs
+        ratings: { 
+          overall: editFeedbackValue
+        },
+        comment: editFeedbackComment,
+        // Dummy fields with proper types
+        comments: "",
+        wouldRecommend: true,
+        wouldReturnAsCustomer: true,
+        visitFrequency: "first-time",
+        discoveryMethod: "friend-referral",
+        suggestions: ""
+      };
+
+      console.log('Updating feedback:', editingFeedbackId, feedbackData);
+
+      // Call the API to update feedback
+      const response = await feedbackAPI.updateFeedback(editingFeedbackId, feedbackData);
+      
+      if (response.success) {
+        // Update the local state with the updated feedback
+        setFeedback((prev) =>
+          prev.map((item) =>
+            (item._id || item.id) === editingFeedbackId
+              ? { ...item, rating: editFeedbackValue, comment: editFeedbackComment }
+              : item
+          )
+        );
+        
+        setEditingFeedbackId(null);
+        setEditFeedbackValue(0);
+        setEditFeedbackComment("");
+        
+        Swal.fire({
+          title: "Updated!",
+          text: "Your feedback has been updated successfully.",
+          icon: "success",
+          timer: 1500,
+          showConfirmButton: false,
+        });
+      } else {
+        throw new Error(response.message || "Failed to update feedback");
+      }
+    } catch (error) {
+      console.error("Error updating feedback:", error);
+      Swal.fire({
+        title: "Error!",
+        text: error.message || "Failed to update feedback. Please try again.",
+        icon: "error",
+        confirmButtonText: "OK"
+      });
+    }
   };
 
   // Cancel editing
@@ -935,8 +1046,14 @@ const SpaProfilePage = () => {
                         <div className="feedback-header">
                           <div>
                             <h4 className="feedback-title">
-                              {item.serviceName || `Service ${index + 1}`}
+                              {item.booking?.services?.[0]?.service?.name || 
+                               item.service?.name || 
+                               item.serviceName || 
+                               `Service ${index + 1}`}
                             </h4>
+                            <div className="feedback-professional">
+                              Professional: {item.employee?.user?.firstName} {item.employee?.user?.lastName}
+                            </div>
                           </div>
                           <div className="feedback-rating">
                             <div className="star-rating">
@@ -983,12 +1100,20 @@ const SpaProfilePage = () => {
                         <div className="feedback-header">
                           <div>
                             <h4 className="feedback-title">
-                              {item.serviceName || `Service ${index + 1}`}
+                              {item.booking?.services?.[0]?.service?.name || 
+                               item.service?.name || 
+                               item.serviceName || 
+                               `Service ${index + 1}`}
                             </h4>
+                            <div className="feedback-professional">
+                              Professional: {item.employee?.user?.firstName} {item.employee?.user?.lastName}
+                            </div>
                             <div className="feedback-date">
                               <Calendar className="w-4 h-4" />
                               <span>
-                                {item.date
+                                {item.createdAt
+                                  ? new Date(item.createdAt).toLocaleDateString()
+                                  : item.date
                                   ? new Date(item.date).toLocaleDateString()
                                   : "N/A"}
                               </span>
@@ -1000,27 +1125,21 @@ const SpaProfilePage = () => {
                                 <Star
                                   key={star}
                                   className={`star ${
-                                    star <= (item.rating || 0) ? "filled" : ""
+                                    star <= (item.ratings?.overall || item.rating || 0) ? "filled" : ""
                                   }`}
                                 />
                               ))}
                             </div>
                             <span className="feedback-rating-text">
-                              {item.rating || 0}/5
+                              {item.ratings?.overall || item.rating || 0}/5
                             </span>
                           </div>
                         </div>
-                        {item.comment && (
+                        {(item.comment || item.comments) && (
                           <div className="feedback-comment">
-                            <p>{item.comment}</p>
+                            <p>{item.comment || item.comments}</p>
                           </div>
                         )}
-                        <button
-                          className="btn btn-secondary btn-xs mt-2"
-                          onClick={() => handleEditFeedback(item)}
-                        >
-                          <Edit className="w-3 h-3" /> Edit
-                        </button>
                       </>
                     )}
                     {/* ...existing breakdown code if any... */}
@@ -1348,6 +1467,23 @@ const SpaProfilePage = () => {
                 How was your experience?
               </p>
 
+              {/* Service Information */}
+              {ratingBookingId && (
+                <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+                  <p className="text-sm text-gray-600 mb-1">Rating for:</p>
+                  <p className="font-semibold text-gray-800">
+                    {(() => {
+                      const booking = bookings.find((b) => (b._id || b.id) === ratingBookingId);
+                      const serviceName = booking?.services?.[0]?.service?.name || "Service";
+                      const employeeName = booking?.services?.[0]?.employee?.user 
+                        ? `${booking.services[0].employee.user.firstName} ${booking.services[0].employee.user.lastName}`
+                        : booking?.services?.[0]?.employee?.name || "Staff Member";
+                      return `${serviceName} with ${employeeName}`;
+                    })()}
+                  </p>
+                </div>
+              )}
+
               {/* Rating Stars */}
               <div className="flex items-center justify-center mb-4 gap-1">
                 {[1, 2, 3, 4, 5].map((star) => (
@@ -1378,9 +1514,9 @@ const SpaProfilePage = () => {
               {/* Submit Button */}
               <button
                 className={`w-full py-2 text-lg font-semibold shadow transition 
-                   ${ratingValue === 0 ? "opacity-60 cursor-not-allowed" : ""}`}
+                   ${ratingValue === 0 || isSubmittingRating ? "opacity-60 cursor-not-allowed" : ""}`}
                 onClick={handleRatingSubmit}
-                disabled={ratingValue === 0}
+                disabled={ratingValue === 0 || isSubmittingRating}
                 style={{
                   background: "#000", // pure black background
                   color: "#fff", // white text
@@ -1388,7 +1524,7 @@ const SpaProfilePage = () => {
                   borderRadius: "5px", // no border radius
                 }}
               >
-                Submit
+                {isSubmittingRating ? "Submitting..." : "Submit"}
               </button>
             </div>
           </div>

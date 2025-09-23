@@ -371,12 +371,33 @@ const Payment = () => {
               </div>
 
               <div className="summary-body">
-                {/* Service Details - Simplified */}
+                {/* Service Details - Scrollable List */}
                 <div className="summary-section">
                   <div className="service-details">
-                    <div className="service-name">{finalBookingData.serviceNames}</div>
+                    <div className="service-name">Selected Services</div>
+                    <div className="selected-services-scroll">
+                      {finalBookingData.services && finalBookingData.services.length > 0 ? (
+                        finalBookingData.services.map((service, index) => (
+                          <div key={service._id || index} className="selected-service-item">
+                            <div className="selected-service-info">
+                              <div className="selected-service-name">{service.name}</div>
+                              <div className="selected-service-duration">{service.duration} min</div>
+                            </div>
+                            <div className="selected-service-price">AED {(service.price || 0).toFixed(2)}</div>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="selected-service-item">
+                          <div className="selected-service-info">
+                            <div className="selected-service-name">{finalBookingData.serviceNames}</div>
+                            <div className="selected-service-duration">{finalBookingData.duration} min</div>
+                          </div>
+                          <div className="selected-service-price">AED {servicePrice.toFixed(2)}</div>
+                        </div>
+                      )}
+                    </div>
                     <div className="service-meta">
-                      <span className="service-duration">{finalBookingData.duration} min</span>
+                      <span className="service-duration">Total: {finalBookingData.duration} min</span>
                       <span className="service-price">AED {servicePrice.toFixed(2)}</span>
                     </div>
                   </div>

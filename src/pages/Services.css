@@ -1,535 +1,219 @@
-
-
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
+/* --- Global Styles and Container --- */
+html {
+  scroll-padding-top: 150px; /* Adjust based on your header height */
 }
-
 body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", sans-serif;
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   background: #f4f4f4;
-  line-height: 1.5;
 }
 
-/* --- MAIN LAYOUT CONTAINER --- */
 .services-page-wrapper {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
 }
 
-/* --- DESKTOP LAYOUT (>1023px) --- */
-@media (min-width: 1024px) {
-  .services-page-wrapper {
-    display: block;
-    width: calc(100vw - 520px);
-    margin: 0;
-    padding: 0 2rem;
-    margin-left: 0;
-    margin-right: auto;
-  }
-  
-  .services-main-content {
-    position: fixed;
-    top: 0;
-    left: 0;
-    bottom: 0;
-    overflow-y: auto;
-    width: calc(100vw - 420px); /* leave space for sidebar */
-    padding: 0 2rem;
-    scrollbar-width: none;
-    -ms-overflow-style: none;
-  }
-  
-   .services-main-content::-webkit-scrollbar {
-    display: none;
-  }
-  
-  /* Hide mobile bottom bar on desktop */
-  .service-bottom-bar {
-    display: none !important;
-  }
-}
-
-/* --- MOBILE/TABLET LAYOUT (≤1023px) --- */
-@media (max-width: 1023px) {
-  .services-page-wrapper {
-    display: block;
-  }
-  
-  .services-main-content {
-    width: 100%;
-    padding-bottom: 60px; /* Reduced space for bottom bar */
-  }
-  
-  /* Show bottom bar on mobile/tablet */
-  .service-bottom-bar {
-    display: flex !important;
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    background: #ffffff;
-    color: #000000;
-    padding: 0.75rem 1rem; /* Reduced vertical padding */
-    justify-content: space-between;
-    align-items: center;
-    z-index: 1000;
-    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
-    min-height: 60px; /* Set minimum height */
-  }
-}
-
-/* --- HEADER STYLES --- */
+/* === Header Wrapper - Desktop Fixed by Default === */
 .svc-header-wrapper {
-  background: #fff;
-  border-bottom: 1px solid #e0e0e0;
-  position: sticky;
-  top: 0;
-  z-index: 100;
+     position: fixed;
+    top: 72px;  /* This might be interfering */
+    left: 40px;
+    right: 0px;
+    z-index: 1000;
+    background: #fff;
+    border-bottom: 1px solid #e0e0e0;
+    max-width: 963px;
 }
 
-/* Desktop header */
-@media (min-width: 1024px) {
-  .svc-header-wrapper {
-    margin-bottom: 2rem;
-    top: 44px;
-    width: calc(100vw - 420px); /* Full width minus sidebar width */
-    left: 0;
-    right: 420px; /* Space for sidebar */
-  }
-  
-  .svc-header {
-    padding: 1.5rem 2rem;
-    max-width: calc(100vw - 420px); /* Take remaining screen width */
-    margin: 0;
-    left: 0px;
-    margin-left: 10px;
-    width: 100%;
-  }
-  
-  .svc-container {
-    padding: 2rem;
-    max-width: calc(100vw - 500px);
-    margin: 0;
-    width: calc(100vw - 500px);
-    min-width: 574px;
-  }
-}
-@media (min-width: 900px) and (max-width: 1022px) {
-  .svc-header-wrapper {
-    margin-bottom: 1rem;
-    top: 55px;
-    position: fixed;
-    width: 100vw;
-    left: 0;
-    right: 0;
-  }
-}
-
-/* Mobile header */
-@media (max-width: 1023px) {
-  .svc-header-wrapper {
-    margin-bottom: 1rem;
-    top: 55px;
-    position: fixed;
-    width: 100vw; /* Full viewport width */
-    left: 0;
-    right: 0;
-    overflow-x: hidden; /* Prevent horizontal overflow of the wrapper */
-  }
+/* On large screens, the main content needs padding for the fixed header */
+.svc-container {
+  padding: 20px;
+  padding-top: 170px; /* Adjust this value if header height changes */
+  max-width: 800px;
+  margin: 0 auto;
+  flex-grow: 1;
 }
 
 .svc-header {
-  padding: 1.5rem 2rem;
-  max-width: 1400px;
-  margin: 0; /* Remove auto centering - align left */
+  padding: 20px;
+  /* max-width: 800px; */
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .svc-header h2 {
-  font-size: 2.5rem;
+  font-size: 40px;
+  margin: 0;
+  text-align: start;
   font-weight: 600;
-  color: #333;
-  margin-bottom: 1rem;
 }
 
-/* --- SERVICES CONTAINER --- */
-.svc-container {
-  padding: 2rem;
-  max-width: 1400px;
-  margin: 0; /* Remove auto centering - align left */
-  width: 100%;
+.svc-cart-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: black;
+  color: white;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 600;
 }
 
-/* --- SERVICE ITEMS --- */
+.cart-count {
+  background: white;
+  color: black;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 12px;
+}
+
+.cart-text {
+  font-size: 14px;
+}
+
+.svc-nav {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 10px;
+  overflow-x: auto;
+  padding: 10px 20px;
+  /* border-bottom: 1px solid #e0e0e0; */
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+  -webkit-overflow-scrolling: touch;
+}
+
+.svc-nav::-webkit-scrollbar {
+    display: none;
+}
+
+.svc-nav button {
+  padding: 8px 14px;
+  background: #f0f0f0;
+  border: none;
+  border-radius: 20px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.3s;
+  white-space: nowrap;
+}
+
+.svc-nav button.active {
+  background-color: #000;
+  color: #fff;
+}
+
 .svc-category-section {
-  margin-bottom: 3rem;
+    scroll-margin-top: 150px; /* Additional safety margin */
+
+  margin-top: 40px;
 }
 
 .svc-category-title {
-  font-size: 1.5rem;
-  font-weight: 600;
-  margin-bottom: 1rem;
+  font-size: 20px;
+  margin-bottom: 16px;
   border-left: 4px solid #000;
-  padding-left: 1rem;
+  padding-left: 12px;
+  font-weight: 500;
 }
 
 .svc-list {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 20px;
 }
 
 .svc-item {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  background: #fff;
-  border: 1px solid #555555;
+  border: 1px solid #ddd;
   border-radius: 12px;
-  padding: 1.5rem;
+  padding: 16px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+  background-color: #fff;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
   cursor: pointer;
-  transition: all 0.3s ease;
-  width: 100%; /* Default to full width on smaller screens */
-  max-width: 100%; /* Ensure it doesn't overflow its container */
 }
 
 .svc-item:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-/* --- RESPONSIVE WIDTHS FOR .svc-item --- */
-
-/* Laptops and Desktops (1024px to 1440px) */
-@media (min-width: 1024px) and (max-width: 1440px) {
-  .svc-item {
-    max-width: 98%;
-  }
-}
-
-/* Large Desktops (1441px to 2000px) */
-@media (min-width: 1441px) and (max-width: 2000px) {
-  .svc-item {
-    max-width: 60%;
-  }
-}
-
-/* Extra Large Desktops (2001px to 3000px) */
-@media (min-width: 2001px) and (max-width: 3000px) {
-  .svc-item {
-    max-width: 63%;
-  }
-}
-
-/* 4K Monitors and Wider (3001px to 5000px) */
-@media (min-width: 3001px) and (max-width: 5000px) {
-  .svc-item {
-    max-width: 62%;
-  }
-}
-/* ===================================================
-   UNIFIED BOTTOM BAR STYLING (PROFESSIONAL)
-   =================================================== */
-
-/* --- Main Container --- */
-/* This is the main wrapper for the bar, e.g., <div className="unified-bottom-bar"> */
-.unified-bottom-bar {
-  /* Layout & Positioning */
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  z-index: 1000; /* Ensures it stays on top of other content */
-
-  /* Box Model */
-  background-color: #ffffff;
-  padding: 12px 16px;
-  min-height: 72px; /* Provides ample touch area */
-  border-top: 1px solid #e9ecef; /* Subtle top border */
-  box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.06); /* Soft, modern shadow */
-
-  /* Hide on desktop, as summary info is often in a sidebar */
-  @media (min-width: 1024px) {
-    display: none;
-  }
-}
-
-/* --- Summary Section (Left Side) --- */
-/* Wrapper for the text info, e.g., <div className="unified-bottom-bar__summary"> */
-.unified-bottom-bar__summary {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: flex-start;
-  gap: 4px; /* Creates space between the two lines of text */
-}
-
-/* Primary Info (e.g., Price) */
-/* <span className="unified-bottom-bar__primary-info">AED 410</span> */
-.unified-bottom-bar__primary-info {
-  font-size: 1rem; /* 16px */
-  font-weight: 700; /* Bold for emphasis */
-  color: #1c1c1e; /* Near-black for strong contrast */
-  line-height: 1.2;
-}
-
-/* Secondary Info (e.g., Services, Duration) */
-/* <span className="unified-bottom-bar__secondary-info">1 service • 1 hr</span> */
-.unified-bottom-bar__secondary-info {
-  font-size: 0.875rem; /* 14px */
-  color: #6c757d; /* Muted gray for secondary details */
-  line-height: 1.2;
-}
-
-/* --- Action Button (Right Side) --- */
-/* The button itself, e.g., <button className="unified-bottom-bar__button"> */
-.unified-bottom-bar__button {
-  /* Appearance */
-  background-color: #000000;
-  color: #ffffff;
-  font-size: 1rem; /* 16px */
-  font-weight: 600;
-  border-radius: 10px; /* Slightly rounded corners */
-  border: none;
-  cursor: pointer;
-
-  /* Box Model */
-  padding: 14px 28px; /* Generous padding for a premium feel */
-  white-space: nowrap; /* Prevents text from wrapping */
-
-  /* Animation */
-  transition: background-color 0.2s ease-in-out, transform 0.15s ease;
-}
-
-/* Hover state for the button (when not disabled) */
-.unified-bottom-bar__button:hover:not(:disabled) {
-  background-color: #333333; /* Darken slightly on hover */
-  transform: translateY(-1px); /* Subtle lift effect */
-}
-
-/* Disabled state for the button */
-.unified-bottom-bar__button:disabled {
-  background-color: #e0e0e0; /* Lighter gray when disabled */
-  color: #a0a0a0;
-  cursor: not-allowed;
-}
-
-/* Ultra-Wide Screens (5001px and above) */
-@media (min-width: 5001px) {
-  .svc-item {
-    max-width: 55%;
-    min-width: 15%; /* Set the minimal width for very large screens */
-  }
-}
-
-/* Small tablets and mobile */
-@media (max-width: 768px) {
-  .svc-container {
-    padding: 1rem;
-    padding-top: 160px; /* Adjust if header height changes */
-    padding-bottom: 0;
-    margin-bottom: 0;
-  }
-  
-  .svc-header {
-    padding: 1rem;
-  }
-  
-  .svc-header h2 {
-    font-size: 2rem;
-  }
-
-  .svc-item {
-    flex-direction: column;
-    gap: 1rem;
-    max-width: 100%; /* Ensure full width on mobile */
-  }
-  
-  .svc-info {
-    padding-right: 0;
-  }
-  
-  .svc-add-btn {
-    align-self: flex-end;
-    width: 36px;
-    height: 36px;
-  }
-}
-@media (max-width: 853px) {
-  .svc-container {
-    margin-top: 180px; /* Adjust if header height changes */
-  }
-  
-  .svc-header h2 {
-    font-size: 1.85rem;
-  }
-  
-}
-/* Mobile phones */
-@media (max-width: 480px) {
-  .svc-container {
-    padding: 10rem 0.75rem 0 0.75rem;
-    margin-bottom: 0;
-    margin-top: 20px;
-  }
-  
-  .svc-header {
-    padding: 0.75rem;
-  }
-  
-  .svc-header h2 {
-    font-size: 1.75rem;
-  }
-  
-  .svc-item {
-    padding: 1rem;
-  }
-}
-
-.svc-item-selected {
-  border-color: #1976d2;
-  background: #f8f9ff;
+  transform: translateY(-3px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
 .svc-info {
-  flex: 1;
-  padding-right: 1rem;
-  min-width: 0; /* Allow shrinking */
+  flex-grow: 1;
+  padding-right: 10px;
 }
 
 .svc-info h4 {
-  font-size: 1.1rem;
+  margin: 0;
+  font-size: 16px;
   font-weight: 600;
-  margin-bottom: 0.5rem;
 }
 
 .time {
-  font-size: 0.9rem;
+  font-size: 13px;
   color: #777;
-  margin-bottom: 0.5rem;
+  display: block;
+  margin-top: 4px;
 }
 
 .svc-info p {
-  font-size: 0.9rem;
-  color: #555;
-  line-height: 1.6;
-  margin-bottom: 0.5rem;
+  margin: 8px 0;
+  font-size: 13px;
+  color: #444;
+  line-height: 1.5;
+}
+
+.svc-read-more {
+  color: black;
+  font-weight: 500;
+  cursor: pointer;
+  margin-left: 5px;
+  display: inline-block;
 }
 
 .svc-price {
-  font-size: 1rem;
-  font-weight: 700;
+  font-size: 14px;
   color: #000;
+  font-weight: bold;
+  display: block;
+  margin-top: 4px;
 }
 
 .svc-add-btn {
-  background: #f0f0f0;
+  background: #eee;
   border: none;
   border-radius: 50%;
-  width: 40px;
-  height: 40px;
-  font-size: 1.5rem;
+  width: 32px;
+  height: 32px;
+  font-size: 20px;
   cursor: pointer;
-  transition: all 0.3s ease;
-  flex-shrink: 0; /* Prevent button from shrinking */
+  align-self: center;
+  flex-shrink: 0;
+  transition: background 0.3s;
 }
 
 .svc-add-btn:hover {
-  background: #ddd;
+  background-color: #ccc;
 }
 
-/* --- NAVIGATION --- */
-.svc-nav {
-  display: flex;
-  overflow-x: auto;
-  gap: 0.5rem;
-  -webkit-overflow-scrolling: touch;
-  scroll-behavior: smooth;
-  white-space: nowrap;
+.loading-container, .error-container {
+  text-align: center;
+  padding: 50px;
 }
 
-.svc-nav button {
-  padding: 0.5rem 1rem;
-  background: #f0f0f0;
-  border: none;
-  border-radius: 20px;
-  cursor: pointer;
-  font-size: 0.9rem;
-  white-space: nowrap; /* Prevent text wrapping */
-  flex: 0 0 auto; /* Don't grow or shrink, maintain natural width */
-  min-width: fit-content; /* Ensure button doesn't compress */
-  transition: all 0.3s ease;
-}
-
-.svc-nav button.active {
-  background: #000;
-  color: #fff;
-}
-
-/* Scrollbar styling for WebKit browsers (Chrome, Safari, Edge) */
-.svc-nav::-webkit-scrollbar {
-  height: 6px; /* Horizontal scrollbar height */
-}
-
-.svc-nav::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.05);
-  border-radius: 3px;
-}
-
-.svc-nav::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.2);
-  border-radius: 3px;
-  transition: background 0.2s ease;
-}
-
-.svc-nav::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 0, 0, 0.3);
-}
-
-/* Mobile/tablet specific adjustments */
-@media (max-width: 1023px) {
-  .svc-nav {
-    padding: 0 1rem 1rem;
-    gap: 0.75rem; /* Slightly larger gap on mobile for easier touch */
-    width: 100%; /* Ensure full width */
-    box-sizing: border-box; /* Include padding in width calculation */
-  }
-  
-  .svc-nav button {
-    padding: 0.6rem 1.2rem; /* Slightly larger touch targets */
-    font-size: 0.9rem;
-    flex-shrink: 0; /* Prevent buttons from shrinking */
-  }
-  
-  /* Make scrollbar more visible on mobile */
-  .svc-nav::-webkit-scrollbar {
-    height: 8px;
-  }
-  
-  .svc-nav::-webkit-scrollbar-thumb {
-    background: rgba(0, 0, 0, 0.3);
-  }
-}
-
-/* Very small screens */
-@media (max-width: 480px) {
-  .svc-nav {
-    padding: 0 0.75rem 1rem;
-    gap: 0.5rem;
-  }
-  
-  .svc-nav button {
-    padding: 0.5rem 1rem;
-    font-size: 0.85rem;
-  }
-}
-
-/* --- SERVICE SELECTION MODAL --- */
 .svc-popup-overlay {
   position: fixed;
   inset: 0;
@@ -538,6 +222,7 @@ body {
   align-items: center;
   justify-content: center;
   z-index: 9999;
+  animation: fadeIn 0.3s ease-out;
 }
 
 .svc-popup {
@@ -550,6 +235,7 @@ body {
   border-radius: 16px;
   overflow: hidden;
   box-shadow: 0 15px 30px rgba(0,0,0,0.25), 0 0 0 1px rgba(0,0,0,0.05);
+  animation: slideInUp 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
 
 .svc-popup-header {
@@ -595,7 +281,7 @@ body {
 }
 
 .read-more {
-  color: #000;
+  color: #6a38d4;
   font-weight: 500;
   cursor: pointer;
 }
@@ -630,6 +316,11 @@ body {
   transition: all 0.2s ease;
 }
 
+.svc-option-item:has(input[type="radio"]:checked) {
+  border-color: #6a38d4;
+  background-color: #f6f1ff;
+}
+
 .svc-option-item:hover {
   border-color: #6a38d4;
   background-color: #f9f6ff;
@@ -637,14 +328,25 @@ body {
 
 .svc-option-item input[type="radio"] {
   accent-color: #6a38d4;
-  transform: scale(1.2);
+  transform: scale(1.3);
   margin: 0;
 }
 
-.svc-option-item > div { flex-grow: 1; }
+.svc-option-item > div {
+  flex-grow: 1;
+}
 
-.svc-option-item strong { font-size: 16px; display: block; margin-bottom: 2px; color: #1a1a1a; }
-.svc-option-time, .svc-option-price { font-size: 14px; color: #555; }
+.svc-option-item strong {
+  font-size: 16px;
+  display: block;
+  margin-bottom: 2px;
+  color: #1a1a1a;
+}
+
+.svc-option-time, .svc-option-price {
+  font-size: 14px;
+  color: #555;
+}
 
 .svc-popup-footer {
   padding: 20px 24px;
@@ -653,7 +355,7 @@ body {
 }
 
 .btn-enabled {
-  background-color: #000;
+  background-color: #6a38d4;
   color: white;
   font-size: 16px;
   font-weight: 600;
@@ -665,40 +367,212 @@ body {
   transition: background-color 0.2s ease, transform 0.2s ease;
 }
 
-.btn-enabled:hover { background-color: #333; transform: translateY(-1px); }
-.btn-disabled { background-color: #d4d4d4; color: #888; cursor: not-allowed; border: none; border-radius: 12px; width: 100%; padding: 14px 20px; font-weight: 600; }
-
-/* Modal tweaks on small screens: bottom sheet feel */
-@media (max-width: 600px) {
-  .svc-popup-overlay { align-items: flex-end; }
-  .svc-popup { width: 100%; max-width: 100%; border-radius: 16px 16px 0 0; }
-  .svc-popup-header { padding: 16px 20px; }
-  .svc-popup-body { padding: 16px 20px; }
+.btn-enabled:hover {
+  background-color: #582db5;
+  transform: translateY(-2px);
 }
 
-/* --- SERVICE BOTTOM BAR (Mobile/Tablet Only) --- */
-.service-bottom-bar {
-  gap: 1rem;
-}
-
-.service-bottom-bar span {
-  font-size: 0.9rem;
+.btn-disabled {
+  background-color: #d4d4d4;
+  color: #888;
+  font-size: 16px;
   font-weight: 600;
+  padding: 14px 20px;
+  border: none;
+  border-radius: 12px;
+  width: 100%;
+  cursor: not-allowed;
 }
 
-.service-bottom-bar .btn-continue {
-  background: #000000;
-  color: #ffffff;
+.service-bottom-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background-color: #000;
+  color: #fff;
+  padding: 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  z-index: 1001;
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.btn-continue {
   padding: 0.75rem 1.5rem;
+  border: none;
   border-radius: 8px;
   font-weight: 600;
-  border: none;
+  background-color: #fff;
+  color: #000;
   cursor: pointer;
 }
 
-/* ---------- */
-.svc-category-section {
-  scroll-margin-top: 120px; /* adjust to your header height */
+.btn-continue.disabled {
+  background-color: #ccc;
+  color: #999;
+  cursor: not-allowed;
+}
+@media (max-width: 400px) {
+
+  .svc-header-wrapper {
+    position: fixed;
+    top: 52;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    left: 0;
+  }
+  
+}
+/* === MOBILE SPECIFIC STYLES === */
+@media (max-width: 600px) {
+  /* On mobile, the header becomes sticky instead of fixed */
+  .svc-header-wrapper {
+    position: fixed;
+    top: 57;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    left: 0;
+  }
+
+  /* The content no longer needs padding on mobile because of the sticky header */
+  .svc-container {
+    padding-top: 20px; /* Reset padding-top */
+  }
+
+  .svc-header {
+    padding: 12px 16px;
+  }
+
+  .svc-header h2 {
+    font-size: 32px;
+  }
+
+  .svc-cart-indicator {
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+
+  .svc-nav {
+    padding: 12px 16px;
+  }
+
+  .svc-nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .svc-nav button {
+    padding: 8px 12px;
+  }
+
+  .svc-item {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .svc-info p {
+    margin: 4px 0;
+  }
+
+  .svc-add-btn {
+    align-self: flex-end;
+  }
+
+  .svc-category-section {
+    margin-top: 30px;
+  }
+
+  /* Popup - Mobile specific styles */
+  .svc-popup-overlay {
+    align-items: flex-end;
+    justify-content: center;
+  }
+
+  .svc-popup {
+    max-width: 100%;
+    width: 100%;
+    border-radius: 16px 16px 0 0;
+    animation: slideInUp 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  }
+
+  .svc-popup-header {
+    padding: 16px 20px;
+  }
+
+  .svc-popup-header h2 {
+    font-size: 20px;
+  }
+
+  .close-btn {
+    font-size: 24px;
+  }
+
+  .svc-popup-body {
+    padding: 16px 20px;
+  }
+
+  .svc-popup-subtitle {
+    font-size: 14px;
+  }
+
+  .svc-popup-desc {
+    font-size: 13px;
+  }
+
+  .svc-option-item strong {
+    font-size: 15px;
+  }
+
+  .svc-option-time, .svc-option-price {
+    font-size: 13px;
+  }
+
+  .svc-popup-footer {
+    padding: 12px 20px;
+  }
+
+  /* Bottom Bar */
+  .service-bottom-bar {
+    padding: 0.75rem;
+    gap: 0.75rem;
+  }
+
+  .btn-continue {
+    padding: 0.5rem 1rem;
+    font-size: 14px;
+  }
+
+  .service-bottom-bar span {
+    font-size: 12px;
+  }
+
+  /* Mobile-specific animations for bottom-up modal */
+  @keyframes slideInUp {
+    from {
+      transform: translateY(100%);
+      opacity: 0.8;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
 }
 
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
 
+@keyframes slideInUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
