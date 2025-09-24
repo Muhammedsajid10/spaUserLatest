@@ -197,21 +197,20 @@ const ProfileHeader = ({ profile }) => (
 /* -------------------
    Booking Item Component
    ------------------- */
-const BookingItem = ({ booking, onGiveRating }) => {
-  const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
+
+const BookingItem = ({ booking, feedbackList, onGiveRating }) => {
+  const formatDate = (dateString) =>
+    new Date(dateString).toLocaleDateString("en-US", {
       year: "numeric",
       month: "long",
       day: "numeric",
     });
-  };
 
-  const formatTime = (dateString) => {
-    return new Date(dateString).toLocaleTimeString("en-US", {
+  const formatTime = (dateString) =>
+    new Date(dateString).toLocaleTimeString("en-US", {
       hour: "2-digit",
       minute: "2-digit",
     });
-  };
 
   const getStatusBadgeClass = (status) => {
     switch (status?.toLowerCase()) {
@@ -226,8 +225,20 @@ const BookingItem = ({ booking, onGiveRating }) => {
     }
   };
 
+  // ✅ Check if feedback exists for this booking
+  const bookingFeedback = feedbackList?.find(
+    (f) =>
+      f.bookingId === booking._id ||
+      f.bookingId === booking.id ||
+      f.booking?._id === booking._id
+  );
+
+  const hasRating =
+    bookingFeedback?.ratings?.overall > 0 || bookingFeedback?.rating > 0;
+
   return (
     <div className="booking-item">
+      {/* Booking Header */}
       <div className="booking-header">
         <div className="booking-info">
           <h4 className="booking-title">
@@ -251,6 +262,7 @@ const BookingItem = ({ booking, onGiveRating }) => {
         </span>
       </div>
 
+      {/* Services */}
       {booking.services && booking.services.length > 0 && (
         <div className="booking-services">
           <h5 className="services-title">Services:</h5>
@@ -264,9 +276,7 @@ const BookingItem = ({ booking, onGiveRating }) => {
                   <span className="service-name">
                     {service.service?.name || `Service ${index + 1}`}
                   </span>
-                  <span className="service-duration">
-                    {service.duration} min
-                  </span>
+                  <span className="service-duration">{service.duration} min</span>
                 </div>
                 <div className="service-details">
                   <span className="service-price">
@@ -281,8 +291,7 @@ const BookingItem = ({ booking, onGiveRating }) => {
                 </div>
                 {service.startTime && service.endTime && (
                   <div className="service-time">
-                    {formatTime(service.startTime)} -{" "}
-                    {formatTime(service.endTime)}
+                    {formatTime(service.startTime)} - {formatTime(service.endTime)}
                   </div>
                 )}
               </div>
@@ -291,6 +300,7 @@ const BookingItem = ({ booking, onGiveRating }) => {
         </div>
       )}
 
+      {/* Footer */}
       <div className="booking-footer">
         <div className="booking-total">
           <span className="total-label">Total Amount:</span>
@@ -299,6 +309,7 @@ const BookingItem = ({ booking, onGiveRating }) => {
             {booking.finalAmount || booking.totalAmount || 0}
           </span>
         </div>
+
         {booking.paymentStatus && (
           <div className="payment-status">
             <span className="payment-label">Payment:</span>
@@ -311,13 +322,18 @@ const BookingItem = ({ booking, onGiveRating }) => {
             </span>
           </div>
         )}
+
+        {/* ✅ Give Rating button - disabled if rating already exists */}
         <button
           className="btn btn-secondary btn-sm mt-2"
+          disabled={hasRating}
           onClick={() => {
-            // Get the first service's IDs for rating
+            if (hasRating) return; // prevent click if already rated
             const firstService = booking.services?.[0];
-            const serviceId = firstService?.service?._id || firstService?.serviceId;
-            const employeeId = firstService?.employee?._id || firstService?.employeeId;
+            const serviceId =
+              firstService?.service?._id || firstService?.serviceId;
+            const employeeId =
+              firstService?.employee?._id || firstService?.employeeId;
             onGiveRating(booking._id || booking.id, serviceId, employeeId);
           }}
         >
@@ -325,6 +341,7 @@ const BookingItem = ({ booking, onGiveRating }) => {
         </button>
       </div>
 
+      {/* Client Info */}
       {booking.client && (
         <div className="booking-client">
           <h6 className="client-title">Client Information:</h6>
@@ -350,6 +367,7 @@ const BookingItem = ({ booking, onGiveRating }) => {
     </div>
   );
 };
+
 
 /* -------------------
    Invoice Item Component (Expanded)

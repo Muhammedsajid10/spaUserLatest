@@ -343,7 +343,55 @@ const Payment = () => {
   };
 
   const handlePayment = async () => {
-    // ... existing implementation
+    if (processing || loading) return;
+    
+    try {
+      setProcessing(true);
+      setError(null);
+
+      // Create booking in database
+      const bookingResult = await createBookingInDatabase();
+      
+      if (!bookingResult?.success) {
+        throw new Error(bookingResult?.message || 'Failed to create booking');
+      }
+
+      // For cash payments, redirect directly to success
+      if (selectedMethod === 'cash') {
+        navigate('/payment/success', { 
+          state: { 
+            booking: bookingResult.data,
+            payment: { method: 'cash', status: 'pending' }
+          }
+        });
+        return;
+      }
+
+      // For card payments, create payment intent
+      const paymentIntent = await paymentsAPI.createPaymentIntent({
+        amount: totalAmount,
+        currency: 'aed',
+        bookingId: bookingResult.data._id,
+        method: selectedMethod
+      });
+
+      if (!paymentIntent?.success) {
+        throw new Error(paymentIntent?.message || 'Failed to create payment');
+      }
+
+      setPaymentIntent(paymentIntent.data);
+
+    } catch (error) {
+      console.error('Payment initialization failed:', error);
+      setError(error.message || 'Failed to process payment');
+      Swal.fire({
+        title: 'Error',
+        text: error.message || 'Payment process failed. Please try again.',
+        icon: 'error'
+      });
+    } finally {
+      setProcessing(false);
+    }
   };
 
   const handlePaymentSuccess = async (result) => {
@@ -562,11 +610,20 @@ const Payment = () => {
 
       {/* Action Button */}
       <button
-        className="unified-bottom-bar__button"
-        onClick={() => { if (!processing) handlePayment(); }}
+        className={`unified-bottom-bar__button ${(processing || loading) ? 'processing' : ''}`}
+        onClick={handlePayment}
         disabled={processing || loading}
       >
-        {processing || loading ? 'Processing...' : 'Confirm'}
+        {processing || loading ? (
+          <div className="button-content">
+            <Spinner size="sm" className="mr-2" />
+            Processing...
+          </div>
+        ) : (
+          <div className="button-content">
+            {selectedMethod === 'cash' ? 'Confirm Cash Payment' : 'Confirm & Pay'}
+          </div>
+        )}
       </button>
     </div>
       </div>

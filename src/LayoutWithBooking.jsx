@@ -516,7 +516,7 @@ const LayoutWithBooking = ({ children }) => {
                     <span className="value">AED {apiUtils.formatPrice(bookingFlow.getTotalPrice()).replace(/^\$/, '')}</span>
                   </div>
                 </div>
-                <div className="progress-steps">
+                {/* <div className="progress-steps">
                   {steps.map((step) => (
                     <div 
                       key={step.number} 
@@ -526,7 +526,7 @@ const LayoutWithBooking = ({ children }) => {
                       <div className="step-label">{step.label}</div>
                     </div>
                   ))}
-                </div>
+                </div> */}
                 {/* Hide action buttons when on final confirm/success step */}
                 {currentStep !== 5 && (
                   <div className="action-buttons">
