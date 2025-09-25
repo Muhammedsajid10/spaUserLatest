@@ -434,37 +434,48 @@ const LayoutWithBooking = ({ children }) => {
                    <span className="datetime-text">
                      {(() => {
                        const slot = bookingFlow.selectedTimeSlot;
+                       console.log('[LayoutWithBooking] Time display - slot data:', slot);
                        // If precise ISO start/end exist, use them. Otherwise fall back to stored time string + computed end.
                        try {
                          let start, end;
                         if (slot.startTime) {
+                          console.log('[LayoutWithBooking] Using startTime:', slot.startTime);
                           // Use startTime from stored slot but compute end using total service duration
                           start = new Date(slot.startTime);
                           end = new Date(start.getTime() + bookingFlow.getTotalDuration() * 60000);
                         } else if (slot.time && slot.time.time) {
+                          console.log('[LayoutWithBooking] Using slot.time.time:', slot.time, 'slot.date:', slot.date);
                            // slot.time.time is a human string like '09:00' or '2:30 PM'
                            // create a Date using the slot.date (YYYY-MM-DD) to avoid timezone shifts
                            const dateStr = slot.date || new Date().toISOString().split('T')[0];
                            const timeStr = slot.time.time;
                            // Build a local datetime string preserving the time exactly
                            const localDateTime = `${dateStr}T${(timeStr.length === 5 && timeStr.indexOf(':') === 2) ? timeStr + ':00' : timeStr}`;
+                           console.log('[LayoutWithBooking] Constructed localDateTime:', localDateTime);
                            start = new Date(localDateTime);
                            if (Number.isNaN(start.getTime())) {
+                             console.log('[LayoutWithBooking] Invalid localDateTime, trying fallback');
                              // fallback: parse as time only on arbitrary date
                              start = new Date(`2000-01-01 ${timeStr}`);
                            }
                            end = new Date(start.getTime() + bookingFlow.getTotalDuration() * 60000);
                          } else {
+                           console.log('[LayoutWithBooking] No valid time data found, using current time');
                            // final fallback: use now + duration
                            start = new Date();
                            end = new Date(start.getTime() + bookingFlow.getTotalDuration() * 60000);
                          }
 
+                         console.log('[LayoutWithBooking] Final start/end times:', start, end, 'start valid:', !Number.isNaN(start.getTime()), 'end valid:', !Number.isNaN(end.getTime()));
+
                          const fmt = (d) => d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
                          const duration = bookingFlow.getTotalDuration();
                          const durationText = duration >= 60 ? `${Math.floor(duration/60)} hr ${duration%60 ? duration%60 + ' min' : ''}`.trim() : `${duration} min`;
-                         return `${fmt(start)} - ${fmt(end)} (${durationText} duration)`;
+                         const result = `${fmt(start)} - ${fmt(end)} (${durationText} duration)`;
+                         console.log('[LayoutWithBooking] Final result:', result);
+                         return result;
                        } catch (err) {
+                         console.error('[LayoutWithBooking] Error in time display:', err);
                          return '';
                        }
                      })()}

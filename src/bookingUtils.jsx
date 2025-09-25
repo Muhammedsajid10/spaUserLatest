@@ -86,11 +86,26 @@ export function floorToInterval(min, interval) { return Math.floor(min / interva
 export function isTimeSlotConflicting(startTime, duration, existingBookings = []) {
   const s = timeToMinutesFn(startTime);
   const e = s + duration;
-  return existingBookings.some(b => {
+  const conflict = existingBookings.some(b => {
     const bs = timeToMinutesFn(b.startTime);
     const be = timeToMinutesFn(b.endTime);
-    return s < be && e > bs;
+    const overlaps = s < be && e > bs;
+    if (overlaps) {
+      const slotEndTime = addMinutesToTime(startTime, duration);
+      console.warn('[Conflict DETECTED]', {
+        proposedSlot: `${startTime} - ${slotEndTime} (${duration}min)`,
+        conflictingBooking: `${b.startTime} - ${b.endTime}`,
+        overlapDetails: {
+          proposedStartMinutes: s,
+          proposedEndMinutes: e,
+          bookingStartMinutes: bs,
+          bookingEndMinutes: be
+        }
+      });
+    }
+    return overlaps;
   });
+  return conflict;
 }
 
 /**

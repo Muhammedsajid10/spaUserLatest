@@ -226,15 +226,16 @@ const BookingItem = ({ booking, feedbackList, onGiveRating }) => {
   };
 
   // ✅ Check if feedback exists for this booking
-  const bookingFeedback = feedbackList?.find(
-    (f) =>
-      f.bookingId === booking._id ||
-      f.bookingId === booking.id ||
-      f.booking?._id === booking._id
-  );
+// ✅ Find feedback for this booking
+const bookingFeedback = feedbackList?.find(
+  (f) =>
+    f.bookingId === booking._id ||
+    f.bookingId === booking.id ||
+    f.booking?._id === booking._id
+);
 
-  const hasRating =
-    bookingFeedback?.ratings?.overall > 0 || bookingFeedback?.rating > 0;
+const hasRating =
+  bookingFeedback?.ratings?.overall > 0 || bookingFeedback?.rating > 0;
 
   return (
     <div className="booking-item">
@@ -324,21 +325,23 @@ const BookingItem = ({ booking, feedbackList, onGiveRating }) => {
         )}
 
         {/* ✅ Give Rating button - disabled if rating already exists */}
-        <button
-          className="btn btn-secondary btn-sm mt-2"
-          disabled={hasRating}
-          onClick={() => {
-            if (hasRating) return; // prevent click if already rated
-            const firstService = booking.services?.[0];
-            const serviceId =
-              firstService?.service?._id || firstService?.serviceId;
-            const employeeId =
-              firstService?.employee?._id || firstService?.employeeId;
-            onGiveRating(booking._id || booking.id, serviceId, employeeId);
-          }}
-        >
-          Give Rating
-        </button>
+      <button
+  className={`btn btn-secondary btn-sm mt-2 ${
+    hasRating ? "opacity-60 cursor-not-allowed" : ""
+  }`}
+  disabled={hasRating}
+  onClick={() => {
+    if (hasRating) return;
+    const firstService = booking.services?.[0];
+    const serviceId =
+      firstService?.service?._id || firstService?.serviceId;
+    const employeeId =
+      firstService?.employee?._id || firstService?.employeeId;
+    onGiveRating(booking._id || booking.id, serviceId, employeeId);
+  }}
+>
+  {hasRating ? "Rated" : "Give Rating"}
+</button>
       </div>
 
       {/* Client Info */}
@@ -976,13 +979,14 @@ const SpaProfilePage = () => {
               Bookings ({bookings.length})
             </h3>
             <div className="space-y-4">
-              {bookings.map((booking, index) => (
-                <BookingItem
-                  key={booking._id || booking.id || `booking-${index}`}
-                  booking={booking}
-                  onGiveRating={openRatingPopup}
-                />
-              ))}
+             {bookings.map((booking, index) => (
+  <BookingItem
+    key={booking._id || booking.id || `booking-${index}`}
+    booking={booking}
+    feedbackList={feedback}   // ✅ pass the feedback state here
+    onGiveRating={openRatingPopup}
+  />
+))}
             </div>
           </div>
         ) : (

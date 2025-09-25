@@ -49,6 +49,11 @@ const buildServicesPayload = () => {
 
 const createBookingIfNeeded = async () => {
   bookingFlow.load();
+  console.log('createBookingIfNeeded bookingFlow:', bookingFlow);
+  if (bookingFlow.bookingCreated) {
+    console.log('Booking already created, skipping creation.');
+    return bookingFlow.bookingCreated;
+  }
   // Minimal booking payload similar to Payment.jsx
   const appointmentDate = bookingFlow.selectedTimeSlot?.date || bookingFlow.selectedDate || new Date().toISOString().split('T')[0];
   const servicesPayload = buildServicesPayload();
@@ -88,8 +93,10 @@ const simulateTestPayment = async (paymentData, method) => {
 };
 
 export const confirmBookingAndPay = async ({ method = 'card', upiVpa = '', clientInfo = null } = {}) => {
+  console.log('confirmBookingAndPay called with method:', method, 'upiVpa:', upiVpa, 'clientInfo:', clientInfo);
   try {
     bookingFlow.load();
+    console.log('confirmBookingAndPay bookingFlow:', bookingFlow);
     if (!bookingFlow.selectedServices || bookingFlow.selectedServices.length === 0) {
       throw new Error('No services selected');
     }

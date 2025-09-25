@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../Service/Context';
 import { bookingFlow, bookingsAPI, paymentsAPI } from '../services/api';
+import { confirmBookingAndPay } from '../services/paymentFlow';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import Swal from 'sweetalert2';
@@ -10,21 +11,8 @@ import './Payment.css';
 
 // Initialize Stripe with environment variable (TEST MODE)
 const stripePublishableKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || 'pk_test_4eC39HqLyjWDarjtT1zdp7dc';
-console.log('[STRIPE] Using publishable key:', stripePublishableKey);
 
-const stripePromise = loadStripe(stripePublishableKey)
-  .then(stripe => {
-    console.log('[STRIPE] Stripe loaded successfully');
-    setStripeLoaded(true);
-    setStripeError(null);
-    return stripe;
-  })
-  .catch(error => {
-    console.error('[STRIPE] Error loading Stripe:', error);
-    setStripeError('Failed to load payment processor. Please refresh the page or try again later.');
-    setStripeLoaded(false);
-    return null;
-  });
+const stripePromise = loadStripe(stripePublishableKey);
 
 // Test mode configuration
 const STRIPE_TEST_MODE = import.meta.env.VITE_STRIPE_TEST_MODE === 'true' || import.meta.env.DEV || true;
@@ -49,7 +37,6 @@ const StripePaymentForm = ({ onPaymentSuccess, onPaymentError, paymentData, load
       // If Stripe fails to load in test mode, enable offline mode
       const timer = setTimeout(() => {
         setOfflineMode(true);
-        console.log('[STRIPE] Enabling offline test mode due to Stripe load failure');
       }, 5000);
 
       return () => clearTimeout(timer);
@@ -62,12 +49,10 @@ const StripePaymentForm = ({ onPaymentSuccess, onPaymentError, paymentData, load
     setCardError('');
 
     try {
-      console.log('[STRIPE TEST MODE] Processing payment in test mode');
 
       // Always use test simulation in test mode or when offline
       if (STRIPE_TEST_MODE || offlineMode) {
-        console.log('[STRIPE TEST MODE] Using test card simulation');
-
+      
         // Simulate processing delay
         await new Promise(resolve => setTimeout(resolve, 2000));
 
@@ -113,9 +98,9 @@ const StripePaymentForm = ({ onPaymentSuccess, onPaymentError, paymentData, load
         type: 'card',
         card: cardElement,
         billing_details: {
-          name: paymentData.clientInfo.name,
-          email: paymentData.clientInfo.email,
-          phone: paymentData.clientInfo.phone,
+          name: paymentData.clientInfo?.name,
+          email: paymentData.clientInfo?.email,
+          phone: paymentData.clientInfo?.phone,
         },
       });
 
@@ -231,49 +216,98 @@ const Payment = () => {
 
   const navigate = useNavigate();
   const { user, token, isAuthenticated } = useAuth();
+  console.log('Payment component: Auth context:', { user, token, isAuthenticated });
 
-  // Check authentication and redirect if needed
+  // Load booking flow data at component start
   useEffect(() => {
-    const checkAuthentication = () => {
-      const savedToken = localStorage.getItem('token');
-      const savedUser = localStorage.getItem('user');
+    console.log('[Payment] Component mounted - checking bookingFlow data');
+    
+    // Check if localStorage is available
+    try {
+      const test = localStorage.getItem('test');
+      console.log('[Payment] localStorage available');
+    } catch (e) {
+      console.error('[Payment] localStorage not available:', e);
+    }
+    
+    const bookingData = bookingFlow.load();
+    console.log('[Payment] Loaded bookingFlow data:', bookingData);
+    console.log('[Payment] selectedTimeSlot details:', bookingFlow.selectedTimeSlot);
+    console.log('[Payment] localStorage raw data:', localStorage.getItem('bookingFlow'));
+    
+    // Check if data is missing and log warnings
+    if (!bookingFlow.selectedServices || bookingFlow.selectedServices.length === 0) {
+      console.warn('[Payment] WARNING - No services selected in bookingFlow!');
+    }
+    if (!bookingFlow.selectedTimeSlot) {
+      console.warn('[Payment] WARNING - No time slot selected in bookingFlow!');
+    }
+    if (!bookingFlow.selectedProfessionals || Object.keys(bookingFlow.selectedProfessionals).length === 0) {
+      console.warn('[Payment] WARNING - No professionals selected in bookingFlow!');
+    }
+  }, []); // Run once on mount
+  // Auth check
+  useEffect(() => {
+    const savedToken = localStorage.getItem('token');
+    const savedUser = localStorage.getItem('user');
 
-      // If no authentication data and not in development mode
-      if (!user && !savedToken && !savedUser && !import.meta.env.DEV) {
-        console.log('[PAYMENT] User not authenticated, redirecting to login');
-        navigate('/login', {
-          state: { from: { pathname: '/payment' } },
-          replace: true
-        });
-        return;
-      }
-    };
-
-    checkAuthentication();
+    if (!user && !savedToken && !savedUser && !import.meta.env.DEV) {
+      console.log('[PAYMENT] User not authenticated, redirecting to login');
+      navigate('/login', {
+        state: { from: { pathname: '/payment' } },
+        replace: true
+      });
+    }
   }, [user, navigate]);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [processing, setProcessing] = useState(false);
-  const [availableGateways, setAvailableGateways] = useState([]);
-  const [selectedGateway, setSelectedGateway] = useState('stripe');
   const [selectedMethod, setSelectedMethod] = useState('card'); // 'card' | 'upi' | 'cash'
   const [upiVpa, setUpiVpa] = useState('');
   const [paymentIntent, setPaymentIntent] = useState(null);
   const [successResult, setSuccessResult] = useState(null);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
-  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
-  const [isNavigating, setIsNavigating] = useState(false);
-  const [showTimeConfirmation, setShowTimeConfirmation] = useState(false);
-  const [bookingConfirmed, setBookingConfirmed] = useState(false);
   const [createdBooking, setCreatedBooking] = useState(null);
-  const [stripeLoaded, setStripeLoaded] = useState(false);
-  const [stripeError, setStripeError] = useState(null);
 
-  // Get booking data from localStorage
-  const bookingData = JSON.parse(localStorage.getItem('bookingData') || '{}');
+  // ---------- Helpers for date/time ----------
+  const toLongDate = (yyyy_mm_dd) => {
+    if (!yyyy_mm_dd) return 'N/A';
+    const d = new Date(`${yyyy_mm_dd}T00:00:00`);
+    if (isNaN(d)) return 'N/A';
+    return d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  };
 
-  // Create booking data from available booking flow data
+  // Build a Date from selectedDate + timeValue ("HH:mm") or time ("h:mm A")
+  const combineDateAndTime = (yyyy_mm_dd, timeValue, timeStr) => {
+    // Fallback to 10:00 if nothing
+    let hour = 10;
+    let minute = 0;
+
+    if (typeof timeValue === 'string' && /^\d{2}:\d{2}$/.test(timeValue)) {
+      const [h, m] = timeValue.split(':').map(Number);
+      hour = h; minute = m;
+    } else if (typeof timeStr === 'string') {
+      // Parse "12:00 AM" etc.
+      const m = timeStr.trim().match(/^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)?$/i);
+      if (m) {
+        let h = parseInt(m[1], 10);
+        let mins = m[2] ? parseInt(m[2], 10) : 0;
+        const mer = m[3]?.toUpperCase();
+        if (mer === 'PM' && h < 12) h += 12;
+        if (mer === 'AM' && h === 12) h = 0;
+        hour = h; minute = mins;
+      }
+    }
+
+    const base = new Date(`${yyyy_mm_dd || ''}T00:00:00`);
+    if (isNaN(base)) return null;
+    base.setHours(hour, minute, 0, 0);
+    return base;
+  };
+  // ------------------------------------------
+
+  // Create booking data for the UI summary
   const createBookingData = () => {
     // Load booking flow data
     bookingFlow.load();
@@ -281,8 +315,12 @@ const Payment = () => {
     console.log('Payment component: BookingFlow data:', {
       selectedServices: bookingFlow.selectedServices,
       selectedProfessionals: bookingFlow.selectedProfessionals,
-      selectedTimeSlot: bookingFlow.selectedTimeSlot
+      selectedTimeSlot: bookingFlow.selectedTimeSlot,
+      selectedDate: bookingFlow.selectedDate
     });
+
+    console.log('Payment component: Full bookingFlow object:', bookingFlow);
+    console.log('Payment component: localStorage booking data:', localStorage.getItem('bookingData'));
 
     // Check if booking flow data exists and is complete
     if (bookingFlow.selectedServices && bookingFlow.selectedServices.length > 0 &&
@@ -316,7 +354,8 @@ const Payment = () => {
         professionalAssignments,
         uniqueProfessionalNames,
         date: (() => {
-          const dateStr = bookingFlow.selectedTimeSlot.date;
+          console.log('Payment component: selectedDate:', bookingFlow.selectedDate);
+          const dateStr = bookingFlow.selectedDate || bookingFlow.date;
           const date = typeof dateStr === 'string' ? new Date(`${dateStr}T12:00:00`) : new Date(dateStr);
           return date.toLocaleDateString();
         })(),
@@ -336,70 +375,316 @@ const Payment = () => {
   };
 
   const finalBookingData = createBookingData();
+  console.log('Payment component: Final booking data for summary:', finalBookingData);
 
-  // All the existing methods remain the same...
-  const createBookingInDatabase = async () => {
-    // ... existing implementation
-  };
 
-  const handlePayment = async () => {
-    if (processing || loading) return;
-    
-    try {
-      setProcessing(true);
-      setError(null);
 
-      // Create booking in database
-      const bookingResult = await createBookingInDatabase();
+   const createBookingInDatabase = async () => {
+    // Helper function to safely create and validate dates
+    const createValidDate = (dateInput, fallbackDate = new Date()) => {
+      if (!dateInput) return fallbackDate;
       
-      if (!bookingResult?.success) {
-        throw new Error(bookingResult?.message || 'Failed to create booking');
+      const date = new Date(dateInput);
+      if (isNaN(date.getTime())) {
+        console.warn('Invalid date input:', dateInput, 'using fallback');
+        return fallbackDate;
       }
+      return date;
+    };
 
-      // For cash payments, redirect directly to success
-      if (selectedMethod === 'cash') {
-        navigate('/payment/success', { 
-          state: { 
-            booking: bookingResult.data,
-            payment: { method: 'cash', status: 'pending' }
+    // Creating booking in database
+    
+    // Helper function to get user data reliably
+    const getUserData = () => {
+      // First try the context user
+      if (user && (user.email || user.username || user._id || user.id)) {
+        return user;
+      }
+      
+      // Fallback to localStorage
+      const savedUser = localStorage.getItem('user');
+      if (savedUser) {
+        try {
+          const parsedUser = JSON.parse(savedUser);
+          if (parsedUser && (parsedUser.email || parsedUser.username || parsedUser._id || parsedUser.id)) {
+            return parsedUser;
           }
-        });
+        } catch (parseError) {
+          console.error('[DEBUG] Failed to parse user from localStorage:', parseError);
+        }
+      }
+      
+      // Development mode fallback - create a temporary user for testing
+      if (import.meta.env.DEV) {
+        console.warn('[DEBUG] Using development mode fallback user');
+        return {
+          _id: 'dev_user_id',
+          firstName: 'Test',
+          lastName: 'User',
+          email: 'test@example.com',
+          username: 'testuser'
+        };
+      }
+      
+      return null;
+    };
+
+    const currentUser = getUserData();
+    console.log('[DEBUG] Current user determined:', currentUser);
+    
+    // Check if user is logged in
+    if (!currentUser) {
+      throw new Error('User not logged in - no valid user data found');
+    }
+
+    // Validate required booking flow data
+    if (!bookingFlow.selectedServices || bookingFlow.selectedServices.length === 0) {
+      throw new Error('No services selected');
+    }
+
+    if (!bookingFlow.selectedTimeSlot) {
+      throw new Error('No time slot selected');
+    }
+
+    const servicesPayload = finalBookingData.services.map((service, index) => {
+      const professional = bookingFlow.selectedProfessionals[service._id];
+      
+      // Debug logging for time conversion
+      console.log(`[TIME DEBUG] Processing service ${index}:`, {
+        selectedTimeSlot: bookingFlow.selectedTimeSlot,
+        selectedTimeSlotStartTime: bookingFlow.selectedTimeSlot?.startTime,
+        selectedTimeSlotEndTime: bookingFlow.selectedTimeSlot?.endTime,
+        serviceCount: finalBookingData.services.length
+      });
+      
+      // Calculate sequential start and end times for multiple services
+      let startTime, endTime;
+      if (finalBookingData.services.length === 1) {
+
+        // Single service: use the selected time slot start time, but calculate end time based on service duration
+        startTime = createValidDate(bookingFlow.selectedTimeSlot?.startTime);
+        // FIXED: Calculate end time based on actual service duration, not time slot end time
+        endTime = new Date(startTime.getTime() + ((service.duration || 30) * 60 * 1000));
+      
+      } else {
+        // Multiple services: calculate sequential times
+        const baseStartTime = createValidDate(bookingFlow.selectedTimeSlot?.startTime);
+        const serviceStartMinutes = finalBookingData.services.slice(0, index).reduce((total, s) => total + (s.duration || 30), 0);
+        
+        startTime = new Date(baseStartTime.getTime() + (serviceStartMinutes * 60 * 1000));
+        endTime = new Date(startTime.getTime() + ((service.duration || 30) * 60 * 1000));
+      }
+      // Instead of using toISOString() which converts to UTC, manually create local ISO format
+      const formatLocalISO = (date) => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        const seconds = String(date.getSeconds()).padStart(2, '0');
+        return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}.000Z`;
+      };
+
+      return {
+        service: service._id,
+        employee: professional && (professional._id || professional.id) ? 
+          (professional.id === 'any' ? 'any' : (professional._id || professional.id)) : 'any',
+        price: service.price,
+        duration: service.duration,
+        // CRITICAL FIX: Store times preserving local timezone (treat as UTC to avoid conversion)
+        startTime: formatLocalISO(startTime),
+        endTime: formatLocalISO(endTime),
+        // Add timezone offset information for debugging
+        timezoneOffset: startTime.getTimezoneOffset(),
+        originalLocalTime: `${startTime.getHours()}:${String(startTime.getMinutes()).padStart(2, '0')}`
+      };
+    });
+
+    const appointmentDate = bookingFlow.selectedTimeSlot.date || 
+                           bookingFlow.selectedDate || 
+                           new Date().toISOString().split('T')[0]; // Use date string format
+
+    // Use the actual start time's date instead of hardcoded noon
+    // This ensures appointmentDate matches the startTime date
+    const appointmentDateObj = bookingFlow.selectedTimeSlot.startTime ? 
+                              new Date(bookingFlow.selectedTimeSlot.startTime) : 
+                              new Date(`${appointmentDate}T12:00:00.000Z`);
+
+    const bookingPayload = {
+      // Include current logged-in user as client
+      client: {
+        id: currentUser._id || currentUser.id || 'temp_user_id',
+        name: `${currentUser.firstName || ''} ${currentUser.lastName || ''}`.trim() || currentUser.name || currentUser.username || currentUser.fullName || 'Client',
+        email: currentUser.email || currentUser.username || 'client@example.com',
+        phone: currentUser.phone || currentUser.phoneNumber || currentUser.mobile || '',
+        userId: currentUser._id || currentUser.id || 'temp_user_id' // backend reference
+      },
+      services: servicesPayload,
+      appointmentDate: appointmentDateObj.toISOString(),
+      notes: '',
+      selectionMode: bookingFlow.selectionMode || 'perService'
+    };
+
+  
+
+    try {
+      const response = await bookingsAPI.createBooking(bookingPayload);
+      return response.data || response;
+    } catch (error) {
+      console.error('Error creating booking:', error);
+      console.error('Error details:', {
+        message: error.message,
+        status: error.status,
+        response: error.response
+      });
+      throw error;
+    }
+  };
+   const handlePayment = async () => {
+    setLoading(true);
+    setProcessing(true);
+    setError(null);
+
+    try {
+      console.log('[PAYMENT] Starting payment process with method:', selectedMethod);
+
+      // Validation: UPI requires VPA
+      if (selectedMethod === 'upi' && !upiVpa.trim()) {
+        setError('Please enter your UPI ID');
+        setLoading(false);
+        setProcessing(false);
         return;
       }
 
-      // For card payments, create payment intent
-      const paymentIntent = await paymentsAPI.createPaymentIntent({
-        amount: totalAmount,
-        currency: 'aed',
-        bookingId: bookingResult.data._id,
-        method: selectedMethod
-      });
-
-      if (!paymentIntent?.success) {
-        throw new Error(paymentIntent?.message || 'Failed to create payment');
+      // Handle card payments separately (Stripe component handles these)
+      if (selectedMethod === 'card') {
+        // For card payments, prepare payment data and let Stripe component handle it
+        const paymentData = {
+          bookingId: finalBookingData.bookingNumber || finalBookingData.bookingId,
+          amount: finalBookingData.totalAmount,
+          currency: 'AED',
+          paymentMethod: 'card',
+          gateway: 'stripe',
+          description: `Payment for booking ${finalBookingData.bookingNumber || finalBookingData.bookingId} - ${finalBookingData.serviceNames}`,
+          clientInfo: {
+            name: `${user.firstName || ''} ${user.lastName || ''}`.trim(),
+            email: user.email,
+            phone: user.phone
+          }
+        };
+        console.log('[PAYMENT] Prepared card payment data:', paymentData);
+        setPaymentIntent(paymentData);
+        setProcessing(false); // Stop generic processing so user can enter card details
+        return;
       }
 
-      setPaymentIntent(paymentIntent.data);
+      // For cash and UPI, use the centralized orchestrator function
+      const clientInfo = {
+        name: `${user.firstName || ''} ${user.lastName || ''}`.trim(),
+        email: user.email,
+        phone: user.phone
+      };
+
+      const result = await confirmBookingAndPay({
+        method: selectedMethod,
+        upiVpa: selectedMethod === 'upi' ? upiVpa : undefined,
+        clientInfo
+      });
+
+      console.log('confirmBookingAndPay result:', result);
+
+      // Handle success
+      await handlePaymentSuccess({
+        paymentData: result.payment,
+        paymentMethod: selectedMethod,
+        booking: result.booking
+      });
 
     } catch (error) {
-      console.error('Payment initialization failed:', error);
-      setError(error.message || 'Failed to process payment');
-      Swal.fire({
-        title: 'Error',
-        text: error.message || 'Payment process failed. Please try again.',
-        icon: 'error'
+      console.error('[PAYMENT] Payment error:', error);
+      console.error('[PAYMENT] Error details:', {
+        message: error.message,
+        stack: error.stack,
+        name: error.name
       });
+
+      let errorMessage = 'Payment failed. Please try again.';
+
+      if (error.message && error.message.includes('User not logged in')) {
+        errorMessage = 'Please log in to continue with payment.';
+      } else if (error.message && error.message.includes('conflicting booking')) {
+        errorMessage = 'This time slot is no longer available. Please select a different time.';
+      } else if (error.message && (error.message.includes('network') || error.message.includes('fetch'))) {
+        errorMessage = 'Network error. Please check your connection and try again.';
+      } else if (error.message && (error.message.includes('401') || error.message.includes('Unauthorized'))) {
+        errorMessage = 'Authentication failed. Please log in again.';
+      } else {
+        errorMessage = (error && error.message) ? error.message : 'Payment failed. Please try again.';
+      }
+
+      setError(errorMessage);
+
+      // If booking creation failed, navigate to cancel flow
+      try {
+        const msg = (error && error.message) ? String(error.message).toLowerCase() : '';
+        const isBookingCreateError = msg.includes('create booking') || msg.includes('failed to create booking') ||
+                                   msg.includes('failed to create') || msg.includes('booking could not') ||
+                                   msg.includes('no time slot') || msg.includes('network') || msg.includes('fetch');
+        if (isBookingCreateError) {
+          navigate('/payment/cancel', { state: { error: error.message, booking: finalBookingData } });
+          return;
+        }
+      } catch (navErr) {
+        console.warn('[PAYMENT] Failed to navigate to cancel page:', navErr);
+      }
+
     } finally {
+      if (selectedMethod !== 'card') {
+        setLoading(false);
+        setProcessing(false);
+      }
+    }
+  };
+
+ const handlePaymentSuccess = async (result) => {
+    console.log('[PAYMENT] Payment successful:', result);
+    
+    // Clear booking flow data
+    bookingFlow.clear();
+
+    // Set local success result so UI can render immediately
+    setSuccessResult({
+      paymentData: result.paymentData,
+      paymentMethod: result.paymentMethod,
+      summaryText: result.paymentMethod === 'cash' ? 'Please pay at the venue.' : 'Payment processed successfully.'
+    });
+
+    // Navigate to centralized success page and pass data
+    try {
+      navigate('/payment/success', { state: {
+        bookingData: finalBookingData,
+        paymentData: result.paymentData,
+        paymentMethod: result.paymentMethod,
+        summaryText: result.paymentMethod === 'cash' ? 'Please pay at the venue.' : 'Payment processed successfully.'
+      }});
+    } finally {
+      setLoading(false);
       setProcessing(false);
     }
   };
 
-  const handlePaymentSuccess = async (result) => {
-    // ... existing implementation
-  };
-
   const handlePaymentError = (error) => {
-    // ... existing implementation
+    console.error('[PAYMENT] Payment failed:', error);
+    setError(error);
+    setLoading(false);
+    setProcessing(false);
+
+    Swal.fire({
+      title: 'Payment Failed',
+      text: error || 'Payment could not be processed. Please try again.',
+      icon: 'error',
+      confirmButtonText: 'Try Again'
+    });
   };
 
   // Calculate values for display
@@ -600,36 +885,35 @@ const Payment = () => {
         </div>
 
         <div className="unified-bottom-bar">
-      {/* Summary Section */}
-      <div className="unified-bottom-bar__summary">
-        <span className="unified-bottom-bar__primary-info">AED {totalAmount.toFixed(2)}</span>
-        <span className="unified-bottom-bar__secondary-info">
-          {finalBookingData.services?.length || 1} service{(finalBookingData.services?.length || 1) > 1 ? 's' : ''} • {finalBookingData.duration} min
-        </span>
-      </div>
+          {/* Summary Section */}
+          <div className="unified-bottom-bar__summary">
+            <span className="unified-bottom-bar__primary-info">AED {totalAmount.toFixed(2)}</span>
+            <span className="unified-bottom-bar__secondary-info">
+              {finalBookingData.services?.length || 1} service{(finalBookingData.services?.length || 1) > 1 ? 's' : ''} • {finalBookingData.duration} min
+            </span>
+          </div>
 
-      {/* Action Button */}
-      <button
-        className={`unified-bottom-bar__button ${(processing || loading) ? 'processing' : ''}`}
-        onClick={handlePayment}
-        disabled={processing || loading}
-      >
-        {processing || loading ? (
-          <div className="button-content">
-            <Spinner size="sm" className="mr-2" />
-            Processing...
-          </div>
-        ) : (
-          <div className="button-content">
-            {selectedMethod === 'cash' ? 'Confirm Cash Payment' : 'Confirm & Pay'}
-          </div>
-        )}
-      </button>
-    </div>
+          {/* Action Button */}
+          <button
+            className={`unified-bottom-bar__button ${(processing || loading) ? 'processing' : ''}`}
+            onClick={handlePayment}
+            disabled={processing || loading}
+          >
+            {processing || loading ? (
+              <div className="button-content">
+                <Spinner size="sm" className="mr-2" />
+                Processing...
+              </div>
+            ) : (
+              <div className="button-content">
+                {selectedMethod === 'cash' ? 'Confirm Cash Payment' : 'Confirm & Pay'}
+              </div>
+            )}
+          </button>
+        </div>
       </div>
     </Elements>
   );
 };
 
 export default Payment;
-

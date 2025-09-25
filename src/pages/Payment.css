@@ -678,7 +678,7 @@ body {
 /* Mobile View - 480px and below */
 @media (max-width: 480px) {
   .booking-summary-card {
-    margin-top: 30px;
+    margin-top: 49px;
   }
   
   .payment-container {

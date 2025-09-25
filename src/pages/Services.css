@@ -437,7 +437,7 @@ body {
 
   /* The content no longer needs padding on mobile because of the sticky header */
   .svc-container {
-    padding-top: 20px; /* Reset padding-top */
+    padding-top: 163px; /* Reset padding-top */
   }
 
   .svc-header {

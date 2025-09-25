@@ -3,7 +3,7 @@ import { ChevronLeft, ChevronRight, Calendar } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import "./Time.css";
 import Professionals from "./ProfessionalsUpdated";
-import { employeesAPI, bookingsAPI, apiUtils, bookingFlow } from "../services/api";
+import { employeesAPI, bookingsAPI, apiUtils, bookingFlow, authAPI } from "../services/api";
 import {
   // computeSequentialServiceStartTimes,
   getValidTimeSlotsForProfessional,
@@ -43,15 +43,39 @@ function toMinutes(timeStr) {
   return h * 60 + (m || 0);
 }
 
+// Enhanced helper functions for time validation
+function timeToMinutesFn(timeStr) {
+  if (!timeStr) return 0;
+  if (timeStr.includes('T')) {
+    const d = new Date(timeStr);
+    return d.getHours() * 60 + d.getMinutes();
+  }
+  const [h, m] = timeStr.split(':').map(Number);
+  return h * 60 + (m || 0);
+}
+
+function toLocalHHMM(timeStr) {
+  if (!timeStr) return null;
+  try {
+    const d = new Date(timeStr);
+    if (isNaN(d.getTime())) return null;
+    const hours = String(d.getHours()).padStart(2, '0');
+    const minutes = String(d.getMinutes()).padStart(2, '0');
+    return `${hours}:${minutes}`;
+  } catch (err) {
+    console.warn('toLocalHHMM conversion failed:', timeStr, err);
+    return null;
+  }
+}
+
 const Time = (props) => {
   // Get start of current week (Sunday)
-  const getStartOfWeek = (date = new Date()) => {
-    const d = new Date(date);
-    const day = d.getDay();
-    const diff = d.getDate() - day;
-    return new Date(d.setDate(diff));
-  };
-
+const getStartOfWeek = (date = new Date()) => {
+  const d = new Date(date);
+  const day = d.getDay();
+  const diff = d.getDate() - day;
+  return new Date(d.setDate(diff));
+};
   // Helper function moved to the top for hoisting
   function isToday(date) {
     if (!date) return false;
@@ -107,32 +131,19 @@ const Time = (props) => {
   }, [selectedDate.toDateString()]);
 
   // Filter out past time slots for the current day
-  const filteredTimeSlots = useMemo(() => {
-    if (!isToday(selectedDate)) return availableTimeSlots;
+const filteredTimeSlots = useMemo(() => {
+  if (!isToday(selectedDate)) return availableTimeSlots;
 
-    const now = new Date();
-    const currentHour = now.getHours();
-    const currentMinute = now.getMinutes();
+  const now = new Date();
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+  const buffer = 15;
 
-    return availableTimeSlots.filter(slot => {
-      if (!slot.time) return false;
-
-      // Handle both 12-hour and 24-hour formats
-      let hour, minute;
-      if (slot.time.includes(' ')) {
-        // 12-hour format (e.g., "2:30 PM")
-        const [time, period] = slot.time.split(' ');
-        [hour, minute] = time.split(':').map(Number);
-        if (period === 'PM' && hour < 12) hour += 12;
-        if (period === 'AM' && hour === 12) hour = 0;
-      } else {
-        // 24-hour format (e.g., "14:30")
-        [hour, minute] = slot.time.split(':').map(Number);
-      }
-
-      return hour > currentHour || (hour === currentHour && minute > currentMinute + 15);
-    });
-  }, [availableTimeSlots, selectedDate]);
+  return availableTimeSlots.filter((slot) => {
+    const src = slot.timeValue || slot.startTime || slot.time; // prefer 24h HH:MM if available
+    const mins = timeToMinutesFn(src); // your helper already handles HH:MM or ISO
+    return mins > currentMinutes + buffer;
+  });
+}, [availableTimeSlots, selectedDate]);
 
   // Other helper functions
 
@@ -213,7 +224,7 @@ const Time = (props) => {
   };
 
   // Event handlers
-  const handleContinue = () => {
+  const handleContinue = async () => {
     if (!selectedTime) {
       Swal.fire({
         title: 'Time Slot Required',
@@ -225,6 +236,30 @@ const Time = (props) => {
     }
     
     bookingFlow.setSelectedTimeSlot(selectedTime);
+    
+    // Check if user is already authenticated
+    const token = localStorage.getItem('token');
+    if (token) {
+      try {
+        // Verify token is valid by checking current user using the API
+        const userResponse = await authAPI.getCurrentUser();
+        
+        if (userResponse.success && userResponse.data?.user) {
+          // User is authenticated, skip signup and go to payment
+          console.log('User already authenticated, redirecting to payment');
+          navigate('/payment');
+          return;
+        } else {
+          // Token is invalid, remove it and proceed to signup
+          localStorage.removeItem('token');
+        }
+      } catch (error) {
+        console.log('Token verification failed, proceeding to signup:', error);
+        localStorage.removeItem('token');
+      }
+    }
+    
+    // No valid token, proceed to signup
     navigate('/signup');
   };
 
@@ -272,270 +307,185 @@ const Time = (props) => {
   })();
 
   // ENHANCED: Employee-specific booking conflict detection system
-  const fetchEmployeeBookingConflicts = async (date, employeeId) => {
+  const fetchEmployeeBookingConflicts = async (date, employeeId = null) => {
     const formattedDate = apiUtils.formatDate(date);
-    console.log('[Time] EMPLOYEE-SPECIFIC: Fetching booking conflicts for specific employee only', {
+    console.log('[Time] ENHANCED: Fetching booking conflicts', {
       formattedDate,
-      employeeId,
-      employeeName: 'Target employee'
+      employeeId: employeeId || 'ALL',
+      targetDate: localDateKey(date)
     });
 
     let allBookings = [];
     try {
-      console.log('[Time] EMPLOYEE-SPECIFIC: Fetching ALL bookings from admin side');
+      console.log('[Time] ENHANCED: Fetching ALL bookings from admin side with enhanced filtering');
 
       if (bookingsAPI && typeof bookingsAPI.getTotalBookingsFromAdminSide === 'function') {
         const resp = await bookingsAPI.getTotalBookingsFromAdminSide(formattedDate);
         allBookings = resp?.data?.bookings ?? resp?.bookings ?? resp?.data ?? resp ?? [];
-        console.log('[Time] EMPLOYEE-SPECIFIC: Raw bookings fetched:', {
+        console.log('[Time] ENHANCED: Raw bookings fetched:', {
           totalCount: allBookings.length,
           requestedDate: formattedDate,
-          targetEmployeeId: employeeId
+          targetEmployeeId: employeeId || 'ALL_EMPLOYEES'
         });
       } else {
-        console.log('[Time] EMPLOYEE-SPECIFIC: Admin booking API not available');
+        console.log('[Time] ENHANCED: Admin booking API not available');
         return { appointmentsIndex: {} };
       }
     } catch (err) {
-      console.warn('[Time] EMPLOYEE-SPECIFIC: Failed to fetch bookings:', err.message);
+      console.warn('[Time] ENHANCED: Failed to fetch bookings:', err.message);
       return { appointmentsIndex: {} };
     }
 
     const selectedDateKey = localDateKey(date);
+
+    // Enhanced date filtering with validation
     const dateFilteredBookings = allBookings.filter(booking => {
-      if (!booking.appointmentDate) return false;
-      const bookingDateKey = localDateKey(new Date(booking.appointmentDate));
-      return bookingDateKey === selectedDateKey;
-    });
+      if (!booking.appointmentDate) {
+        console.debug('[Time] ENHANCED: Skipping booking without appointmentDate:', booking._id);
+        return false;
+      }
 
-    console.log('[Time] EMPLOYEE-SPECIFIC STEP 1 - Date filtering:', {
-      selectedDate: selectedDateKey,
-      totalBookings: allBookings.length,
-      dateFilteredBookings: dateFilteredBookings.length
-    });
+      const bookingDate = new Date(booking.appointmentDate);
+      if (isNaN(bookingDate.getTime())) {
+        console.debug('[Time] ENHANCED: Skipping booking with invalid date:', booking.appointmentDate);
+        return false;
+      }
 
-    let employeeSpecificBookings = [];
+      const bookingDateKey = localDateKey(bookingDate);
+      const matches = bookingDateKey === selectedDateKey;
 
-    dateFilteredBookings.forEach(booking => {
-      if (booking.services && Array.isArray(booking.services)) {
-        booking.services.forEach(service => {
-          const serviceEmployeeId = service.employee?._id || service.employee?.id;
-
-          if (String(serviceEmployeeId) === String(employeeId)) {
-            employeeSpecificBookings.push({
-              _id: service._id || service.id || `${booking._id}_${service._id}`,
-              bookingId: booking._id,
-              employeeId: serviceEmployeeId,
-              employee: service.employee,
-              startTime: service.startTime,
-              endTime: service.endTime,
-              duration: service.duration || 30,
-              status: service.status || booking.status,
-              appointmentDate: booking.appointmentDate,
-              serviceName: service.service?.name || 'Unknown Service'
-            });
-          }
+      if (matches) {
+        console.debug('[Time] ENHANCED: Date match found:', {
+          bookingId: booking._id,
+          appointmentDate: booking.appointmentDate,
+          bookingDateKey,
+          selectedDateKey
         });
       }
+
+      return matches;
     });
 
-    console.log('[Time] EMPLOYEE-SPECIFIC STEP 2 - Employee filtering:', {
-      targetEmployeeId: employeeId,
-      dateFilteredBookings: dateFilteredBookings.length,
-      totalServiceBookings: dateFilteredBookings.reduce((sum, b) => sum + (b.services?.length || 0), 0),
-      employeeSpecificBookings: employeeSpecificBookings.length,
-      conflictingTimeSlots: employeeSpecificBookings.map(b => ({
-        timeSlot: `${b.startTime}-${b.endTime}`,
-        duration: b.duration,
-        serviceName: b.serviceName,
-        bookingId: b.bookingId,
-        appointmentDate: b.appointmentDate
-      }))
-    });
-
-    const appointmentsIndex = {};
-    appointmentsIndex[employeeId] = {};
-    appointmentsIndex[employeeId][selectedDateKey] = {};
-
-    employeeSpecificBookings.forEach(serviceBooking => {
-      const startTime = serviceBooking.startTime;
-
-      if (!startTime) {
-        console.warn('[Time] EMPLOYEE-SPECIFIC: Skipping booking with missing time:', serviceBooking);
-        return;
-      }
-
-      const bookingKey = serviceBooking._id || `${startTime}_${employeeId}_${serviceBooking.bookingId}`;
-
-      appointmentsIndex[employeeId][selectedDateKey][bookingKey] = {
-        _id: serviceBooking._id,
-        bookingId: serviceBooking.bookingId,
-        employeeId: employeeId,
-        startTime: startTime,
-        endTime: serviceBooking.endTime,
-        duration: serviceBooking.duration,
-        status: serviceBooking.status,
-        serviceName: serviceBooking.serviceName
-      };
-    });
-
-    console.log('[Time] EMPLOYEE-SPECIFIC STEP 3 - appointmentsIndex built:', {
-      selectedDate: selectedDateKey,
-      employeeId: employeeId,
-      bookingsCount: Object.keys(appointmentsIndex[employeeId][selectedDateKey]).length,
-      bookings: Object.values(appointmentsIndex[employeeId][selectedDateKey]).map(b => ({
-        timeSlot: `${b.startTime}-${b.endTime}`,
-        duration: b.duration,
-        service: b.serviceName,
-        bookingId: b.bookingId
-      }))
-    });
-
-    return { appointmentsIndex };
-  };
-
-  // Enhanced booking conflict detection system (FALLBACK for "Any professional" mode)
-  const fetchDateData = async (date) => {
-    const formattedDate = apiUtils.formatDate(date);
-    console.log('[Time] fetchDateData start - Enhanced booking filtering (FALLBACK)', { formattedDate });
-
-    let allBookings = [];
-    try {
-      console.log('[Time] Fetching ALL bookings from admin side for enhanced filtering');
-
-      if (bookingsAPI && typeof bookingsAPI.getTotalBookingsFromAdminSide === 'function') {
-        const resp = await bookingsAPI.getTotalBookingsFromAdminSide(formattedDate);
-        allBookings = resp?.data?.bookings ?? resp?.bookings ?? resp?.data ?? resp ?? [];
-        console.log('[Time] Raw bookings fetched from admin:', {
-          totalCount: allBookings.length,
-          requestedDate: formattedDate,
-          sample: allBookings.slice(0, 2).map(b => ({
-            id: b._id,
-            appointmentDate: b.appointmentDate,
-            servicesCount: b.services?.length || 0
-          }))
-        });
-      } else {
-        console.log('[Time] Admin booking API not available, generating slots without conflict checking');
-        return { appointmentsIndex: {} };
-      }
-    } catch (err) {
-      console.warn('[Time] Failed to fetch bookings from admin side:', err.message);
-      return { appointmentsIndex: {} };
-    }
-
-    const selectedDateKey = localDateKey(date);
-    const dateFilteredBookings = allBookings.filter(booking => {
-      if (!booking.appointmentDate) return false;
-      const bookingDateKey = localDateKey(new Date(booking.appointmentDate));
-      return bookingDateKey === selectedDateKey;
-    });
-
-    console.log('[Time] STEP 1 - Date filtering:', {
+    console.log('[Time] ENHANCED STEP 1 - Enhanced date filtering:', {
       selectedDate: selectedDateKey,
       totalBookings: allBookings.length,
       dateFilteredBookings: dateFilteredBookings.length,
-      filteredSample: dateFilteredBookings.slice(0, 2).map(b => ({
+      filteredBookings: dateFilteredBookings.map(b => ({
         id: b._id,
         appointmentDate: b.appointmentDate,
-        servicesCount: b.services?.length || 0
+        servicesCount: b.services?.length || 0,
+        status: b.status
       }))
     });
 
-    const flow = bookingFlow.load();
-    const selectedProfessionalForService = flow.selectedProfessionals?.[selectedService?._id] || selectedProfessional;
-
-    let relevantServiceBookings = [];
+    // Build comprehensive appointments index
+    const appointmentsIndex = {};
+    let totalProcessedServices = 0;
 
     dateFilteredBookings.forEach(booking => {
-      if (booking.services && Array.isArray(booking.services)) {
-        booking.services.forEach(service => {
-          const serviceEmployeeId = service.employee?._id || service.employee?.id;
-
-          if (selectedProfessionalForService &&
-            selectedProfessionalForService.id !== 'any' &&
-            selectedProfessionalForService._id !== 'any') {
-            const targetEmployeeId = selectedProfessionalForService._id || selectedProfessionalForService.id;
-            if (String(serviceEmployeeId) === String(targetEmployeeId)) {
-              relevantServiceBookings.push({
-                _id: service._id || service.id || `${booking._id}_${service._id}`,
-                bookingId: booking._id,
-                employeeId: serviceEmployeeId,
-                employee: service.employee,
-                startTime: service.startTime,
-                endTime: service.endTime,
-                duration: service.duration || 30,
-                status: service.status || booking.status,
-                appointmentDate: booking.appointmentDate,
-                serviceName: service.service?.name || 'Unknown Service'
-              });
-            }
-          } else {
-            relevantServiceBookings.push({
-              _id: service._id || service.id || `${booking._id}_${service._id}`,
-              bookingId: booking._id,
-              employeeId: serviceEmployeeId,
-              employee: service.employee,
-              startTime: service.startTime,
-              endTime: service.endTime,
-              duration: service.duration || 30,
-              status: service.status || booking.status,
-              appointmentDate: booking.appointmentDate,
-              serviceName: service.service?.name || 'Unknown Service'
-            });
-          }
-        });
-      }
-    });
-
-    const appointmentsIndex = {};
-
-    relevantServiceBookings.forEach(serviceBooking => {
-      const empId = serviceBooking.employeeId;
-      const startTime = serviceBooking.startTime;
-
-      if (!empId || !startTime) {
-        console.warn('[Time] Skipping service booking with missing employee or time:', serviceBooking);
+      if (!booking.services || !Array.isArray(booking.services)) {
+        console.debug('[Time] ENHANCED: Skipping booking without services array:', booking._id);
         return;
       }
 
-      appointmentsIndex[empId] = appointmentsIndex[empId] || {};
-      appointmentsIndex[empId][selectedDateKey] = appointmentsIndex[empId][selectedDateKey] || {};
+      booking.services.forEach(service => {
+        const serviceEmployeeId = service.employee?._id || service.employee?.id;
 
-      const bookingKey = serviceBooking._id || `${startTime}_${empId}_${serviceBooking.bookingId}`;
+        if (!serviceEmployeeId) {
+          console.debug('[Time] ENHANCED: Skipping service without employee:', service._id || 'unknown');
+          return;
+        }
 
-      appointmentsIndex[empId][selectedDateKey][bookingKey] = {
-        _id: serviceBooking._id,
-        bookingId: serviceBooking.bookingId,
-        employeeId: empId,
-        startTime: startTime,
-        endTime: serviceBooking.endTime,
-        duration: serviceBooking.duration,
-        status: serviceBooking.status,
-        serviceName: serviceBooking.serviceName
-      };
+        // If specific employee requested, filter by that employee
+        if (employeeId && String(serviceEmployeeId) !== String(employeeId)) {
+          return;
+        }
+
+        // Validate service times
+        if (!service.startTime) {
+          console.debug('[Time] ENHANCED: Skipping service without startTime:', {
+            serviceId: service._id,
+            employeeId: serviceEmployeeId,
+            bookingId: booking._id
+          });
+          return;
+        }
+
+        // Calculate end time if not provided
+        let endTime = service.endTime;
+        if (!endTime && service.duration) {
+          const startTimeHHMM = toLocalHHMM(service.startTime);
+          if (startTimeHHMM) {
+            endTime = addMinutesToTime(startTimeHHMM, service.duration);
+          }
+        }
+
+        if (!endTime) {
+          console.debug('[Time] ENHANCED: Could not determine endTime for service:', {
+            serviceId: service._id,
+            startTime: service.startTime,
+            duration: service.duration
+          });
+          return;
+        }
+
+        // Initialize nested structure
+        if (!appointmentsIndex[serviceEmployeeId]) {
+          appointmentsIndex[serviceEmployeeId] = {};
+        }
+        if (!appointmentsIndex[serviceEmployeeId][selectedDateKey]) {
+          appointmentsIndex[serviceEmployeeId][selectedDateKey] = {};
+        }
+
+        const bookingKey = service._id || `${service.startTime}_${serviceEmployeeId}_${booking._id}`;
+
+        appointmentsIndex[serviceEmployeeId][selectedDateKey][bookingKey] = {
+          _id: service._id || bookingKey,
+          bookingId: booking._id,
+          employeeId: serviceEmployeeId,
+          startTime: toLocalHHMM(service.startTime) || service.startTime,
+          endTime: toLocalHHMM(endTime) || endTime,
+          duration: service.duration || 30,
+          status: service.status || booking.status || 'confirmed',
+          serviceName: service.service?.name || service.serviceName || 'Unknown Service',
+          customerName: booking.customerName || booking.customer?.name || 'Unknown Customer'
+        };
+
+        totalProcessedServices++;
+
+        console.debug('[Time] ENHANCED: Service appointment indexed:', {
+          employeeId: serviceEmployeeId,
+          bookingKey,
+          timeSlot: `${appointmentsIndex[serviceEmployeeId][selectedDateKey][bookingKey].startTime}-${appointmentsIndex[serviceEmployeeId][selectedDateKey][bookingKey].endTime}`,
+          serviceName: appointmentsIndex[serviceEmployeeId][selectedDateKey][bookingKey].serviceName,
+          status: appointmentsIndex[serviceEmployeeId][selectedDateKey][bookingKey].status
+        });
+      });
     });
 
-    console.log('[Time] STEP 3 - appointmentsIndex built:', {
+    console.log('[Time] ENHANCED STEP 2 - Appointments index built:', {
       selectedDate: selectedDateKey,
+      targetEmployeeId: employeeId || 'ALL',
       employeesWithBookings: Object.keys(appointmentsIndex).length,
+      totalProcessedServices,
       employeeBookingDetails: Object.keys(appointmentsIndex).map(empId => ({
         employeeId: empId,
         bookingsCount: Object.keys(appointmentsIndex[empId][selectedDateKey] || {}).length,
         bookings: Object.values(appointmentsIndex[empId][selectedDateKey] || {}).map(b => ({
           timeSlot: `${b.startTime}-${b.endTime}`,
           duration: b.duration,
-          service: b.serviceName
+          service: b.serviceName,
+          status: b.status,
+          customer: b.customerName
         }))
-      })),
-      conflictDetectionEnabled: relevantServiceBookings.length > 0
+      }))
     });
 
     return { appointmentsIndex };
   };
 
-  const handleDateClick = async (day, month, year) => {
-    console.log('[Time] handleDateClick start (local computation)', { day, month, year, selectedService, selectedProfessional });
+   const handleDateClick = async (day, month, year) => {
+    console.log('[Time] handleDateClick start (ENHANCED)', { day, month, year, selectedService, selectedProfessional });
     const selectedDate = new Date(year || selectedDate.getFullYear(), month !== undefined ? month : selectedDate.getMonth(), day);
 
     const today = new Date();
@@ -548,12 +498,14 @@ const Time = (props) => {
     setCalendarOpen(false);
     setLoadingTimeSlots(true);
     setAvailableTimeSlots([]);
+    setError(null); // Clear any previous errors
 
     try {
       const flow = bookingFlow.load();
       const services = (flow.selectedServices && flow.selectedServices.length) ? flow.selectedServices : ([selectedService].filter(Boolean));
 
-      const { appointmentsIndex } = await fetchDateData(selectedDate);
+      // Enhanced booking conflict detection
+      const { appointmentsIndex } = await fetchEmployeeBookingConflicts(selectedDate);
 
       if (!services || services.length <= 1) {
         const svc = services && services[0] || selectedService;
@@ -562,49 +514,67 @@ const Time = (props) => {
         const assigned = flow.selectedProfessionals?.[svc._id] || selectedProfessional;
 
         if (!assigned || assigned.id === 'any' || assigned._id === 'any') {
-          console.log('[Time] single-service ANY -> fetching employees for union slots');
+          console.log('[Time] ENHANCED: single-service ANY -> fetching employees for union slots');
           let employees = [];
           try {
             const resp = await bookingsAPI.getAvailableProfessionals(svc._id, apiUtils.formatDate(selectedDate));
             employees = resp?.data?.professionals ?? resp?.professionals ?? resp?.data ?? resp ?? [];
-            employees = employees.filter(emp => emp.isActive !== false);
+            // Enhanced active employee filtering
+            employees = employees.filter(emp => {
+              if (emp.isActive === false) {
+                console.log('[Time] ENHANCED: Filtering out inactive employee', emp._id, emp.name);
+                return false;
+              }
+              return true;
+            });
+            console.log('[Time] ENHANCED: Active employees for ANY selection:', employees.length);
           } catch (err) {
             console.warn('[Time] Failed to fetch professionals for Any selection:', err);
             employees = [];
           }
 
           const avail = getAvailableProfessionalsForService(
-            svc._id, 
-            selectedDate, 
-            employees, 
-            appointmentsIndex, 
+            svc._id,
+            selectedDate,
+            employees,
+            appointmentsIndex,
             flow.selectedServices || [svc]
           );
+
           const union = [];
           (avail || []).forEach(r => (r.slots || []).forEach(s => union.push(s)));
-          const uniq = Array.from(new Set(union)).sort();
-
+const uniq = Array.from(new Set(union))
+  .sort((a, b) => timeToMinutesFn(a) - timeToMinutesFn(b));
+          // Enhanced future time filtering
           const now = new Date();
           const isToday = selectedDate.toDateString() === now.toDateString();
-          const currentTime = isToday ? `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}` : null;
+          const currentTimeMinutes = now.getHours() * 60 + now.getMinutes();
+          const bufferMinutes = 15; // 15-minute buffer for booking
 
           const futureFilteredUniq = isToday ? uniq.filter(slotTime => {
-            const isCurrentOrFuture = slotTime >= currentTime;
-            console.log('[Time] handleDateClick Any professional slot time comparison:', {
+            const slotMinutes = timeToMinutesFn(slotTime);
+            const isValidFutureSlot = slotMinutes > currentTimeMinutes + bufferMinutes;
+
+            console.log('[Time] ENHANCED: ANY professional slot time validation:', {
               slotTime,
-              currentTime,
-              isCurrentOrFuture,
-              action: isCurrentOrFuture ? 'KEEP' : 'REMOVE'
+              slotMinutes,
+              currentTimeMinutes,
+              bufferMinutes,
+              requiredMinimum: currentTimeMinutes + bufferMinutes,
+              isValidFutureSlot,
+              action: isValidFutureSlot ? 'KEEP' : 'REMOVE'
             });
-            return isCurrentOrFuture;
+
+            return isValidFutureSlot;
           }) : uniq;
 
-          console.log('[Time] handleDateClick Any professional past time filtering:', {
+          console.log('[Time] ENHANCED: ANY professional future time filtering result:', {
             isToday,
-            currentTime,
+            currentTimeMinutes: isToday ? currentTimeMinutes : 'N/A',
+            bufferMinutes,
             beforeFilter: uniq.length,
             afterFilter: futureFilteredUniq.length,
-            removedPastSlots: uniq.length - futureFilteredUniq.length
+            removedSlots: uniq.length - futureFilteredUniq.length
           });
 
           const slots = futureFilteredUniq.map((t, i) => ({
@@ -615,38 +585,77 @@ const Time = (props) => {
             endTime: addMinutesToTime(t, svc.duration || 30),
             available: true
           }));
-          console.log('[Time] union slots count', slots.length);
+
+          console.log('[Time] ENHANCED: Final ANY professional slots:', slots.length);
           setAvailableTimeSlots(slots);
           return;
         }
 
+        // Enhanced specific professional slot generation
         const duration = svc.duration || 30;
         const empId = assigned._id || assigned.id;
-        console.log('[Time] computing local slots for employee', { employeeId: empId, date: localDateKey(selectedDate), duration });
-        const slotsArr = getValidTimeSlotsForProfessional(assigned, new Date(selectedDate), duration, appointmentsIndex);
-        console.log('[Time] local slots computed count', slotsArr.length, slotsArr.slice(0, 6));
 
+        console.log('[Time] ENHANCED: Computing slots for specific professional', {
+          employeeId: empId,
+          employeeName: assigned.name || assigned.user?.firstName,
+          date: localDateKey(selectedDate),
+          duration,
+          isActive: assigned.isActive
+        });
+
+        // Check if assigned professional is active
+        if (assigned.isActive === false) {
+          console.warn('[Time] ENHANCED: Assigned professional is inactive');
+          setError('The assigned professional is currently unavailable. Please select a different professional.');
+          setAvailableTimeSlots([]);
+          return;
+        }
+
+        // Get employee-specific appointment conflicts
+     const employeeAppointments = {};
+if (appointmentsIndex[empId]) {
+  employeeAppointments[empId] = {};
+  employeeAppointments[empId][localDateKey(selectedDate)] = appointmentsIndex[empId][localDateKey(selectedDate)];
+}
+
+        const slotsArr = getValidTimeSlotsForProfessional(assigned, selectedDate, duration, employeeAppointments);
+
+        console.log('[Time] ENHANCED: Slots computed for specific professional', {
+          employeeId: empId,
+          slotsCount: slotsArr.length,
+          firstSlots: slotsArr.slice(0, 5)
+        });
+
+        // Enhanced future time filtering for specific professional
         const now = new Date();
         const isToday = selectedDate.toDateString() === now.toDateString();
-        const currentTime = isToday ? `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}` : null;
+        const currentTimeMinutes = now.getHours() * 60 + now.getMinutes();
+        const bufferMinutes = 15;
 
         const futureFilteredSlotsArr = isToday ? slotsArr.filter(slotTime => {
-          const isCurrentOrFuture = slotTime >= currentTime;
-          console.log('[Time] handleDateClick specific professional slot time comparison:', {
+          const slotMinutes = timeToMinutesFn(slotTime);
+          const isValidFutureSlot = slotMinutes > currentTimeMinutes + bufferMinutes;
+
+          console.log('[Time] ENHANCED: Specific professional slot time validation:', {
             slotTime,
-            currentTime,
-            isCurrentOrFuture,
-            action: isCurrentOrFuture ? 'KEEP' : 'REMOVE'
+            slotMinutes,
+            currentTimeMinutes,
+            bufferMinutes,
+            requiredMinimum: currentTimeMinutes + bufferMinutes,
+            isValidFutureSlot,
+            action: isValidFutureSlot ? 'KEEP' : 'REMOVE'
           });
-          return isCurrentOrFuture;
+
+          return isValidFutureSlot;
         }) : slotsArr;
 
-        console.log('[Time] handleDateClick specific professional past time filtering:', {
+        console.log('[Time] ENHANCED: Specific professional future filtering result:', {
           isToday,
-          currentTime,
+          currentTimeMinutes: isToday ? currentTimeMinutes : 'N/A',
+          bufferMinutes,
           beforeFilter: slotsArr.length,
           afterFilter: futureFilteredSlotsArr.length,
-          removedPastSlots: slotsArr.length - futureFilteredSlotsArr.length
+          removedSlots: slotsArr.length - futureFilteredSlotsArr.length
         });
 
         const mapped = futureFilteredSlotsArr.map((t, i) => ({
@@ -657,15 +666,34 @@ const Time = (props) => {
           endTime: addMinutesToTime(t, duration),
           available: true
         }));
+
+        console.log('[Time] ENHANCED: Final specific professional slots:', mapped.length);
         setAvailableTimeSlots(mapped);
         return;
       }
 
+      // Enhanced multi-service sequential booking
       const missing = services.filter(s => !flow.selectedProfessionals?.[s._id]);
       if (missing.length) {
-        console.log('[Time] multi-service missing assigned professionals', missing.map(m => m._id));
+        console.log('[Time] ENHANCED: Multi-service missing assigned professionals', missing.map(m => ({ id: m._id, name: m.name })));
         setAvailableTimeSlots([]);
         setError('Please assign professionals to all services first');
+        return;
+      }
+
+      // Check if all assigned professionals are active
+      const inactiveProfessionals = [];
+      services.forEach(svc => {
+        const prof = flow.selectedProfessionals[svc._id];
+        if (prof && prof.isActive === false) {
+          inactiveProfessionals.push({ serviceId: svc._id, serviceName: svc.name, professionalName: prof.name });
+        }
+      });
+
+      if (inactiveProfessionals.length > 0) {
+        console.warn('[Time] ENHANCED: Some assigned professionals are inactive', inactiveProfessionals);
+        setError('Some assigned professionals are currently unavailable. Please update your professional selections.');
+        setAvailableTimeSlots([]);
         return;
       }
 
@@ -674,27 +702,45 @@ const Time = (props) => {
         professionalsMap[svc._id] = flow.selectedProfessionals[svc._id];
       });
 
-      console.log('[Time] computing sequential service start times locally (with bookings)', { services: services.map(s => s._id), date: localDateKey(selectedDate) });
+      console.log('[Time] ENHANCED: Computing sequential service start times with enhanced validation', {
+        services: services.map(s => ({ id: s._id, name: s.name, duration: s.duration })),
+        date: localDateKey(selectedDate),
+        professionals: Object.keys(professionalsMap)
+      });
+
       const sequences = await computeSequentialServiceStartTimesWithBookings(services, professionalsMap, selectedDate, appointmentsIndex);
-      console.log('[Time] sequences found', sequences?.length);
+
+      console.log('[Time] ENHANCED: Sequential sequences result', {
+        sequencesFound: sequences?.length || 0,
+        firstSequenceExample: sequences?.[0] ? {
+          startTime: sequences[0].startTime,
+          endTime: sequences[0].endTime,
+          servicesCount: sequences[0].sequence?.length
+        } : null
+      });
+
       if (!sequences || sequences.length === 0) {
         setAvailableTimeSlots([]);
-        setError('No sequential time slots available for assigned professionals on this date.');
+        setError('No available time slots found for the selected date and professional assignments. Please try a different date or adjust professional assignments.');
         return;
       }
+
       const slots = sequences.map((s, idx) => ({
         id: idx,
         time: formatTimeToAMPM(s.startTime),
         timeValue: s.startTime,
         startTime: s.startTime,
-        endTime: s.sequence[s.sequence.length - 1].endTime,
+        endTime: s.endTime || s.sequence[s.sequence.length - 1].endTime,
         available: true,
         sequence: s.sequence
       }));
+
+      console.log('[Time] ENHANCED: Final sequential slots created:', slots.length);
       setAvailableTimeSlots(slots);
+
     } catch (err) {
-      console.error('[Time] handleDateClick local computation error', err);
-      setError(err.message || 'Failed to compute time slots locally');
+      console.error('[Time] ENHANCED: handleDateClick error', err);
+      setError(err.message || 'Failed to load available time slots. Please try again.');
       setAvailableTimeSlots([]);
     } finally {
       setLoadingTimeSlots(false);
@@ -702,6 +748,16 @@ const Time = (props) => {
   };
 
   const handleTimeSelect = async (timeSlot) => {
+    console.log('[Time] handleTimeSelect called with timeSlot:', timeSlot);
+    console.log('[Time] timeSlot properties:', {
+      id: timeSlot.id,
+      time: timeSlot.time,
+      timeValue: timeSlot.timeValue,
+      startTime: timeSlot.startTime,
+      endTime: timeSlot.endTime,
+      fullObject: timeSlot
+    });
+
     setSelectedTime(timeSlot);
 
     const selectedDateStr = `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}`;
@@ -709,7 +765,7 @@ const Time = (props) => {
     const endTimeStr = timeSlot.endTime;
 
     const formatTime = (timeStr) => {
-      if (!timeStr) return null;
+      if (!timeStr) return '00:00'; // Default fallback
       if (timeStr.includes('T')) {
         return timeStr.split('T')[1].substring(0, 5);
       }
@@ -717,16 +773,89 @@ const Time = (props) => {
     };
 
     const formattedStartTime = formatTime(startTimeStr);
-    const formattedEndTime = formatTime(endTimeStr);
+    let formattedEndTime = formatTime(endTimeStr);
+
+    // If no end time provided, calculate it from start time + service duration
+    if (!endTimeStr || !formattedEndTime || formattedEndTime === '00:00') {
+      const serviceDuration = selectedService?.duration || 60; // Default 60 minutes
+      const [startH, startM] = formattedStartTime.split(':').map(n => parseInt(n));
+      const endMinutes = startM + serviceDuration;
+      const endH = startH + Math.floor(endMinutes / 60);
+      const endM = endMinutes % 60;
+      formattedEndTime = `${String(endH).padStart(2, '0')}:${String(endM).padStart(2, '0')}`;
+      console.log('[Time] Calculated end time from duration:', {
+        serviceDuration,
+        startTime: formattedStartTime,
+        calculatedEndTime: formattedEndTime
+      });
+    }
+
+    console.log('[Time] Time formatting results:', {
+      startTimeStr,
+      endTimeStr,
+      formattedStartTime,
+      formattedEndTime
+    });
+
+    // Validate time format before parsing
+    const timeRegex = /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/;
+    if (!timeRegex.test(formattedStartTime)) {
+      console.error('[Time] INVALID TIME FORMAT: formattedStartTime is not in HH:MM format!', {
+        formattedStartTime,
+        startTimeStr,
+        timeSlot
+      });
+    }
+    if (!timeRegex.test(formattedEndTime)) {
+      console.error('[Time] INVALID TIME FORMAT: formattedEndTime is not in HH:MM format!', {
+        formattedEndTime,
+        endTimeStr,
+        timeSlot
+      });
+    }
 
     const [startHour, startMinute] = formattedStartTime.split(':').map(n => parseInt(n));
     const [endHour, endMinute] = formattedEndTime.split(':').map(n => parseInt(n));
+
+    console.log('[Time] Parsed time values:', {
+      formattedStartTime,
+      formattedEndTime,
+      startHour,
+      startMinute,
+      endHour,
+      endMinute,
+      startHourValid: !isNaN(startHour),
+      startMinuteValid: !isNaN(startMinute),
+      endHourValid: !isNaN(endHour),
+      endMinuteValid: !isNaN(endMinute)
+    });
 
     const startDateTimeLocal = new Date(selectedDate);
     startDateTimeLocal.setHours(startHour, startMinute, 0, 0);
 
     const endDateTimeLocal = new Date(selectedDate);
     endDateTimeLocal.setHours(endHour, endMinute, 0, 0);
+
+    // Check for invalid Date objects
+    if (isNaN(startDateTimeLocal.getTime())) {
+      console.error('[Time] INVALID TIME VALUE: startDateTimeLocal is invalid!', {
+        selectedDate: selectedDate.toString(),
+        startHour,
+        startMinute,
+        formattedStartTime,
+        startDateTimeLocal: startDateTimeLocal.toString()
+      });
+    }
+
+    if (isNaN(endDateTimeLocal.getTime())) {
+      console.error('[Time] INVALID TIME VALUE: endDateTimeLocal is invalid!', {
+        selectedDate: selectedDate.toString(),
+        endHour,
+        endMinute,
+        formattedEndTime,
+        endDateTimeLocal: endDateTimeLocal.toString()
+      });
+    }
 
     console.log('[Time] TIMEZONE FIX v2 - Time slot selection:', {
       selectedDateString: selectedDateStr,
@@ -758,17 +887,49 @@ const Time = (props) => {
       time: formattedStartTime,
       startTime: startDateTimeLocal.toISOString(),
       endTime: endDateTimeLocal.toISOString(),
+      // Store local time components to avoid timezone issues
+      localStartTime: {
+        year: startDateTimeLocal.getFullYear(),
+        month: startDateTimeLocal.getMonth(),
+        date: startDateTimeLocal.getDate(),
+        hours: startDateTimeLocal.getHours(),
+        minutes: startDateTimeLocal.getMinutes(),
+        seconds: startDateTimeLocal.getSeconds()
+      },
+      localEndTime: {
+        year: endDateTimeLocal.getFullYear(),
+        month: endDateTimeLocal.getMonth(),
+        date: endDateTimeLocal.getDate(),
+        hours: endDateTimeLocal.getHours(),
+        minutes: endDateTimeLocal.getMinutes(),
+        seconds: endDateTimeLocal.getSeconds()
+      },
       professional: currentProfessional,
       service: selectedService
     };
 
     console.log('[Time] handleTimeSelect - storing timeData (FIXED):', timeData);
+    console.log('[Time] handleTimeSelect - bookingFlow before save:', bookingFlow.selectedTimeSlot);
+    console.log('[Time] handleTimeSelect - isMobile:', /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent));
 
     setProcessingTimeSlotId(timeSlot.id);
 
     setTimeout(() => {
+      console.log('[Time] handleTimeSelect - setTimeout executing, saving to bookingFlow...');
       bookingFlow.selectedTimeSlot = timeData;
-      bookingFlow.save();
+      bookingFlow.selectedDate = selectedDateStr; // Also store the selected date separately
+      
+      const saveResult = bookingFlow.save();
+      console.log('[Time] handleTimeSelect - save result:', saveResult);
+      
+      console.log('[Time] handleTimeSelect - bookingFlow after save:', bookingFlow.selectedTimeSlot);
+      console.log('[Time] handleTimeSelect - localStorage check:', localStorage.getItem('bookingFlow'));
+      console.log('[Time] handleTimeSelect - localStorage length:', localStorage.getItem('bookingFlow')?.length);
+      
+      if (!saveResult) {
+        console.error('[Time] handleTimeSelect - FAILED to save bookingFlow data!');
+      }
+      
       setProcessingTimeSlotId(null);
     }, 800);
   };
@@ -824,178 +985,13 @@ const Time = (props) => {
   }, []);
 
   useEffect(() => {
-    const fetchTimeSlots = async () => {
-      if (!selectedService) {
-        setError('Please select a service first');
-        setAvailableTimeSlots([]);
-        setLoadingTimeSlots(false);
-        return;
-      }
-
-      setLoadingTimeSlots(true);
-      setError(null);
-
-      try {
-        const { appointmentsIndex } = await fetchDateData(selectedDate);
-        
-        const flow = bookingFlow.load();
-        const services = flow.selectedServices?.length ? flow.selectedServices : [selectedService];
-
-        if (!services || services.length <= 1) {
-          const svc = services?.[0] || selectedService;
-          if (!svc) throw new Error('No service selected');
-
-          const assigned = flow.selectedProfessionals?.[svc._id] || selectedProfessional;
-
-          if (!assigned || assigned.id === 'any' || assigned._id === 'any') {
-            let employees = [];
-            try {
-              const resp = await bookingsAPI.getAvailableProfessionals(
-                svc._id, 
-                apiUtils.formatDate(selectedDate)  // Using selectedDate instead of selectedDate
-              );
-              employees = resp?.data?.professionals ?? resp?.professionals ?? [];
-              employees = employees.filter(emp => emp.isActive !== false);
-            } catch (err) {
-              console.warn('[Time] Failed to fetch professionals:', err);
-            }
-
-            const avail = getAvailableProfessionalsForService(
-              svc._id, 
-              selectedDate,  // Using selectedDate instead of selectedDate
-              employees, 
-              appointmentsIndex,
-              [svc]
-            );
-            
-            const union = [];
-            (avail || []).forEach(r => (r.slots || []).forEach(s => union.push(s)));
-            const uniq = Array.from(new Set(union)).sort();
-
-            const now = new Date();
-            const isToday = selectedDate.toDateString() === now.toDateString();
-            const currentTime = isToday ? `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}` : null;
-
-            const futureFilteredUniq = isToday ? uniq.filter(slotTime => {
-              const isCurrentOrFuture = slotTime >= currentTime;
-              console.log('[Time] handleDateClick Any professional slot time comparison:', {
-                slotTime,
-                currentTime,
-                isCurrentOrFuture,
-                action: isCurrentOrFuture ? 'KEEP' : 'REMOVE'
-              });
-              return isCurrentOrFuture;
-            }) : uniq;
-
-            console.log('[Time] handleDateClick Any professional past time filtering:', {
-              isToday,
-              currentTime,
-              beforeFilter: uniq.length,
-              afterFilter: futureFilteredUniq.length,
-              removedPastSlots: uniq.length - futureFilteredUniq.length
-            });
-
-            const slots = futureFilteredUniq.map((t, i) => ({
-              id: i,
-              time: formatTimeToAMPM(t),
-              timeValue: t,
-              startTime: t,
-              endTime: addMinutesToTime(t, svc.duration || 30),
-              available: true
-            }));
-            console.log('[Time] union slots count', slots.length);
-            setAvailableTimeSlots(slots);
-            return;
-          } else {
-            // Handle specific professional selection
-            console.log('[Time] Computing slots for specific professional', {
-              date: localDateKey(selectedDate),
-              professional: assigned.name || assigned.id
-            });
-            
-            const duration = svc.duration || 30;
-            const empId = assigned._id || assigned.id;
-            console.log('[Time] computing local slots for employee', { employeeId: empId, date: localDateKey(selectedDate), duration });
-            const slotsArr = getValidTimeSlotsForProfessional(assigned, selectedDate, duration, appointmentsIndex);
-            console.log('[Time] local slots computed count', slotsArr.length, slotsArr.slice(0, 6));
-
-            const now = new Date();
-            const isToday = selectedDate.toDateString() === now.toDateString();
-            const currentTime = isToday ? `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}` : null;
-
-            const futureFilteredSlotsArr = isToday ? slotsArr.filter(slotTime => {
-              const isCurrentOrFuture = slotTime >= currentTime;
-              console.log('[Time] handleDateClick specific professional slot time comparison:', {
-                slotTime,
-                currentTime,
-                isCurrentOrFuture,
-                action: isCurrentOrFuture ? 'KEEP' : 'REMOVE'
-              });
-              return isCurrentOrFuture;
-            }) : slotsArr;
-
-            console.log('[Time] handleDateClick specific professional past time filtering:', {
-              isToday,
-              currentTime,
-              beforeFilter: slotsArr.length,
-              afterFilter: futureFilteredSlotsArr.length,
-              removedPastSlots: slotsArr.length - futureFilteredSlotsArr.length
-            });
-
-            const mapped = futureFilteredSlotsArr.map((t, i) => ({
-              id: i,
-              time: formatTimeToAMPM(t),
-              timeValue: t,
-              startTime: t,
-              endTime: addMinutesToTime(t, duration),
-              available: true
-            }));
-            setAvailableTimeSlots(mapped);
-            return;
-          }
-        }
-
-        const missing = services.filter(s => !flow.selectedProfessionals?.[s._id]);
-        if (missing.length) {
-          console.log('[Time] multi-service missing assigned professionals', missing.map(m => m._id));
-          setAvailableTimeSlots([]);
-          setError('Please assign professionals to all services first');
-          return;
-        }
-
-        const professionalsMap = {};
-        services.forEach(svc => {
-          professionalsMap[svc._id] = flow.selectedProfessionals[svc._id];
-        });
-
-        console.log('[Time] computing sequential service start times locally (with bookings)', { services: services.map(s => s._id), date: localDateKey(selectedDate) });
-        const sequences = await computeSequentialServiceStartTimesWithBookings(services, professionalsMap, selectedDate, appointmentsIndex);
-        console.log('[Time] sequences found', sequences?.length);
-        if (!sequences || sequences.length === 0) {
-          setAvailableTimeSlots([]);
-          setError('No sequential time slots available for assigned professionals on this date.');
-          return;
-        }
-        const slots = sequences.map((s, idx) => ({
-          id: idx,
-          time: formatTimeToAMPM(s.startTime),
-          timeValue: s.startTime,
-          startTime: s.startTime,
-          endTime: s.sequence[s.sequence.length - 1].endTime,
-          available: true,
-          sequence: s.sequence
-        }));
-        setAvailableTimeSlots(slots);
-      } catch (err) {
-        console.error('[Time] handleDateClick local computation error', err);
-        setError(err.message || 'Failed to compute time slots locally');
-        setAvailableTimeSlots([]);
-      } finally {
-        setLoadingTimeSlots(false);
-      }
+    const loadTimeSlots = async () => {
+      const day = selectedDate.getDate();
+      const month = selectedDate.getMonth();
+      const year = selectedDate.getFullYear();
+      await handleDateClick(day, month, year);
     };
-
-    fetchTimeSlots();
+    loadTimeSlots();
   }, [selectedService?._id, selectedProfessional?._id, selectedDate.toDateString()]);
 
   useEffect(() => {
@@ -1198,13 +1194,13 @@ const Time = (props) => {
           <div className="info-container error-state">
             <p>{error}</p>
           </div>
-        ) : availableTimeSlots.length === 0 && !initialLoad ? (
+        ) : filteredTimeSlots.length === 0 && !initialLoad ? (
           <div className="info-container no-slots">
             <p>No available time slots found for this date. Please try another date.</p>
           </div>
         ) : (
           <div className="time-slots-grid">
-            {availableTimeSlots.map((timeSlot, index) => (
+            {filteredTimeSlots.map((timeSlot, index) => (
               <button
                 key={index}
                 onClick={() => handleTimeSelect(timeSlot)}
