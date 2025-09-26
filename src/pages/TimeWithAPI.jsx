@@ -274,7 +274,9 @@ const Time = (props) => {
       console.log('[Time] EMPLOYEE-SPECIFIC: Fetching ALL bookings from admin side');
       
       if (bookingsAPI && typeof bookingsAPI.getTotalBookingsFromAdminSide === 'function') {
+        console.log('[Time] EMPLOYEE-SPECIFIC: Admin booking API available, fetching bookings');
         const resp = await bookingsAPI.getTotalBookingsFromAdminSide(formattedDate);
+        console.log('[Time] EMPLOYEE-SPECIFIC: Bookings fetched from admin side', resp);
         allBookings = resp?.data?.bookings ?? resp?.bookings ?? resp?.data ?? resp ?? [];
         console.log("allBookings: ", allBookings);
         console.log('[Time] EMPLOYEE-SPECIFIC: Raw bookings fetched:', {
@@ -1658,9 +1660,7 @@ const Time = (props) => {
   return (
     <div className="time-selector">
       <div className="svc-header" role="banner">
-        <button className="svc-exit-btn" aria-label="Back to professionals" onClick={handleBackToProfessionals}>
-          <FaArrowLeft />
-        </button>
+     
         <h1 className="header-title">Select time</h1>
       </div>
 

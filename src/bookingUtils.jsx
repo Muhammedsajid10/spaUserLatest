@@ -663,3 +663,99 @@ export function isEmployeeMarkedNotWorking(employee, date) {
   }
   return false;
 }
+
+/**
+ * Convert a UTC time (ISO string or Date) to the user's local HH:mm string.
+ * Example: '2025-09-27T07:00:00.000Z' -> '12:30' for IST (UTC+5:30) when run
+ * in an environment with that local timezone.
+ */
+export function utcToLocalHHMM(utcInput) {
+  if (!utcInput) return null;
+  const d = (utcInput instanceof Date) ? utcInput : new Date(utcInput);
+  if (isNaN(d)) return null;
+  const hh = String(d.getHours()).padStart(2, '0');
+  const mm = String(d.getMinutes()).padStart(2, '0');
+  return `${hh}:${mm}`;
+}
+
+/**
+ * Filter generated UTC time slots against existing bookings (both in UTC).
+ * - bookings: array of booking objects containing rawStartTime/rawEndTime or startTime/endTime (UTC ISO strings or Date)
+ * - timeSlots: array of candidate slots with startTime/endTime in UTC (ISO string or Date)
+ * - shiftEndUtc: optional UTC ISO string or Date marking the employee's shift end (slot must end <= shiftEndUtc)
+ * - options.keepUnavailable: if true, slots that conflict or overflow shift end are returned with available:false
+ *
+ * Returns an array of slots in the form:
+ * { time: 'HH:mm' (local), startTime: <UTC ISO>, endTime: <UTC ISO>, available: true|false }
+ *
+ * Comparison is done using UTC timestamps (Date.getTime()). Slots that overlap even partially
+ * with any booking (bookingStart < slotEnd && bookingEnd > slotStart) are considered conflicting.
+ */
+export function filterSlotsAgainstBookingsUTC(bookings = [], timeSlots = [], shiftEndUtc = null, options = {}) {
+  const keepUnavailable = !!options.keepUnavailable;
+
+  // Normalize bookings into ms ranges (UTC-based)
+  const bookingRanges = (bookings || []).map(b => {
+    // Support multiple possible property names
+    const rawStart = b.rawStartTime || b.startTime || b.start || b.appointmentDate;
+    const rawEnd = b.rawEndTime || b.endTime || b.end || b._end || null;
+    const startDate = rawStart ? new Date(rawStart) : null;
+    let endDate = rawEnd ? new Date(rawEnd) : null;
+    // If end not provided but duration is, compute end
+    if ((!endDate || isNaN(endDate)) && b.duration && startDate && !isNaN(startDate)) {
+      endDate = new Date(startDate.getTime() + (Number(b.duration) || 0) * 60000);
+    }
+    if (!startDate || isNaN(startDate) || !endDate || isNaN(endDate)) return null;
+    return { startMs: startDate.getTime(), endMs: endDate.getTime() };
+  }).filter(Boolean);
+
+  const shiftEndMs = shiftEndUtc ? new Date(shiftEndUtc).getTime() : null;
+
+  const out = [];
+  for (const slot of (timeSlots || [])) {
+    // Expect slot.startTime / slot.endTime to be UTC ISO strings or Date
+    const sDate = slot.startTime ? new Date(slot.startTime) : null;
+    const eDate = slot.endTime ? new Date(slot.endTime) : null;
+    if (!sDate || isNaN(sDate) || !eDate || isNaN(eDate)) continue;
+
+    const sMs = sDate.getTime();
+    const eMs = eDate.getTime();
+
+    // Enforce shift-end: slot must fully finish on or before shiftEndMs
+    if (shiftEndMs && eMs > shiftEndMs) {
+      if (keepUnavailable) {
+        out.push({
+          time: utcToLocalHHMM(sDate),
+          startTime: sDate.toISOString(),
+          endTime: eDate.toISOString(),
+          available: false
+        });
+      }
+      continue;
+    }
+
+    // Check overlap with any booking (UTC-based comparison)
+    const conflicts = bookingRanges.some(br => (br.startMs < eMs && br.endMs > sMs));
+    if (conflicts) {
+      if (keepUnavailable) {
+        out.push({
+          time: utcToLocalHHMM(sDate),
+          startTime: sDate.toISOString(),
+          endTime: eDate.toISOString(),
+          available: false
+        });
+      }
+      continue;
+    }
+
+    // Slot is available
+    out.push({
+      time: utcToLocalHHMM(sDate),
+      startTime: sDate.toISOString(),
+      endTime: eDate.toISOString(),
+      available: true
+    });
+  }
+
+  return out;
+}

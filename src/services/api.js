@@ -13,6 +13,7 @@ const handleResponse = async (response) => {
   return response.json();
 };
 
+
 // Helper function to get auth headers
 // const getAuthHeaders = () => {
 //   const token = localStorage.getItem('token');
@@ -191,6 +192,7 @@ export const bookingsAPI = {
         "Authorization": `Bearer ${tempAdminToken}`
       }
     });
+    // console.log("response from getTotalBookingsFromAdminSide: ", response)
     return handleResponse(response);
   },
   // Get user bookings
