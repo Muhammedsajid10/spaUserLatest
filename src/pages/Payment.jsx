@@ -650,7 +650,7 @@ const Payment = () => {
     console.log('[PAYMENT] Payment successful:', result);
     
     // Clear booking flow data
-    bookingFlow.clear();
+    // bookingFlow.clear();
 
     // Set local success result so UI can render immediately
     setSuccessResult({

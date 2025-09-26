@@ -1,26 +1,32 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import { ChevronLeft, ChevronRight, Calendar } from "lucide-react";
+import { FaArrowLeft } from 'react-icons/fa';
 import { useNavigate, useLocation } from "react-router-dom";
 import "./Time.css";
 import Professionals from "./ProfessionalsUpdated";
-import { employeesAPI, bookingsAPI, apiUtils, bookingFlow, authAPI } from "../services/api";
+import { employeesAPI, bookingsAPI, apiUtils, bookingFlow } from "../services/api";
 import {
   // computeSequentialServiceStartTimes,
   getValidTimeSlotsForProfessional,
   // fetchAvailableProfessionalsForServiceByWeek,
   computeSequentialServiceStartTimesWithBookings,
   localDateKey,
+  toLocalHHMM,
   getEmployeeShiftHours,
   addMinutesToTime,
+  timeToMinutes,
+  minutesToTime,
   getAvailableProfessionalsForService,
-  formatTimeToAMPM
+  // formatTimeToAMPM removed - display 24-hour format instead
 } from "../bookingUtils";
+import { isEmployeeMarkedNotWorking } from '../bookingUtils';
 import Swal from 'sweetalert2';
 
 // Elegant full-page spinner component
 const FullPageLoader = () => (
   <div className="full-page-loading">
     <div className="loader-spinner"></div>
+
   </div>
 );
 
@@ -33,60 +39,7 @@ const LoadingDots = () => (
   </div>
 );
 
-function toMinutes(timeStr) {
-  if (!timeStr) return 0;
-  if (timeStr.includes('T')) {
-    const d = new Date(timeStr);
-    return d.getHours() * 60 + d.getMinutes();
-  }
-  const [h, m] = timeStr.split(':').map(Number);
-  return h * 60 + (m || 0);
-}
-
-// Enhanced helper functions for time validation
-function timeToMinutesFn(timeStr) {
-  if (!timeStr) return 0;
-  if (timeStr.includes('T')) {
-    const d = new Date(timeStr);
-    return d.getHours() * 60 + d.getMinutes();
-  }
-  const [h, m] = timeStr.split(':').map(Number);
-  return h * 60 + (m || 0);
-}
-
-function toLocalHHMM(timeStr) {
-  if (!timeStr) return null;
-  try {
-    const d = new Date(timeStr);
-    if (isNaN(d.getTime())) return null;
-    const hours = String(d.getHours()).padStart(2, '0');
-    const minutes = String(d.getMinutes()).padStart(2, '0');
-    return `${hours}:${minutes}`;
-  } catch (err) {
-    console.warn('toLocalHHMM conversion failed:', timeStr, err);
-    return null;
-  }
-}
-
 const Time = (props) => {
-  // Get start of current week (Sunday)
-const getStartOfWeek = (date = new Date()) => {
-  const d = new Date(date);
-  const day = d.getDay();
-  const diff = d.getDate() - day;
-  return new Date(d.setDate(diff));
-};
-  // Helper function moved to the top for hoisting
-  function isToday(date) {
-    if (!date) return false;
-    const today = new Date();
-    return date.getDate() === today.getDate() &&
-      date.getMonth() === today.getMonth() &&
-      date.getFullYear() === today.getFullYear();
-  }
-
-  // ALL HOOKS MUST BE DECLARED BEFORE ANY CONDITIONAL RETURNS
-  const [currentWeekStart, setCurrentWeekStart] = useState(getStartOfWeek());
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [selectedTime, setSelectedTime] = useState(null);
@@ -100,839 +53,29 @@ const getStartOfWeek = (date = new Date()) => {
   const [selectedService, setSelectedService] = useState(null);
   const [selectedServices, setSelectedServices] = useState([]);
   const [currentStep] = useState(3);
-  const [processingTimeSlotId, setProcessingTimeSlotId] = useState(null);
-  const [initialLoad, setInitialLoad] = useState(true);
-
-  // Refs
   const popupRef = useRef(null);
+  // Prevent "backupPerServiceRef is not defined" — keep a local backup of per-service assignments
   const backupPerServiceRef = useRef(bookingFlow.load().selectedProfessionals || {});
-  const isInitialLoad = useRef(true);
-
-  // Router hooks
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Memoized values
+  const [processingTimeSlotId, setProcessingTimeSlotId] = useState(null);
+
+  // FIX: Use a ref to track if initial load is complete
+  const isInitialLoad = useRef(true);
+
+  // compute 7-day array (Sunday -> Saturday) for the current selectedDate
   const weekDates = useMemo(() => {
-    // Create a copy of selectedDate to avoid mutating the original
-    const startDate = new Date(selectedDate);
-    startDate.setHours(0, 0, 0, 0);
-    
-    // Find the start of the week (Sunday)
-    const day = startDate.getDay(); // 0 = Sunday
-    startDate.setDate(startDate.getDate() - day);
-    
-    // Generate 7 days starting from the calculated Sunday
+    const start = new Date(selectedDate);
+    const day = start.getDay(); // 0 = Sunday
+    start.setDate(start.getDate() - day);
+    start.setHours(0,0,0,0);
     return Array.from({ length: 7 }, (_, i) => {
-      const d = new Date(startDate);
-      d.setDate(startDate.getDate() + i);
+      const d = new Date(start);
+      d.setDate(start.getDate() + i);
       return d;
     });
-  }, [selectedDate.toDateString()]);
-
-  // Filter out past time slots for the current day
-const filteredTimeSlots = useMemo(() => {
-  if (!isToday(selectedDate)) return availableTimeSlots;
-
-  const now = new Date();
-  const currentMinutes = now.getHours() * 60 + now.getMinutes();
-  const buffer = 15;
-
-  return availableTimeSlots.filter((slot) => {
-    const src = slot.timeValue || slot.startTime || slot.time; // prefer 24h HH:MM if available
-    const mins = timeToMinutesFn(src); // your helper already handles HH:MM or ISO
-    return mins > currentMinutes + buffer;
-  });
-}, [availableTimeSlots, selectedDate]);
-
-  // Other helper functions
-
-  // Derived values
-  const assignedProfessionals = (() => {
-    const flow = bookingFlow.load();
-    const services = flow.selectedServices || [];
-    const profMap = flow.selectedProfessionals || {};
-    const arr = services.map(s => profMap?.[s._id]).filter(Boolean);
-    const uniq = [];
-    const seen = new Set();
-    arr.forEach(p => {
-      const id = p?.id || p?._id || (p?.user?.email) || p?.name || JSON.stringify(p);
-      if (!seen.has(id)) {
-        seen.add(id);
-        uniq.push(p);
-      }
-    });
-    return uniq;
-  })();
-
-  const multipleAssigned = assignedProfessionals.length > 1;
-  const primaryProfessional = assignedProfessionals[0] || selectedProfessional;
-  const from = location.state?.from;
-
-  const isPastDate = (date) => {
-    if (!date) return false;
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    return date < today;
-  };
-
-  const isCurrentMonth = (date) => {
-    const today = new Date();
-    return date.getMonth() === today.getMonth() &&
-      date.getFullYear() === today.getFullYear();
-  };
-
-  const getDaysInMonth = (year, month) => new Date(year, month + 1, 0).getDate();
-  const getFirstDayOfMonth = (year, month) => new Date(year, month, 1).getDay();
-
-  // Generate calendar days - this function should be defined before the JSX uses it
-  const generateWeekDays = () => {
-    const year = selectedDate.getFullYear();
-    const month = selectedDate.getMonth();
-    const daysInMonth = getDaysInMonth(year, month);
-    const firstDay = getFirstDayOfMonth(year, month);
-
-    const days = [];
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    // Add empty cells for days before the first day of the month
-    for (let i = 0; i < firstDay; i++) {
-      days.push(<div key={`empty-${i}`} className="cal-day-empty"></div>);
-    }
-
-    // Add days of the month
-    for (let day = 1; day <= daysInMonth; day++) {
-      const date = new Date(year, month, day);
-      const isPast = date < today;
-      const isSelectedDay = selectedDate.getDate() === day && selectedDate.getMonth() === month;
-      const isTodayDay = today.getDate() === day && today.getMonth() === month && today.getFullYear() === year;
-
-      days.push(
-        <button
-          key={day}
-          onClick={() => !isPast && handleDateClick(day, month, year)}
-          className={`cal-day ${isPast ? 'cal-day-past' : ''} ${isSelectedDay ? 'cal-day-selected' : ''} ${isTodayDay ? 'cal-day-today' : ''}`}
-          disabled={isPast}
-        >
-          {day}
-        </button>
-      );
-    }
-
-    return days;
-  };
-
-  // Event handlers
-  const handleContinue = async () => {
-    if (!selectedTime) {
-      Swal.fire({
-        title: 'Time Slot Required',
-        text: 'Please select an available time slot.',
-        icon: 'warning',
-        confirmButtonText: 'OK'
-      });
-      return;
-    }
-    
-    bookingFlow.setSelectedTimeSlot(selectedTime);
-    
-    // Check if user is already authenticated
-    const token = localStorage.getItem('token');
-    if (token) {
-      try {
-        // Verify token is valid by checking current user using the API
-        const userResponse = await authAPI.getCurrentUser();
-        
-        if (userResponse.success && userResponse.data?.user) {
-          // User is authenticated, skip signup and go to payment
-          console.log('User already authenticated, redirecting to payment');
-          navigate('/payment');
-          return;
-        } else {
-          // Token is invalid, remove it and proceed to signup
-          localStorage.removeItem('token');
-        }
-      } catch (error) {
-        console.log('Token verification failed, proceeding to signup:', error);
-        localStorage.removeItem('token');
-      }
-    }
-    
-    // No valid token, proceed to signup
-    navigate('/signup');
-  };
-
-  const changeMonth = (months) => {
-    const selectedDate = new Date(selectedDate);
-    selectedDate.setMonth(selectedDate.getMonth() + months);
-    setSelectedDate(selectedDate);
-  };
-
-  const changeWeek = (weeks) => {
-    const selectedDate = new Date(selectedDate);
-    selectedDate.setDate(selectedDate.getDate() + weeks * 7);
-
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    if (selectedDate >= today) {
-      setSelectedDate(selectedDate);
-    }
-  };
-
-  const handleBackToProfessionals = () => {
-    localStorage.removeItem('showPerServiceAssignment');
-    if (window.history && window.history.length > 1) navigate(-1);
-    else navigate("/professionals");
-  };
-
-  const professionalName = (() => {
-    const flow = bookingFlow.load();
-    const services = flow.selectedServices || [];
-    const profMap = flow.selectedProfessionals || {};
-    const mode = flow.selectionMode || selectionMode;
-    if (mode === 'anyAll') return 'Any professional';
-    const unique = new Set();
-    services.forEach(s => {
-      const p = profMap[s._id];
-      if (p) unique.add(p.id || p._id || (p === 'any' ? 'any' : ''));
-    });
-    if (mode === 'perService' && unique.size > 1) return 'Multiple professionals';
-    if (selectedProfessional?.id === 'any') return 'Any professional';
-    if (selectedProfessional?.user?.firstName && selectedProfessional?.user?.lastName) {
-      return `${selectedProfessional.user.firstName} ${selectedProfessional.user.lastName}`;
-    }
-    return selectedProfessional?.name || (unique.size > 0 ? 'Professional selected' : 'Select Professional');
-  })();
-
-  // ENHANCED: Employee-specific booking conflict detection system
-  const fetchEmployeeBookingConflicts = async (date, employeeId = null) => {
-    const formattedDate = apiUtils.formatDate(date);
-    console.log('[Time] ENHANCED: Fetching booking conflicts', {
-      formattedDate,
-      employeeId: employeeId || 'ALL',
-      targetDate: localDateKey(date)
-    });
-
-    let allBookings = [];
-    try {
-      console.log('[Time] ENHANCED: Fetching ALL bookings from admin side with enhanced filtering');
-
-      if (bookingsAPI && typeof bookingsAPI.getTotalBookingsFromAdminSide === 'function') {
-        const resp = await bookingsAPI.getTotalBookingsFromAdminSide(formattedDate);
-        allBookings = resp?.data?.bookings ?? resp?.bookings ?? resp?.data ?? resp ?? [];
-        console.log('[Time] ENHANCED: Raw bookings fetched:', {
-          totalCount: allBookings.length,
-          requestedDate: formattedDate,
-          targetEmployeeId: employeeId || 'ALL_EMPLOYEES'
-        });
-      } else {
-        console.log('[Time] ENHANCED: Admin booking API not available');
-        return { appointmentsIndex: {} };
-      }
-    } catch (err) {
-      console.warn('[Time] ENHANCED: Failed to fetch bookings:', err.message);
-      return { appointmentsIndex: {} };
-    }
-
-    const selectedDateKey = localDateKey(date);
-
-    // Enhanced date filtering with validation
-    const dateFilteredBookings = allBookings.filter(booking => {
-      if (!booking.appointmentDate) {
-        console.debug('[Time] ENHANCED: Skipping booking without appointmentDate:', booking._id);
-        return false;
-      }
-
-      const bookingDate = new Date(booking.appointmentDate);
-      if (isNaN(bookingDate.getTime())) {
-        console.debug('[Time] ENHANCED: Skipping booking with invalid date:', booking.appointmentDate);
-        return false;
-      }
-
-      const bookingDateKey = localDateKey(bookingDate);
-      const matches = bookingDateKey === selectedDateKey;
-
-      if (matches) {
-        console.debug('[Time] ENHANCED: Date match found:', {
-          bookingId: booking._id,
-          appointmentDate: booking.appointmentDate,
-          bookingDateKey,
-          selectedDateKey
-        });
-      }
-
-      return matches;
-    });
-
-    console.log('[Time] ENHANCED STEP 1 - Enhanced date filtering:', {
-      selectedDate: selectedDateKey,
-      totalBookings: allBookings.length,
-      dateFilteredBookings: dateFilteredBookings.length,
-      filteredBookings: dateFilteredBookings.map(b => ({
-        id: b._id,
-        appointmentDate: b.appointmentDate,
-        servicesCount: b.services?.length || 0,
-        status: b.status
-      }))
-    });
-
-    // Build comprehensive appointments index
-    const appointmentsIndex = {};
-    let totalProcessedServices = 0;
-
-    dateFilteredBookings.forEach(booking => {
-      if (!booking.services || !Array.isArray(booking.services)) {
-        console.debug('[Time] ENHANCED: Skipping booking without services array:', booking._id);
-        return;
-      }
-
-      booking.services.forEach(service => {
-        const serviceEmployeeId = service.employee?._id || service.employee?.id;
-
-        if (!serviceEmployeeId) {
-          console.debug('[Time] ENHANCED: Skipping service without employee:', service._id || 'unknown');
-          return;
-        }
-
-        // If specific employee requested, filter by that employee
-        if (employeeId && String(serviceEmployeeId) !== String(employeeId)) {
-          return;
-        }
-
-        // Validate service times
-        if (!service.startTime) {
-          console.debug('[Time] ENHANCED: Skipping service without startTime:', {
-            serviceId: service._id,
-            employeeId: serviceEmployeeId,
-            bookingId: booking._id
-          });
-          return;
-        }
-
-        // Calculate end time if not provided
-        let endTime = service.endTime;
-        if (!endTime && service.duration) {
-          const startTimeHHMM = toLocalHHMM(service.startTime);
-          if (startTimeHHMM) {
-            endTime = addMinutesToTime(startTimeHHMM, service.duration);
-          }
-        }
-
-        if (!endTime) {
-          console.debug('[Time] ENHANCED: Could not determine endTime for service:', {
-            serviceId: service._id,
-            startTime: service.startTime,
-            duration: service.duration
-          });
-          return;
-        }
-
-        // Initialize nested structure
-        if (!appointmentsIndex[serviceEmployeeId]) {
-          appointmentsIndex[serviceEmployeeId] = {};
-        }
-        if (!appointmentsIndex[serviceEmployeeId][selectedDateKey]) {
-          appointmentsIndex[serviceEmployeeId][selectedDateKey] = {};
-        }
-
-        const bookingKey = service._id || `${service.startTime}_${serviceEmployeeId}_${booking._id}`;
-
-        appointmentsIndex[serviceEmployeeId][selectedDateKey][bookingKey] = {
-          _id: service._id || bookingKey,
-          bookingId: booking._id,
-          employeeId: serviceEmployeeId,
-          startTime: toLocalHHMM(service.startTime) || service.startTime,
-          endTime: toLocalHHMM(endTime) || endTime,
-          duration: service.duration || 30,
-          status: service.status || booking.status || 'confirmed',
-          serviceName: service.service?.name || service.serviceName || 'Unknown Service',
-          customerName: booking.customerName || booking.customer?.name || 'Unknown Customer'
-        };
-
-        totalProcessedServices++;
-
-        console.debug('[Time] ENHANCED: Service appointment indexed:', {
-          employeeId: serviceEmployeeId,
-          bookingKey,
-          timeSlot: `${appointmentsIndex[serviceEmployeeId][selectedDateKey][bookingKey].startTime}-${appointmentsIndex[serviceEmployeeId][selectedDateKey][bookingKey].endTime}`,
-          serviceName: appointmentsIndex[serviceEmployeeId][selectedDateKey][bookingKey].serviceName,
-          status: appointmentsIndex[serviceEmployeeId][selectedDateKey][bookingKey].status
-        });
-      });
-    });
-
-    console.log('[Time] ENHANCED STEP 2 - Appointments index built:', {
-      selectedDate: selectedDateKey,
-      targetEmployeeId: employeeId || 'ALL',
-      employeesWithBookings: Object.keys(appointmentsIndex).length,
-      totalProcessedServices,
-      employeeBookingDetails: Object.keys(appointmentsIndex).map(empId => ({
-        employeeId: empId,
-        bookingsCount: Object.keys(appointmentsIndex[empId][selectedDateKey] || {}).length,
-        bookings: Object.values(appointmentsIndex[empId][selectedDateKey] || {}).map(b => ({
-          timeSlot: `${b.startTime}-${b.endTime}`,
-          duration: b.duration,
-          service: b.serviceName,
-          status: b.status,
-          customer: b.customerName
-        }))
-      }))
-    });
-
-    return { appointmentsIndex };
-  };
-
-   const handleDateClick = async (day, month, year) => {
-    console.log('[Time] handleDateClick start (ENHANCED)', { day, month, year, selectedService, selectedProfessional });
-    const selectedDate = new Date(year || selectedDate.getFullYear(), month !== undefined ? month : selectedDate.getMonth(), day);
-
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    if (selectedDate < today) {
-      console.log('[Time] Attempted to select past date, ignoring');
-      return;
-    }
-    setSelectedDate(selectedDate);
-    setCalendarOpen(false);
-    setLoadingTimeSlots(true);
-    setAvailableTimeSlots([]);
-    setError(null); // Clear any previous errors
-
-    try {
-      const flow = bookingFlow.load();
-      const services = (flow.selectedServices && flow.selectedServices.length) ? flow.selectedServices : ([selectedService].filter(Boolean));
-
-      // Enhanced booking conflict detection
-      const { appointmentsIndex } = await fetchEmployeeBookingConflicts(selectedDate);
-
-      if (!services || services.length <= 1) {
-        const svc = services && services[0] || selectedService;
-        if (!svc) throw new Error('No service selected');
-
-        const assigned = flow.selectedProfessionals?.[svc._id] || selectedProfessional;
-
-        if (!assigned || assigned.id === 'any' || assigned._id === 'any') {
-          console.log('[Time] ENHANCED: single-service ANY -> fetching employees for union slots');
-          let employees = [];
-          try {
-            const resp = await bookingsAPI.getAvailableProfessionals(svc._id, apiUtils.formatDate(selectedDate));
-            employees = resp?.data?.professionals ?? resp?.professionals ?? resp?.data ?? resp ?? [];
-            // Enhanced active employee filtering
-            employees = employees.filter(emp => {
-              if (emp.isActive === false) {
-                console.log('[Time] ENHANCED: Filtering out inactive employee', emp._id, emp.name);
-                return false;
-              }
-              return true;
-            });
-            console.log('[Time] ENHANCED: Active employees for ANY selection:', employees.length);
-          } catch (err) {
-            console.warn('[Time] Failed to fetch professionals for Any selection:', err);
-            employees = [];
-          }
-
-          const avail = getAvailableProfessionalsForService(
-            svc._id,
-            selectedDate,
-            employees,
-            appointmentsIndex,
-            flow.selectedServices || [svc]
-          );
-
-          const union = [];
-          (avail || []).forEach(r => (r.slots || []).forEach(s => union.push(s)));
-const uniq = Array.from(new Set(union))
-  .sort((a, b) => timeToMinutesFn(a) - timeToMinutesFn(b));
-          // Enhanced future time filtering
-          const now = new Date();
-          const isToday = selectedDate.toDateString() === now.toDateString();
-          const currentTimeMinutes = now.getHours() * 60 + now.getMinutes();
-          const bufferMinutes = 15; // 15-minute buffer for booking
-
-          const futureFilteredUniq = isToday ? uniq.filter(slotTime => {
-            const slotMinutes = timeToMinutesFn(slotTime);
-            const isValidFutureSlot = slotMinutes > currentTimeMinutes + bufferMinutes;
-
-            console.log('[Time] ENHANCED: ANY professional slot time validation:', {
-              slotTime,
-              slotMinutes,
-              currentTimeMinutes,
-              bufferMinutes,
-              requiredMinimum: currentTimeMinutes + bufferMinutes,
-              isValidFutureSlot,
-              action: isValidFutureSlot ? 'KEEP' : 'REMOVE'
-            });
-
-            return isValidFutureSlot;
-          }) : uniq;
-
-          console.log('[Time] ENHANCED: ANY professional future time filtering result:', {
-            isToday,
-            currentTimeMinutes: isToday ? currentTimeMinutes : 'N/A',
-            bufferMinutes,
-            beforeFilter: uniq.length,
-            afterFilter: futureFilteredUniq.length,
-            removedSlots: uniq.length - futureFilteredUniq.length
-          });
-
-          const slots = futureFilteredUniq.map((t, i) => ({
-            id: i,
-            time: formatTimeToAMPM(t),
-            timeValue: t,
-            startTime: t,
-            endTime: addMinutesToTime(t, svc.duration || 30),
-            available: true
-          }));
-
-          console.log('[Time] ENHANCED: Final ANY professional slots:', slots.length);
-          setAvailableTimeSlots(slots);
-          return;
-        }
-
-        // Enhanced specific professional slot generation
-        const duration = svc.duration || 30;
-        const empId = assigned._id || assigned.id;
-
-        console.log('[Time] ENHANCED: Computing slots for specific professional', {
-          employeeId: empId,
-          employeeName: assigned.name || assigned.user?.firstName,
-          date: localDateKey(selectedDate),
-          duration,
-          isActive: assigned.isActive
-        });
-
-        // Check if assigned professional is active
-        if (assigned.isActive === false) {
-          console.warn('[Time] ENHANCED: Assigned professional is inactive');
-          setError('The assigned professional is currently unavailable. Please select a different professional.');
-          setAvailableTimeSlots([]);
-          return;
-        }
-
-        // Get employee-specific appointment conflicts
-     const employeeAppointments = {};
-if (appointmentsIndex[empId]) {
-  employeeAppointments[empId] = {};
-  employeeAppointments[empId][localDateKey(selectedDate)] = appointmentsIndex[empId][localDateKey(selectedDate)];
-}
-
-        const slotsArr = getValidTimeSlotsForProfessional(assigned, selectedDate, duration, employeeAppointments);
-
-        console.log('[Time] ENHANCED: Slots computed for specific professional', {
-          employeeId: empId,
-          slotsCount: slotsArr.length,
-          firstSlots: slotsArr.slice(0, 5)
-        });
-
-        // Enhanced future time filtering for specific professional
-        const now = new Date();
-        const isToday = selectedDate.toDateString() === now.toDateString();
-        const currentTimeMinutes = now.getHours() * 60 + now.getMinutes();
-        const bufferMinutes = 15;
-
-        const futureFilteredSlotsArr = isToday ? slotsArr.filter(slotTime => {
-          const slotMinutes = timeToMinutesFn(slotTime);
-          const isValidFutureSlot = slotMinutes > currentTimeMinutes + bufferMinutes;
-
-          console.log('[Time] ENHANCED: Specific professional slot time validation:', {
-            slotTime,
-            slotMinutes,
-            currentTimeMinutes,
-            bufferMinutes,
-            requiredMinimum: currentTimeMinutes + bufferMinutes,
-            isValidFutureSlot,
-            action: isValidFutureSlot ? 'KEEP' : 'REMOVE'
-          });
-
-          return isValidFutureSlot;
-        }) : slotsArr;
-
-        console.log('[Time] ENHANCED: Specific professional future filtering result:', {
-          isToday,
-          currentTimeMinutes: isToday ? currentTimeMinutes : 'N/A',
-          bufferMinutes,
-          beforeFilter: slotsArr.length,
-          afterFilter: futureFilteredSlotsArr.length,
-          removedSlots: slotsArr.length - futureFilteredSlotsArr.length
-        });
-
-        const mapped = futureFilteredSlotsArr.map((t, i) => ({
-          id: i,
-          time: formatTimeToAMPM(t),
-          timeValue: t,
-          startTime: t,
-          endTime: addMinutesToTime(t, duration),
-          available: true
-        }));
-
-        console.log('[Time] ENHANCED: Final specific professional slots:', mapped.length);
-        setAvailableTimeSlots(mapped);
-        return;
-      }
-
-      // Enhanced multi-service sequential booking
-      const missing = services.filter(s => !flow.selectedProfessionals?.[s._id]);
-      if (missing.length) {
-        console.log('[Time] ENHANCED: Multi-service missing assigned professionals', missing.map(m => ({ id: m._id, name: m.name })));
-        setAvailableTimeSlots([]);
-        setError('Please assign professionals to all services first');
-        return;
-      }
-
-      // Check if all assigned professionals are active
-      const inactiveProfessionals = [];
-      services.forEach(svc => {
-        const prof = flow.selectedProfessionals[svc._id];
-        if (prof && prof.isActive === false) {
-          inactiveProfessionals.push({ serviceId: svc._id, serviceName: svc.name, professionalName: prof.name });
-        }
-      });
-
-      if (inactiveProfessionals.length > 0) {
-        console.warn('[Time] ENHANCED: Some assigned professionals are inactive', inactiveProfessionals);
-        setError('Some assigned professionals are currently unavailable. Please update your professional selections.');
-        setAvailableTimeSlots([]);
-        return;
-      }
-
-      const professionalsMap = {};
-      services.forEach(svc => {
-        professionalsMap[svc._id] = flow.selectedProfessionals[svc._id];
-      });
-
-      console.log('[Time] ENHANCED: Computing sequential service start times with enhanced validation', {
-        services: services.map(s => ({ id: s._id, name: s.name, duration: s.duration })),
-        date: localDateKey(selectedDate),
-        professionals: Object.keys(professionalsMap)
-      });
-
-      const sequences = await computeSequentialServiceStartTimesWithBookings(services, professionalsMap, selectedDate, appointmentsIndex);
-
-      console.log('[Time] ENHANCED: Sequential sequences result', {
-        sequencesFound: sequences?.length || 0,
-        firstSequenceExample: sequences?.[0] ? {
-          startTime: sequences[0].startTime,
-          endTime: sequences[0].endTime,
-          servicesCount: sequences[0].sequence?.length
-        } : null
-      });
-
-      if (!sequences || sequences.length === 0) {
-        setAvailableTimeSlots([]);
-        setError('No available time slots found for the selected date and professional assignments. Please try a different date or adjust professional assignments.');
-        return;
-      }
-
-      const slots = sequences.map((s, idx) => ({
-        id: idx,
-        time: formatTimeToAMPM(s.startTime),
-        timeValue: s.startTime,
-        startTime: s.startTime,
-        endTime: s.endTime || s.sequence[s.sequence.length - 1].endTime,
-        available: true,
-        sequence: s.sequence
-      }));
-
-      console.log('[Time] ENHANCED: Final sequential slots created:', slots.length);
-      setAvailableTimeSlots(slots);
-
-    } catch (err) {
-      console.error('[Time] ENHANCED: handleDateClick error', err);
-      setError(err.message || 'Failed to load available time slots. Please try again.');
-      setAvailableTimeSlots([]);
-    } finally {
-      setLoadingTimeSlots(false);
-    }
-  };
-
-  const handleTimeSelect = async (timeSlot) => {
-    console.log('[Time] handleTimeSelect called with timeSlot:', timeSlot);
-    console.log('[Time] timeSlot properties:', {
-      id: timeSlot.id,
-      time: timeSlot.time,
-      timeValue: timeSlot.timeValue,
-      startTime: timeSlot.startTime,
-      endTime: timeSlot.endTime,
-      fullObject: timeSlot
-    });
-
-    setSelectedTime(timeSlot);
-
-    const selectedDateStr = `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}`;
-    const startTimeStr = timeSlot.timeValue || timeSlot.startTime || timeSlot.time;
-    const endTimeStr = timeSlot.endTime;
-
-    const formatTime = (timeStr) => {
-      if (!timeStr) return '00:00'; // Default fallback
-      if (timeStr.includes('T')) {
-        return timeStr.split('T')[1].substring(0, 5);
-      }
-      return timeStr;
-    };
-
-    const formattedStartTime = formatTime(startTimeStr);
-    let formattedEndTime = formatTime(endTimeStr);
-
-    // If no end time provided, calculate it from start time + service duration
-    if (!endTimeStr || !formattedEndTime || formattedEndTime === '00:00') {
-      const serviceDuration = selectedService?.duration || 60; // Default 60 minutes
-      const [startH, startM] = formattedStartTime.split(':').map(n => parseInt(n));
-      const endMinutes = startM + serviceDuration;
-      const endH = startH + Math.floor(endMinutes / 60);
-      const endM = endMinutes % 60;
-      formattedEndTime = `${String(endH).padStart(2, '0')}:${String(endM).padStart(2, '0')}`;
-      console.log('[Time] Calculated end time from duration:', {
-        serviceDuration,
-        startTime: formattedStartTime,
-        calculatedEndTime: formattedEndTime
-      });
-    }
-
-    console.log('[Time] Time formatting results:', {
-      startTimeStr,
-      endTimeStr,
-      formattedStartTime,
-      formattedEndTime
-    });
-
-    // Validate time format before parsing
-    const timeRegex = /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/;
-    if (!timeRegex.test(formattedStartTime)) {
-      console.error('[Time] INVALID TIME FORMAT: formattedStartTime is not in HH:MM format!', {
-        formattedStartTime,
-        startTimeStr,
-        timeSlot
-      });
-    }
-    if (!timeRegex.test(formattedEndTime)) {
-      console.error('[Time] INVALID TIME FORMAT: formattedEndTime is not in HH:MM format!', {
-        formattedEndTime,
-        endTimeStr,
-        timeSlot
-      });
-    }
-
-    const [startHour, startMinute] = formattedStartTime.split(':').map(n => parseInt(n));
-    const [endHour, endMinute] = formattedEndTime.split(':').map(n => parseInt(n));
-
-    console.log('[Time] Parsed time values:', {
-      formattedStartTime,
-      formattedEndTime,
-      startHour,
-      startMinute,
-      endHour,
-      endMinute,
-      startHourValid: !isNaN(startHour),
-      startMinuteValid: !isNaN(startMinute),
-      endHourValid: !isNaN(endHour),
-      endMinuteValid: !isNaN(endMinute)
-    });
-
-    const startDateTimeLocal = new Date(selectedDate);
-    startDateTimeLocal.setHours(startHour, startMinute, 0, 0);
-
-    const endDateTimeLocal = new Date(selectedDate);
-    endDateTimeLocal.setHours(endHour, endMinute, 0, 0);
-
-    // Check for invalid Date objects
-    if (isNaN(startDateTimeLocal.getTime())) {
-      console.error('[Time] INVALID TIME VALUE: startDateTimeLocal is invalid!', {
-        selectedDate: selectedDate.toString(),
-        startHour,
-        startMinute,
-        formattedStartTime,
-        startDateTimeLocal: startDateTimeLocal.toString()
-      });
-    }
-
-    if (isNaN(endDateTimeLocal.getTime())) {
-      console.error('[Time] INVALID TIME VALUE: endDateTimeLocal is invalid!', {
-        selectedDate: selectedDate.toString(),
-        endHour,
-        endMinute,
-        formattedEndTime,
-        endDateTimeLocal: endDateTimeLocal.toString()
-      });
-    }
-
-    console.log('[Time] TIMEZONE FIX v2 - Time slot selection:', {
-      selectedDateString: selectedDateStr,
-      formattedStartTime,
-      formattedEndTime,
-      startHour, startMinute,
-      endHour, endMinute,
-      selectedDateBase: selectedDate.toString(),
-      startDateTimeLocal: startDateTimeLocal.toString(),
-      endDateTimeLocal: endDateTimeLocal.toString(),
-      startDateTimeUTC: startDateTimeLocal.toISOString(),
-      endDateTimeUTC: endDateTimeLocal.toISOString(),
-      timezoneOffset: startDateTimeLocal.getTimezoneOffset()
-    });
-
-    const flow = bookingFlow.load();
-    const currentProfessional = flow.selectedProfessionals?.[selectedService?._id] || selectedProfessional;
-
-    console.log('[Time] Using already assigned professional:', {
-      serviceId: selectedService?._id,
-      professionalId: currentProfessional?._id,
-      professionalName: currentProfessional?.user ?
-        `${currentProfessional.user.firstName} ${currentProfessional.user.lastName}` :
-        currentProfessional?.name
-    });
-
-    const timeData = {
-      date: selectedDateStr,
-      time: formattedStartTime,
-      startTime: startDateTimeLocal.toISOString(),
-      endTime: endDateTimeLocal.toISOString(),
-      // Store local time components to avoid timezone issues
-      localStartTime: {
-        year: startDateTimeLocal.getFullYear(),
-        month: startDateTimeLocal.getMonth(),
-        date: startDateTimeLocal.getDate(),
-        hours: startDateTimeLocal.getHours(),
-        minutes: startDateTimeLocal.getMinutes(),
-        seconds: startDateTimeLocal.getSeconds()
-      },
-      localEndTime: {
-        year: endDateTimeLocal.getFullYear(),
-        month: endDateTimeLocal.getMonth(),
-        date: endDateTimeLocal.getDate(),
-        hours: endDateTimeLocal.getHours(),
-        minutes: endDateTimeLocal.getMinutes(),
-        seconds: endDateTimeLocal.getSeconds()
-      },
-      professional: currentProfessional,
-      service: selectedService
-    };
-
-    console.log('[Time] handleTimeSelect - storing timeData (FIXED):', timeData);
-    console.log('[Time] handleTimeSelect - bookingFlow before save:', bookingFlow.selectedTimeSlot);
-    console.log('[Time] handleTimeSelect - isMobile:', /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent));
-
-    setProcessingTimeSlotId(timeSlot.id);
-
-    setTimeout(() => {
-      console.log('[Time] handleTimeSelect - setTimeout executing, saving to bookingFlow...');
-      bookingFlow.selectedTimeSlot = timeData;
-      bookingFlow.selectedDate = selectedDateStr; // Also store the selected date separately
-      
-      const saveResult = bookingFlow.save();
-      console.log('[Time] handleTimeSelect - save result:', saveResult);
-      
-      console.log('[Time] handleTimeSelect - bookingFlow after save:', bookingFlow.selectedTimeSlot);
-      console.log('[Time] handleTimeSelect - localStorage check:', localStorage.getItem('bookingFlow'));
-      console.log('[Time] handleTimeSelect - localStorage length:', localStorage.getItem('bookingFlow')?.length);
-      
-      if (!saveResult) {
-        console.error('[Time] handleTimeSelect - FAILED to save bookingFlow data!');
-      }
-      
-      setProcessingTimeSlotId(null);
-    }, 800);
-  };
+  }, [selectedDate.toDateString()]); // Use stable date string
 
   // Load booking flow data and initial page load
   useEffect(() => {
@@ -955,6 +98,7 @@ if (appointmentsIndex[empId]) {
       setSelectionMode(data.selectionMode || 'perService');
     };
 
+    // FIX: Only run initial load once
     if (isInitialLoad.current) {
       setLoading(true);
       loadBookingData();
@@ -964,14 +108,48 @@ if (appointmentsIndex[empId]) {
       }, 500);
     }
 
+
+
+//     const filteredTimeSlots = useMemo(() => {
+//   if (!isToday(selectedDate)) return availableTimeSlots;
+
+//   const now = new Date();
+//   const currentHour = now.getHours();
+//   const currentMinute = now.getMinutes();
+
+//   return availableTimeSlots.filter(slot => {
+//     if (!slot.time) return false;
+
+//     // Handle both 12-hour and 24-hour formats
+//     let hour, minute;
+//     if (slot.time.includes(' ')) {
+//       // 12-hour format (e.g., "2:30 PM")
+//       const [time, period] = slot.time.split(' ');
+//       [hour, minute] = time.split(':').map(Number);
+//       if (period === 'PM' && hour < 12) hour += 12;
+//       if (period === 'AM' && hour === 12) hour = 0;
+//     } else {
+//       // 24-hour format (e.g., "14:30")
+//       [hour, minute] = slot.time.split(':').map(Number);
+//     }
+
+//     return hour > currentHour || (hour === currentHour && minute > currentMinute + 15);
+//   });
+// }, [availableTimeSlots, selectedDate]);
+
+
+
+
     const handleBookingFlowChange = (event) => {
+      // Only reload if something other than time slot selection changed
       const data = bookingFlow.load();
       const currentSelectedService = selectedService?._id;
       const currentSelectedProfessional = selectedProfessional?._id || selectedProfessional?.id;
       const newSelectedService = data.selectedServices?.[0]?._id;
-      const newSelectedProfessional = data.selectedProfessionals?.[data.selectedServices?.[0]?._id]?._id ||
-        data.selectedProfessionals?.[data.selectedServices?.[0]?._id]?.id;
-
+      const newSelectedProfessional = data.selectedProfessionals?.[data.selectedServices?.[0]?._id]?._id || 
+                                      data.selectedProfessionals ?.[data.selectedServices?.[0]?._id]?.id;
+      
+      // Only reload data if service or professional changed (not just time slot)
       if (currentSelectedService !== newSelectedService || currentSelectedProfessional !== newSelectedProfessional) {
         loadBookingData();
       }
@@ -982,17 +160,1352 @@ if (appointmentsIndex[empId]) {
     return () => {
       window.removeEventListener('bookingFlowChange', handleBookingFlowChange);
     };
-  }, []);
+  }, []); // Remove selectedService and selectedProfessional from dependencies to prevent loops
+
+  const getDaysInMonth = (year, month) => new Date(year, month + 1, 0).getDate();
+  const getFirstDayOfMonth = (year, month) => new Date(year, month, 1).getDay();
+
+  const changeMonth = (offset) => {
+    const newDate = new Date(selectedDate);
+    newDate.setMonth(newDate.getMonth() + offset);
+    setSelectedDate(newDate);
+  };
+
+  // ENHANCED: Employee-specific booking conflict detection system
+  const fetchEmployeeBookingConflicts = async (date, employeeId) => {
+    const formattedDate = apiUtils.formatDate(date);
+    console.log('[Time] EMPLOYEE-SPECIFIC: Fetching booking conflicts for specific employee only', { 
+      formattedDate, 
+      employeeId,
+      employeeName: 'Target employee'
+    });
+
+    // Get ALL bookings from admin side (may contain multiple dates)
+    let allBookings = [];
+    try {
+      console.log('[Time] EMPLOYEE-SPECIFIC: Fetching ALL bookings from admin side');
+      
+      if (bookingsAPI && typeof bookingsAPI.getTotalBookingsFromAdminSide === 'function') {
+        const resp = await bookingsAPI.getTotalBookingsFromAdminSide(formattedDate);
+        allBookings = resp?.data?.bookings ?? resp?.bookings ?? resp?.data ?? resp ?? [];
+        console.log('[Time] EMPLOYEE-SPECIFIC: Raw bookings fetched:', {
+          totalCount: allBookings.length,
+          requestedDate: formattedDate,
+          targetEmployeeId: employeeId
+        });
+      } else {
+        console.log('[Time] EMPLOYEE-SPECIFIC: Admin booking API not available');
+        return { appointmentsIndex: {} };
+      }
+    } catch (err) {
+      console.warn('[Time] EMPLOYEE-SPECIFIC: Failed to fetch bookings:', err.message);
+      return { appointmentsIndex: {} };
+    }
+
+    // STEP 1: Filter bookings by selected date
+    const selectedDateKey = localDateKey(date);
+    const dateFilteredBookings = allBookings.filter(booking => {
+      if (!booking.appointmentDate) return false;
+      const bookingDateKey = localDateKey(new Date(booking.appointmentDate));
+      return bookingDateKey === selectedDateKey;
+    });
+
+    console.log('[Time] EMPLOYEE-SPECIFIC STEP 1 - Date filtering:', {
+      selectedDate: selectedDateKey,
+      totalBookings: allBookings.length,
+      dateFilteredBookings: dateFilteredBookings.length
+    });
+
+    // STEP 2: Extract ONLY bookings for the specific employee
+    let employeeSpecificBookings = [];
+    
+    dateFilteredBookings.forEach(booking => {
+      if (booking.services && Array.isArray(booking.services)) {
+        booking.services.forEach(service => {
+          const serviceEmployeeId = service.employee?._id || service.employee?.id;
+          
+          // CRITICAL: Only include bookings for THIS specific employee
+          if (String(serviceEmployeeId) === String(employeeId)) {
+            employeeSpecificBookings.push({
+              _id: service._id || service.id || `${booking._id}_${service._id}`,
+              bookingId: booking._id,
+              employeeId: serviceEmployeeId,
+              employee: service.employee,
+              startTime: service.startTime,
+              endTime: service.endTime,
+              duration: service.duration || 30,
+              status: service.status || booking.status,
+              appointmentDate: booking.appointmentDate,
+              serviceName: service.service?.name || 'Unknown Service'
+            });
+          }
+        });
+      }
+    });
+
+    console.log('[Time] EMPLOYEE-SPECIFIC STEP 2 - Employee filtering:', {
+      targetEmployeeId: employeeId,
+      dateFilteredBookings: dateFilteredBookings.length,
+      totalServiceBookings: dateFilteredBookings.reduce((sum, b) => sum + (b.services?.length || 0), 0),
+      employeeSpecificBookings: employeeSpecificBookings.length,
+      conflictingTimeSlots: employeeSpecificBookings.map(b => ({
+        timeSlot: `${b.startTime}-${b.endTime}`,
+        duration: b.duration,
+        serviceName: b.serviceName,
+        bookingId: b.bookingId,
+        appointmentDate: b.appointmentDate
+      }))
+    });
+
+    // ENHANCED LOGGING: Detailed booking conflicts for the specific chosen employee
+    if (employeeSpecificBookings.length > 0) {
+      console.log('🚫 EMPLOYEE-SPECIFIC BOOKING CONFLICTS for chosen employee on chosen date:', {
+        chosenEmployeeId: employeeId,
+        chosenDate: selectedDateKey,
+        conflictingBookings: employeeSpecificBookings.map(booking => ({
+          bookingId: booking.bookingId,
+          timeSlot: `${booking.startTime} - ${booking.endTime}`,
+          duration: `${booking.duration} minutes`,
+          serviceName: booking.serviceName,
+          status: booking.status,
+          appointmentDate: booking.appointmentDate,
+          rawStartTime: booking.startTime,
+          rawEndTime: booking.endTime,
+          employeeInfo: {
+            id: booking.employee?._id || booking.employee?.id,
+            name: booking.employee?.user ? 
+              `${booking.employee.user.firstName} ${booking.employee.user.lastName}` : 
+              booking.employee?.name
+          }
+        })),
+        totalConflicts: employeeSpecificBookings.length,
+        message: 'These time slots are BLOCKED for the chosen employee on the chosen date'
+      });
+
+      // Convert booking times to readable format for easier debugging
+      const blockedTimeSlots = employeeSpecificBookings.map(booking => {
+        const normalizeTime = (timeStr) => {
+          if (!timeStr) return 'N/A';
+          if (timeStr.includes('T')) {
+            const date = new Date(timeStr);
+            
+            // TIMEZONE DEBUG: Log the conversion
+            console.log('[Time] 🌍 EMPLOYEE-SPECIFIC TIME CONVERSION:', {
+              originalISO: timeStr,
+              utcTime: `${String(date.getUTCHours()).padStart(2, '0')}:${String(date.getUTCMinutes()).padStart(2, '0')}`,
+              localTime: `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`,
+              timezoneOffset: date.getTimezoneOffset()
+            });
+            
+            return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+          }
+          return timeStr;
+        };
+        
+        return {
+          startTime: normalizeTime(booking.startTime),
+          endTime: normalizeTime(booking.endTime),
+          duration: booking.duration,
+          service: booking.serviceName,
+          bookingId: booking.bookingId
+        };
+      });
+
+      console.log('⏰ EMPLOYEE-SPECIFIC BLOCKED TIME SLOTS (normalized format):', {
+        employeeId: employeeId,
+        date: selectedDateKey,
+        blockedSlots: blockedTimeSlots,
+        timeSlotsSummary: blockedTimeSlots.map(slot => `${slot.startTime}-${slot.endTime} (${slot.service})`).join(', '),
+        blockingMessage: 'These time slots should NOT appear as available options for the user'
+      });
+    } else {
+      console.log('✅ NO EMPLOYEE-SPECIFIC BOOKING CONFLICTS for chosen employee on chosen date:', {
+        chosenEmployeeId: employeeId,
+        chosenDate: selectedDateKey,
+        message: 'All time slots are available for this employee on this date',
+        totalBookingsForDate: dateFilteredBookings.length,
+        totalServiceBookingsForDate: dateFilteredBookings.reduce((sum, b) => sum + (b.services?.length || 0), 0)
+      });
+    }
+
+    // ENHANCED: Check for overlapping bookings within the same employee
+    console.log('[Time] EMPLOYEE-SPECIFIC: Checking for overlapping bookings within same employee');
+    const overlapWarnings = [];
+    for (let i = 0; i < employeeSpecificBookings.length; i++) {
+      for (let j = i + 1; j < employeeSpecificBookings.length; j++) {
+        const booking1 = employeeSpecificBookings[i];
+        const booking2 = employeeSpecificBookings[j];
+        
+        // Convert times to comparable format
+        const normalizeTime = (timeStr) => {
+          if (!timeStr) return null;
+          if (timeStr.includes('T')) {
+            const date = new Date(timeStr);
+            
+            // TIMEZONE DEBUG: Log the conversion for overlap detection
+            console.log('[Time] 🌍 OVERLAP DETECTION TIME CONVERSION:', {
+              originalISO: timeStr,
+              utcTime: `${String(date.getUTCHours()).padStart(2, '0')}:${String(date.getUTCMinutes()).padStart(2, '0')}`,
+              localTime: `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`,
+              timezoneOffset: date.getTimezoneOffset()
+            });
+            
+            // CRITICAL FIX: Use local time instead of UTC for proper timezone handling
+            return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+          }
+          return timeStr;
+        };
+        
+        const start1 = normalizeTime(booking1.startTime);
+        const end1 = normalizeTime(booking1.endTime);
+        const start2 = normalizeTime(booking2.startTime);
+        const end2 = normalizeTime(booking2.endTime);
+        
+        // Check for overlap: (start1 < end2) AND (end1 > start2)
+        if (start1 < end2 && end1 > start2) {
+          overlapWarnings.push({
+            booking1: { id: booking1.bookingId, time: `${start1}-${end1}`, service: booking1.serviceName },
+            booking2: { id: booking2.bookingId, time: `${start2}-${end2}`, service: booking2.serviceName },
+            overlapType: start1 === start2 ? 'exact-match' : 'partial-overlap'
+          });
+        }
+      }
+    }
+    
+    if (overlapWarnings.length > 0) {
+      console.warn('[Time] EMPLOYEE-SPECIFIC: ⚠️ OVERLAPPING BOOKINGS DETECTED for employee:', {
+        employeeId,
+        overlaps: overlapWarnings,
+        message: 'This employee has conflicting time slots - system should prevent double booking!'
+      });
+    }
+
+    // STEP 3: Build appointmentsIndex ONLY for this employee
+    const appointmentsIndex = {};
+    appointmentsIndex[employeeId] = {};
+    appointmentsIndex[employeeId][selectedDateKey] = {};
+    
+    employeeSpecificBookings.forEach(serviceBooking => {
+      // Normalize stored times to local HH:mm to avoid format mismatches (ISO/AMPM/etc)
+      const startTimeRaw = serviceBooking.startTime;
+      const endTimeRaw = serviceBooking.endTime;
+      const startTime = toLocalHHMM(startTimeRaw) || startTimeRaw;
+      const endTime = toLocalHHMM(endTimeRaw) || endTimeRaw;
+      
+      if (!startTime) {
+        console.warn('[Time] EMPLOYEE-SPECIFIC: Skipping booking with missing time:', serviceBooking);
+        return;
+      }
+      
+      // Create unique key for this booking
+      const bookingKey = serviceBooking._id || `${startTime}_${employeeId}_${serviceBooking.bookingId}`;
+      
+      // Store the booking in appointmentsIndex
+      appointmentsIndex[employeeId][selectedDateKey][bookingKey] = {
+        _id: serviceBooking._id,
+        bookingId: serviceBooking.bookingId,
+        employeeId: employeeId,
+        startTime: startTime,
+        endTime: endTime,
+        duration: serviceBooking.duration,
+        status: serviceBooking.status,
+        serviceName: serviceBooking.serviceName
+      };
+    });
+
+    console.log('[Time] EMPLOYEE-SPECIFIC STEP 3 - appointmentsIndex built:', {
+      selectedDate: selectedDateKey,
+      employeeId: employeeId,
+      bookingsCount: Object.keys(appointmentsIndex[employeeId][selectedDateKey]).length,
+      bookings: Object.values(appointmentsIndex[employeeId][selectedDateKey]).map(b => ({
+        timeSlot: `${b.startTime}-${b.endTime}`,
+        duration: b.duration,
+        service: b.serviceName,
+        bookingId: b.bookingId
+      }))
+    });
+
+    return { appointmentsIndex };
+  };
+
+  // Enhanced booking conflict detection system (FALLBACK for "Any professional" mode)
+  const fetchDateData = async (date) => {
+    const formattedDate = apiUtils.formatDate(date);
+    console.log('[Time] fetchDateData start - Enhanced booking filtering (FALLBACK)', { formattedDate });
+
+    // Get ALL bookings from admin side (may contain multiple dates)
+    let allBookings = [];
+    try {
+      console.log('[Time] Fetching ALL bookings from admin side for enhanced filtering');
+      
+      if (bookingsAPI && typeof bookingsAPI.getTotalBookingsFromAdminSide === 'function') {
+        const resp = await bookingsAPI.getTotalBookingsFromAdminSide(formattedDate);
+        allBookings = resp?.data?.bookings ?? resp?.bookings ?? resp?.data ?? resp ?? [];
+        console.log('[Time] Raw bookings fetched from admin:', {
+          totalCount: allBookings.length,
+          requestedDate: formattedDate,
+          sample: allBookings.slice(0, 2).map(b => ({
+            id: b._id,
+            appointmentDate: b.appointmentDate,
+            servicesCount: b.services?.length || 0
+          }))
+        });
+      } else {
+        console.log('[Time] Admin booking API not available, generating slots without conflict checking');
+        return { appointmentsIndex: {} };
+      }
+    } catch (err) {
+      console.warn('[Time] Failed to fetch bookings from admin side:', err.message);
+      return { appointmentsIndex: {} };
+    }
+
+    // STEP 1: Filter bookings by selected date
+    const selectedDateKey = localDateKey(date);
+    const dateFilteredBookings = allBookings.filter(booking => {
+      if (!booking.appointmentDate) return false;
+      const bookingDateKey = localDateKey(new Date(booking.appointmentDate));
+      return bookingDateKey === selectedDateKey;
+    });
+
+    console.log('[Time] STEP 1 - Date filtering:', {
+      selectedDate: selectedDateKey,
+      totalBookings: allBookings.length,
+      dateFilteredBookings: dateFilteredBookings.length,
+      filteredSample: dateFilteredBookings.slice(0, 2).map(b => ({
+        id: b._id,
+        appointmentDate: b.appointmentDate,
+        servicesCount: b.services?.length || 0
+      }))
+    });
+
+    // STEP 2: Extract individual service bookings and filter by selected employee
+    const flow = bookingFlow.load();
+    const selectedProfessionalForService = flow.selectedProfessionals?.[selectedService?._id] || selectedProfessional;
+    const hasSpecificProfessional = selectedProfessionalForService && 
+      selectedProfessionalForService.id !== 'any' && 
+      selectedProfessionalForService._id !== 'any';
+
+    let relevantServiceBookings = [];
+    
+    // Extract all individual service bookings from date-filtered bookings
+    dateFilteredBookings.forEach(booking => {
+      if (booking.services && Array.isArray(booking.services)) {
+        booking.services.forEach(service => {
+          const serviceEmployeeId = service.employee?._id || service.employee?.id;
+          
+          // If specific professional selected, filter by employee
+          if (hasSpecificProfessional) {
+            const targetEmployeeId = selectedProfessionalForService._id || selectedProfessionalForService.id;
+            if (String(serviceEmployeeId) === String(targetEmployeeId)) {
+              relevantServiceBookings.push({
+                _id: service._id || service.id || `${booking._id}_${service._id}`,
+                bookingId: booking._id,
+                employeeId: serviceEmployeeId,
+                employee: service.employee,
+                startTime: service.startTime,
+                endTime: service.endTime,
+                duration: service.duration || 30,
+                status: service.status || booking.status,
+                appointmentDate: booking.appointmentDate,
+                serviceName: service.service?.name || 'Unknown Service'
+              });
+            }
+          } else {
+            // No specific professional - include all service bookings for "Any professional" mode
+            relevantServiceBookings.push({
+              _id: service._id || service.id || `${booking._id}_${service._id}`,
+              bookingId: booking._id,
+              employeeId: serviceEmployeeId,
+              employee: service.employee,
+              startTime: service.startTime,
+              endTime: service.endTime,
+              duration: service.duration || 30,
+              status: service.status || booking.status,
+              appointmentDate: booking.appointmentDate,
+              serviceName: service.service?.name || 'Unknown Service'
+            });
+          }
+        });
+      }
+    });
+
+    console.log('[Time] STEP 2 - Employee filtering and service extraction:', {
+      hasSpecificProfessional,
+      selectedProfessionalId: hasSpecificProfessional ? (selectedProfessionalForService._id || selectedProfessionalForService.id) : 'any',
+      selectedProfessionalName: hasSpecificProfessional ? 
+        (selectedProfessionalForService.user ? 
+          `${selectedProfessionalForService.user.firstName} ${selectedProfessionalForService.user.lastName}` : 
+          selectedProfessionalForService.name) : 'Any professional',
+      dateFilteredBookings: dateFilteredBookings.length,
+      totalServiceBookings: dateFilteredBookings.reduce((sum, b) => sum + (b.services?.length || 0), 0),
+      relevantServiceBookings: relevantServiceBookings.length,
+      blockedTimeSlots: relevantServiceBookings.map(b => ({
+        employeeId: b.employeeId,
+        timeSlot: `${b.startTime}-${b.endTime}`,
+        duration: b.duration,
+        serviceName: b.serviceName
+      }))
+    });
+
+    // ENHANCED LOGGING: Detailed booking conflicts for chosen employee on chosen date
+    if (hasSpecificProfessional && relevantServiceBookings.length > 0) {
+      const targetEmployeeId = selectedProfessionalForService._id || selectedProfessionalForService.id;
+      const targetEmployeeName = selectedProfessionalForService.user ? 
+        `${selectedProfessionalForService.user.firstName} ${selectedProfessionalForService.user.lastName}` : 
+        selectedProfessionalForService.name;
+      
+      console.log('🚫 BOOKING CONFLICTS DETECTED for chosen employee on chosen date:', {
+        chosenEmployee: {
+          id: targetEmployeeId,
+          name: targetEmployeeName
+        },
+        chosenDate: localDateKey(date),
+        conflictingBookings: relevantServiceBookings.map(booking => ({
+          bookingId: booking.bookingId,
+          timeSlot: `${booking.startTime} - ${booking.endTime}`,
+          duration: `${booking.duration} minutes`,
+          serviceName: booking.serviceName,
+          status: booking.status,
+          appointmentDate: booking.appointmentDate,
+          rawStartTime: booking.startTime,
+          rawEndTime: booking.endTime
+        })),
+        totalConflicts: relevantServiceBookings.length,
+        message: 'These time slots are BLOCKED for the chosen employee on the chosen date'
+      });
+
+      // Convert booking times to readable format for easier debugging
+      const blockedTimeSlots = relevantServiceBookings.map(booking => {
+        const normalizeTime = (timeStr) => {
+          if (!timeStr) return 'N/A';
+          if (timeStr.includes('T')) {
+            const date = new Date(timeStr);
+            
+            // TIMEZONE DEBUG: Log the conversion for general booking conflicts
+            console.log('[Time] 🌍 GENERAL BOOKING CONFLICT TIME CONVERSION:', {
+              originalISO: timeStr,
+              utcTime: `${String(date.getUTCHours()).padStart(2, '0')}:${String(date.getUTCMinutes()).padStart(2, '0')}`,
+              localTime: `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`,
+              timezoneOffset: date.getTimezoneOffset()
+            });
+            
+            return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+          }
+          return timeStr;
+        };
+        
+        return {
+          startTime: normalizeTime(booking.startTime),
+          endTime: normalizeTime(booking.endTime),
+          duration: booking.duration,
+          service: booking.serviceName,
+          bookingId: booking.bookingId
+        };
+      });
+
+      console.log('⏰ BLOCKED TIME SLOTS (normalized format) for chosen employee:', {
+        employeeName: targetEmployeeName,
+        date: localDateKey(date),
+        blockedSlots: blockedTimeSlots,
+        timeSlotsSummary: blockedTimeSlots.map(slot => `${slot.startTime}-${slot.endTime} (${slot.service})`).join(', ')
+      });
+    } else if (hasSpecificProfessional && relevantServiceBookings.length === 0) {
+      const targetEmployeeId = selectedProfessionalForService._id || selectedProfessionalForService.id;
+      const targetEmployeeName = selectedProfessionalForService.user ? 
+        `${selectedProfessionalForService.user.firstName} ${selectedProfessionalForService.user.lastName}` : 
+        selectedProfessionalForService.name;
+      
+      console.log('✅ NO BOOKING CONFLICTS for chosen employee on chosen date:', {
+        chosenEmployee: {
+          id: targetEmployeeId,
+          name: targetEmployeeName
+        },
+        chosenDate: localDateKey(date),
+        message: 'All time slots are available for this employee on this date',
+        totalBookingsForDate: dateFilteredBookings.length,
+        totalServiceBookingsForDate: dateFilteredBookings.reduce((sum, b) => sum + (b.services?.length || 0), 0)
+      });
+    }
+
+    // STEP 3: Build appointmentsIndex from relevant service bookings
+    const appointmentsIndex = {};
+    
+    relevantServiceBookings.forEach(serviceBooking => {
+      // Normalize stored times to local HH:mm to avoid format mismatches
+      const empId = serviceBooking.employeeId;
+      const startTimeRaw = serviceBooking.startTime;
+      const endTimeRaw = serviceBooking.endTime;
+      const startTime = toLocalHHMM(startTimeRaw) || startTimeRaw;
+      const endTime = toLocalHHMM(endTimeRaw) || endTimeRaw;
+      
+      if (!empId || !startTime) {
+        console.warn('[Time] Skipping service booking with missing employee or time:', serviceBooking);
+        return;
+      }
+      
+      // Ensure appointmentsIndex structure exists
+      appointmentsIndex[empId] = appointmentsIndex[empId] || {};
+      appointmentsIndex[empId][selectedDateKey] = appointmentsIndex[empId][selectedDateKey] || {};
+      
+      // Create unique key for this booking
+      const bookingKey = serviceBooking._id || `${startTime}_${empId}_${serviceBooking.bookingId}`;
+      
+      // Store the booking in appointmentsIndex
+      appointmentsIndex[empId][selectedDateKey][bookingKey] = {
+        _id: serviceBooking._id,
+        bookingId: serviceBooking.bookingId,
+        employeeId: empId,
+        startTime: startTime,
+        endTime: endTime,
+        duration: serviceBooking.duration,
+        status: serviceBooking.status,
+        serviceName: serviceBooking.serviceName
+      };
+    });
+
+    console.log('[Time] STEP 3 - appointmentsIndex built:', {
+      selectedDate: selectedDateKey,
+      employeesWithBookings: Object.keys(appointmentsIndex).length,
+      employeeBookingDetails: Object.keys(appointmentsIndex).map(empId => ({
+        employeeId: empId,
+        bookingsCount: Object.keys(appointmentsIndex[empId][selectedDateKey] || {}).length,
+        bookings: Object.values(appointmentsIndex[empId][selectedDateKey] || {}).map(b => ({
+          timeSlot: `${b.startTime}-${b.endTime}`,
+          duration: b.duration,
+          service: b.serviceName
+        }))
+      })),
+      conflictDetectionEnabled: relevantServiceBookings.length > 0
+    });
+
+    return { appointmentsIndex };
+  };
+
+  const handleDateClick = async (day) => {
+    console.log('[Time] handleDateClick start (local computation)', { day, selectedService, selectedProfessional });
+    const newDate = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), day);
+    setSelectedDate(newDate);
+    setCalendarOpen(false);
+    setLoadingTimeSlots(true);
+    setAvailableTimeSlots([]);
+
+    try {
+      const flow = bookingFlow.load();
+      const services = (flow.selectedServices && flow.selectedServices.length) ? flow.selectedServices : ([selectedService].filter(Boolean));
+
+      const { appointmentsIndex } = await fetchDateData(newDate);
+
+      // single-service -> compute using local slots for the assigned professional (or union if 'any')
+      if (!services || services.length <= 1) {
+        const svc = services && services[0] || selectedService;
+        if (!svc) throw new Error('No service selected');
+
+        const assigned = flow.selectedProfessionals?.[svc._id] || selectedProfessional;
+
+        if (!assigned || assigned.id === 'any' || assigned._id === 'any') {
+          // For "Any professional", fetch employees only when needed for union calculation
+          console.log('[Time] single-service ANY -> fetching employees for union slots');
+          let employees = [];
+          try {
+            const resp = await bookingsAPI.getAvailableProfessionals(svc._id, apiUtils.formatDate(newDate));
+            employees = resp?.data?.professionals ?? resp?.professionals ?? resp?.data ?? resp ?? [];
+            employees = employees.filter(emp => emp.isActive !== false);
+          } catch (err) {
+            console.warn('[Time] Failed to fetch professionals for Any selection:', err);
+            employees = [];
+          }
+          
+          const avail = getAvailableProfessionalsForService(svc._id, newDate, employees, appointmentsIndex, flow.selectedServices || [svc]);
+          const union = [];
+          (avail || []).forEach(r => (r.slots || []).forEach(s => union.push(s)));
+          const uniq = Array.from(new Set(union)).sort();
+          const slots = uniq.map((t,i) => ({ 
+            id:i, 
+            time: t, // Display in 24-hour HH:mm format
+            timeValue: t, // Keep original 24-hour format for calculations
+            startTime:t, 
+            endTime: addMinutesToTime(t, svc.duration||30), 
+            available:true 
+          }));
+          console.log('[Time] union slots count', slots.length);
+          setAvailableTimeSlots(slots);
+          return;
+        }
+
+        // assigned is a specific employee -> compute valid slots using appointmentsIndex for that employee
+        const duration = svc.duration || 30;
+        const empId = assigned._id || assigned.id;
+        console.log('[Time] computing local slots for employee', { employeeId: empId, date: localDateKey(newDate), duration });
+        const slotsArr = getValidTimeSlotsForProfessional(assigned, new Date(newDate), duration, appointmentsIndex);
+        console.log('[Time] local slots computed count', slotsArr.length, slotsArr.slice(0,6));
+        const mapped = slotsArr.map((t, i) => ({ 
+          id: i, 
+          time: t, // Display in 24-hour HH:mm format
+          timeValue: t, // Keep original 24-hour format for calculations
+          startTime: t, 
+          endTime: addMinutesToTime(t, duration), 
+          available: true 
+        }));
+        setAvailableTimeSlots(mapped);
+        return;
+      }
+
+      // multi-service -> compute sequential series (back-to-back)
+      const missing = services.filter(s => !flow.selectedProfessionals?.[s._id]);
+      if (missing.length) {
+        console.log('[Time] multi-service missing assigned professionals', missing.map(m=>m._id));
+        setAvailableTimeSlots([]);
+        setError('Please assign professionals to all services first');
+        return;
+      }
+
+      const professionalsMap = {};
+      services.forEach(svc => {
+        professionalsMap[svc._id] = flow.selectedProfessionals[svc._id];
+      });
+
+      console.log('[Time] computing sequential service start times locally (with bookings)', { services: services.map(s=>s._id), date: localDateKey(newDate) });
+      const sequences = await computeSequentialServiceStartTimesWithBookings(services, professionalsMap, newDate, appointmentsIndex);
+      console.log('[Time] sequences found', sequences?.length);
+      if (!sequences || sequences.length === 0) {
+        setAvailableTimeSlots([]);
+        setError('No sequential time slots available for assigned professionals on this date.');
+        return;
+      }
+      const slots = sequences.map((s, idx) => ({
+        id: idx,
+        time: s.startTime, // Display in 24-hour HH:mm format
+        timeValue: s.startTime, // Keep original 24-hour format for calculations
+        startTime: s.startTime,
+        endTime: s.sequence[s.sequence.length - 1].endTime,
+        available: true,
+        sequence: s.sequence
+      }));
+      setAvailableTimeSlots(slots);
+    } catch (err) {
+      console.error('[Time] handleDateClick local computation error', err);
+      setError(err.message || 'Failed to compute time slots locally');
+      setAvailableTimeSlots([]);
+    } finally {
+      setLoadingTimeSlots(false);
+    }
+  };
 
   useEffect(() => {
-    const loadTimeSlots = async () => {
-      const day = selectedDate.getDate();
-      const month = selectedDate.getMonth();
-      const year = selectedDate.getFullYear();
-      await handleDateClick(day, month, year);
+    const fetchTimeSlots = async () => {
+      console.log('[Time] useEffect fetchTimeSlots TRIGGERED - checking dependencies:', { 
+        selectedServiceId: selectedService?._id, 
+        selectedProfessionalId: selectedProfessional?._id || selectedProfessional?.id, 
+        selectedDateString: selectedDate.toDateString(),
+        timestamp: new Date().toISOString()
+      });
+
+      if (!selectedService || !selectedDate) {
+        console.log('[Time] fetchTimeSlots abort - missing service or date');
+        setAvailableTimeSlots([]);
+        return;
+      }
+
+      setLoadingTimeSlots(true);
+      setError(null);
+
+      try {
+        // FIXED WORKFLOW: Don't fetch ALL bookings upfront
+        // Instead, fetch employee schedule first, then specific booking conflicts
+        console.log('[Time] FIXED WORKFLOW - Starting with employee schedule first', {
+          selectedServiceId: selectedService?._id,
+          selectedDate: selectedDate.toDateString(),
+          timestamp: new Date().toISOString()
+        });
+
+        // Note: Employee schedules now fetched via getEmployeeSchedule API for specific professionals
+
+        const flow = bookingFlow.load();
+        const services = flow.selectedServices && flow.selectedServices.length ? flow.selectedServices : [selectedService];
+
+        // Multi-service flow - FIXED WORKFLOW 
+        if (services.length > 1) {
+          console.log('[Time] FIXED WORKFLOW - Multi-service flow starting');
+          const missing = services.filter(s => !flow.selectedProfessionals?.[s._id]);
+          if (missing.length) {
+            console.log('[Time] multi-service abort - missing assignments', missing.map(m=>m._id));
+            setAvailableTimeSlots([]);
+            return;
+          }
+
+          // Build professionals map and employeeIds
+          const professionalsMap = {};
+          const employeeIds = [];
+          services.forEach(svc => {
+            const emp = flow.selectedProfessionals[svc._id];
+            professionalsMap[svc._id] = emp;
+            const id = emp?._id || emp?.id;
+            if (id) employeeIds.push(id);
+          });
+
+          console.log('[Time] FIXED WORKFLOW - Multi-service: Fetching booking conflicts after professional assignment');
+          // Now fetch booking conflicts for these specific employees
+          const { appointmentsIndex } = await fetchDateData(selectedDate);
+
+          // Ensure appointmentsIndex keys match employee ids used by professionalsMap
+          employeeIds.forEach(id => {
+            if (!appointmentsIndex[id]) {
+              const alt = Object.keys(appointmentsIndex).find(k => String(k).endsWith(String(id)) || String(id).endsWith(String(k)));
+              if (alt) {
+                appointmentsIndex[id] = appointmentsIndex[alt];
+                console.log('[Time] normalized appointments key', { want: id, using: alt });
+              } else {
+                appointmentsIndex[id] = appointmentsIndex[id] || {};
+                appointmentsIndex[id][localDateKey(selectedDate)] = appointmentsIndex[id][localDateKey(selectedDate)] || {};
+              }
+            }
+          });
+
+          // compute sequences using bookings/shifts (helper uses appointmentsIndex)
+          const sequences = await computeSequentialServiceStartTimesWithBookings(services, professionalsMap, selectedDate, appointmentsIndex);
+          console.log('[Time] sequences computed with bookings count', sequences?.length);
+          if (!sequences || sequences.length === 0) {
+            setAvailableTimeSlots([]);
+            setError('No sequential time slots available for assigned professionals on this date. Try another date or change professionals.');
+            return;
+          }
+          const slots = sequences.map((s, idx) => ({
+            id: idx,
+            time: s.startTime, // Display in 24-hour HH:mm format
+            timeValue: s.startTime, // Keep original 24-hour format for calculations
+            startTime: s.startTime,
+            endTime: s.sequence[s.sequence.length - 1].endTime,
+            available: true,
+            sequence: s.sequence
+          }));
+          setAvailableTimeSlots(slots);
+          setLoadingTimeSlots(false);
+          return;
+        }
+
+        // Single-service flow - FIXED WORKFLOW
+        const svc = services[0];
+        const assigned = flow.selectedProfessionals?.[svc._id] || selectedProfessional;
+        
+        console.log('[Time] FIXED WORKFLOW - Single-service assignment check:', {
+          serviceId: svc._id,
+          assignedFromFlow: flow.selectedProfessionals?.[svc._id],
+          assignedFromState: selectedProfessional,
+          finalAssigned: assigned,
+          assignedId: assigned?.id || assigned?._id,
+          assignedName: assigned?.user ? `${assigned.user.firstName} ${assigned.user.lastName}` : assigned?.name,
+          isAny: !assigned || assigned.id === 'any' || assigned._id === 'any'
+        });
+        
+        if (!assigned || assigned.id === 'any' || assigned._id === 'any') {
+          console.log('[Time] single-service ANY -> using old workflow (fetch bookings first)');
+          // For "Any professional", use old workflow - fetch bookings first
+          const { appointmentsIndex } = await fetchDateData(selectedDate);
+          
+          let availableEmployees = [];
+          try {
+            const resp = await bookingsAPI.getAvailableProfessionals(svc._id, apiUtils.formatDate(selectedDate));
+            availableEmployees = resp?.data?.professionals ?? resp?.professionals ?? resp?.data ?? resp ?? [];
+            availableEmployees = availableEmployees.filter(emp => emp.isActive !== false);
+          } catch (err) {
+            console.warn('[Time] Failed to fetch professionals for Any selection:', err);
+            availableEmployees = [];
+          }
+          
+          const profsResult = getAvailableProfessionalsForService(svc._id, selectedDate, availableEmployees, appointmentsIndex, services);
+          const union = [];
+          (profsResult || []).forEach(r => (r.slots || []).forEach(s => union.push(s)));
+          const uniq = Array.from(new Set(union)).sort();
+          const slots = uniq.map((t,i) => ({ 
+            id:i, 
+            time: t, // Display in 24-hour HH:mm format
+            timeValue: t, // Keep original 24-hour format for calculations
+            startTime:t, 
+            endTime:addMinutesToTime(t, svc.duration||30), 
+            available:true 
+          }));
+          console.log('[Time] union slots count', slots.length);
+          setAvailableTimeSlots(slots);
+          setLoadingTimeSlots(false);
+          return;
+        }
+
+        // FIXED WORKFLOW: Specific professional selected - fetch their schedule FIRST
+        const duration = svc.duration || 30;
+        const empId = assigned._id || assigned.id;
+        const formattedDate = apiUtils.formatDate(selectedDate);
+        
+        console.log('[Time] FIXED WORKFLOW - Fetching employee schedule FIRST (before bookings):', {
+          assignedEmployee: assigned,
+          employeeId: empId,
+          employeeName: assigned?.user ? `${assigned.user.firstName} ${assigned.user.lastName}` : assigned?.name,
+          formattedDate,
+          selectedDate: selectedDate.toString()
+        });
+        
+        try {
+          console.log('[Time] STEP 1 - Fetching employee schedule template first', { employeeId: empId, date: formattedDate });
+          const response = await bookingsAPI.getEmployeeSchedule(empId, formattedDate);
+          const scheduleData = response?.data || response;
+          
+          console.log('[Time] STEP 1 - Employee schedule template fetched:', {
+            scheduledShifts: scheduleData.scheduledShifts,
+            rawAvailableSlots: scheduleData.availableTimeSlots?.length || 0
+          });
+          
+          // STEP 2: Now fetch booking conflicts for THIS specific employee only  
+          console.log('[Time] STEP 2 - Fetching booking conflicts for specific employee using new method');
+          const { appointmentsIndex } = await fetchEmployeeBookingConflicts(selectedDate, empId);
+          
+          const rawScheduleSlots = scheduleData.availableTimeSlots || [];
+          console.log('[Time] STEP 2 - Raw schedule slots from API:', { count: rawScheduleSlots.length, sample: rawScheduleSlots.slice(0,6) });
+          
+          // STEP 3: Apply booking conflict filtering AND shift boundary validation
+          const dateKey = localDateKey(selectedDate);
+          const employeeBookings = appointmentsIndex[empId]?.[dateKey] || {};
+          const bookingCount = Object.keys(employeeBookings).length;
+          
+          // 🔍 CRITICAL DEBUG: Verify time format consistency
+          console.log('🔍 TIME FORMAT DEBUGGING - Before filtering slots:', {
+            employeeId: empId,
+            selectedDate: dateKey,
+            totalBookings: bookingCount,
+            rawScheduleSlotsPreview: rawScheduleSlots.slice(0, 3).map(s => ({
+              time: s.time || s.startTime,
+              endTime: s.endTime,
+              rawSlot: s
+            })),
+            bookingsPreview: Object.values(employeeBookings).map(b => ({
+              startTime: b.startTime,
+              endTime: b.endTime,
+              serviceName: b.serviceName,
+              bookingId: b.bookingId
+            })),
+            timeFormatAnalysis: {
+              slotTimeExample: rawScheduleSlots[0]?.time || rawScheduleSlots[0]?.startTime,
+              bookingTimeExample: Object.values(employeeBookings)[0]?.startTime,
+              slotTimeFormat: (rawScheduleSlots[0]?.time || rawScheduleSlots[0]?.startTime)?.includes('T') ? 'ISO DateTime' : 'HH:mm',
+              bookingTimeFormat: Object.values(employeeBookings)[0]?.startTime?.includes('T') ? 'ISO DateTime' : 'HH:mm'
+            }
+          });
+
+          // 🚨 CRITICAL TIMEZONE TEST: Let's manually convert the first booking time
+          if (Object.values(employeeBookings).length > 0) {
+            const firstBooking = Object.values(employeeBookings)[0];
+            const testDate = new Date(firstBooking.startTime);
+            console.log('🚨 CRITICAL TIMEZONE TEST for first booking:', {
+              originalBookingTime: firstBooking.startTime,
+              serviceName: firstBooking.serviceName,
+              parsedDate: testDate.toString(),
+              utcHours: testDate.getUTCHours(),
+              utcMinutes: testDate.getUTCMinutes(),
+              localHours: testDate.getHours(),
+              localMinutes: testDate.getMinutes(),
+              utcTime: `${String(testDate.getUTCHours()).padStart(2, '0')}:${String(testDate.getUTCMinutes()).padStart(2, '0')}`,
+              localTime: `${String(testDate.getHours()).padStart(2, '0')}:${String(testDate.getMinutes()).padStart(2, '0')}`,
+              timezoneOffset: testDate.getTimezoneOffset(),
+              expectedRealTime: '09:00 AM (from user perspective)',
+              actualConvertedTime: 'See localTime above - should be 09:00'
+            });
+          }
+          
+          // ENHANCED: Extract shift end time from schedule data for boundary validation
+          const employeeShifts = scheduleData.scheduledShifts || [];
+          let shiftEndTime = null;
+          
+          console.log('[Time] DEBUG - Schedule data structure:', {
+            scheduledShifts: scheduleData.scheduledShifts,
+            shiftsCount: employeeShifts.length,
+            firstShift: employeeShifts[0],
+            allShiftData: employeeShifts,
+            scheduleDataKeys: Object.keys(scheduleData),
+            fullScheduleData: scheduleData
+          });
+          
+          if (employeeShifts.length > 0 && employeeShifts[0] && employeeShifts[0].endTime) {
+            // Method 1: Extract from scheduled shifts (preferred)
+            shiftEndTime = employeeShifts[0].endTime;
+            console.log('[Time] ✅ METHOD 1 - Shift end time from scheduledShifts:', {
+              shiftEndTime,
+              shiftData: employeeShifts[0],
+              method: 'scheduledShifts[0].endTime'
+            });
+          } else if (scheduleData.workingHours && scheduleData.workingHours.endTime) {
+            // Method 2: Extract from workingHours (alternative)
+            shiftEndTime = scheduleData.workingHours.endTime;
+            console.log('[Time] ✅ METHOD 2 - Shift end time from workingHours:', {
+              shiftEndTime,
+              workingHours: scheduleData.workingHours,
+              method: 'workingHours.endTime'
+            });
+          } else if (scheduleData.shift && scheduleData.shift.endTime) {
+            // Method 3: Extract from shift object (alternative)
+            shiftEndTime = scheduleData.shift.endTime;
+            console.log('[Time] ✅ METHOD 3 - Shift end time from shift object:', {
+              shiftEndTime,
+              shift: scheduleData.shift,
+              method: 'shift.endTime'
+            });
+          } else if (rawScheduleSlots.length > 0) {
+            // Method 4: FALLBACK - Estimate from last available slot
+            const lastSlot = rawScheduleSlots[rawScheduleSlots.length - 1];
+            if (lastSlot) {
+              const lastSlotTime = lastSlot.time || lastSlot.startTime;
+              // Add service duration to get when the last service would end
+              shiftEndTime = addMinutesToTime(lastSlotTime, duration);
+              console.log('[Time] ⚠️ METHOD 4 FALLBACK - Estimated shift end from last slot:', {
+                lastSlotTime,
+                serviceDuration: duration,
+                estimatedShiftEnd: shiftEndTime,
+                method: 'lastSlot + serviceDuration',
+                warningMessage: 'Using fallback estimation - may not be accurate!'
+              });
+            }
+          } else {
+            // Method 5: EMERGENCY FALLBACK - Use a default end time
+            shiftEndTime = "18:00"; // Default 6 PM
+            console.error('[Time] 🚨 METHOD 5 EMERGENCY - Using default shift end time:', {
+              defaultShiftEnd: shiftEndTime,
+              method: 'hardcoded default',
+              errorMessage: 'Could not determine shift end time from any source!',
+              availableData: {
+                hasScheduledShifts: !!scheduleData.scheduledShifts,
+                hasWorkingHours: !!scheduleData.workingHours,
+                hasShift: !!scheduleData.shift,
+                hasSlots: rawScheduleSlots.length > 0,
+                scheduleDataStructure: Object.keys(scheduleData)
+              }
+            });
+          }
+          
+          console.log('[Time] STEP 3 - Applying conflict filtering AND shift boundary validation:', {
+            employeeId: empId,
+            dateKey,
+            rawScheduleSlots: rawScheduleSlots.length,
+            employeeBookings: bookingCount,
+            shiftEndTime: shiftEndTime,
+            serviceDuration: duration,
+            bookingTimes: Object.values(employeeBookings).map(b => `${b.startTime}-${b.endTime}`)
+          });
+          
+          // Apply booking conflict detection AND shift boundary validation
+          const filteredSlots = rawScheduleSlots.filter(slot => {
+            const slotStartTime = slot.time || slot.startTime;
+            const slotEndTime = slot.endTime || addMinutesToTime(slotStartTime, duration);
+            
+            // Convert times to comparable format (24-hour HH:mm)
+            const normalizeTime = (timeStr) => {
+              if (!timeStr) return null;
+
+              // Normalize common formats to local HH:mm (24-hour)
+              //  - ISO with T: e.g. 2025-09-08T09:00:00.000Z or 2025-09-08T09:00:00
+              //  - 12-hour with AM/PM: e.g. "12:00 AM", "2:30 pm"
+              //  - already HH:mm: e.g. "09:00"
+
+              // Log input for debugging
+              console.log('[Time] 🕐 NORMALIZING TIME - input:', timeStr);
+
+              // ISO datetime (contains 'T')
+              if (timeStr.includes('T')) {
+                // If ends with Z (UTC), extract time part directly to avoid timezone conversion
+                if (timeStr.endsWith('Z')) {
+                  const timePart = timeStr.split('T')[1].substring(0, 5);
+                  console.log('[Time] 🌍 NORMALIZE - extracted UTC time part:', timePart);
+                  return timePart;
+                }
+                // Other ISO - convert to local time
+                const date = new Date(timeStr);
+                if (!isNaN(date)) {
+                  const localTime = `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+                  console.log('[Time] 🌍 NORMALIZE - converted ISO to local HH:mm:', localTime);
+                  return localTime;
+                }
+              }
+
+              // AM/PM pattern (e.g. "12:00 AM", "2:30 pm")
+              const ampm = timeStr.match(/^(\d{1,2}):(\d{2})\s*([AaPp][Mm])$/);
+              if (ampm) {
+                let hh = parseInt(ampm[1], 10);
+                const mm = ampm[2];
+                const period = ampm[3].toUpperCase();
+                if (period === 'AM' && hh === 12) hh = 0;
+                if (period === 'PM' && hh !== 12) hh += 12;
+                const out = `${String(hh).padStart(2, '0')}:${mm}`;
+                console.log('[Time] 🔁 NORMALIZE - AM/PM -> HH:mm:', out);
+                return out;
+              }
+
+              // If it's already HH:mm (or close), try to coerce to HH:mm
+              if (timeStr.includes(':')) {
+                const parts = timeStr.trim().split(':');
+                const hh = String(Number(parts[0] || 0)).padStart(2, '0');
+                const mm = String((parts[1] || '00').slice(0,2)).padStart(2, '0');
+                const out = `${hh}:${mm}`;
+                console.log('[Time] ✅ NORMALIZE - coerced to HH:mm:', out);
+                return out;
+              }
+
+              // Fallback - return original
+              console.warn('[Time] ⚠️ NORMALIZE - unknown format, returning original:', timeStr);
+              return timeStr;
+            };
+            
+            const normalizedSlotStart = normalizeTime(slotStartTime);
+            const normalizedSlotEnd = normalizeTime(slotEndTime);
+            
+            // CRITICAL FIX: Calculate the actual service end time based on service duration
+            const actualServiceEndTime = addMinutesToTime(normalizedSlotStart, duration);
+            // Convert to minutes for robust numeric comparison
+            const slotStartMin = timeToMinutes(normalizedSlotStart);
+            const serviceEndMin = timeToMinutes(actualServiceEndTime);
+            
+            // ENHANCED VALIDATION 1: Check if service duration fits within shift end time
+            let exceedsShiftBoundary = false;
+            if (shiftEndTime) {
+              const normalizedShiftEnd = normalizeTime(shiftEndTime);
+              const shiftEndMin = timeToMinutes(normalizedShiftEnd);
+
+              console.log('[Time] DEBUGGING - Shift boundary check for slot (minutes):', {
+                slotStartMin,
+                serviceEndMin,
+                shiftEndMin,
+                serviceDuration: `${duration} minutes`,
+                wouldExceed: serviceEndMin > shiftEndMin
+              });
+
+              // CRITICAL FIX: Compare ACTUAL service end time with shift end time (numeric)
+              // Service should COMPLETE before or exactly at shift end
+              exceedsShiftBoundary = serviceEndMin > shiftEndMin;
+              
+              if (exceedsShiftBoundary) {
+                console.log('[Time] ❌ SHIFT BOUNDARY VIOLATION - Removing slot:', {
+                  slotTime: `${normalizedSlotStart}-${actualServiceEndTime}`,
+                  shiftEndTime: normalizedShiftEnd,
+                  serviceDuration: `${duration} minutes`,
+                  violation: `Service ends at ${actualServiceEndTime}, but shift ends at ${normalizedShiftEnd}`,
+                  reason: 'Service would extend beyond employee shift end time',
+                  example: 'If shift ends at 08:00 and service needs 1 hour, 07:45 slot would end at 08:45 → REJECTED'
+                });
+              } else {
+                console.log('[Time] ✅ SHIFT BOUNDARY OK - Slot fits within shift:', {
+                  slotTime: `${normalizedSlotStart}-${actualServiceEndTime}`,
+                  shiftEndTime: normalizedShiftEnd,
+                  margin: `Service ends at ${actualServiceEndTime}, shift ends at ${normalizedShiftEnd}`
+                });
+              }
+            } else {
+              console.warn('[Time] ⚠️ SHIFT BOUNDARY WARNING - No shift end time available for validation:', {
+                slotTime: `${normalizedSlotStart}-${actualServiceEndTime}`,
+                serviceDuration: `${duration} minutes`,
+                warningMessage: 'Cannot validate shift boundaries - allowing slot (POTENTIALLY UNSAFE!)',
+                recommendation: 'Check employee schedule configuration in admin panel',
+                possibleCauses: [
+                  'scheduledShifts array is empty',
+                  'scheduledShifts[0].endTime is missing',
+                  'workingHours.endTime is missing',
+                  'shift.endTime is missing',
+                  'No slots available for fallback estimation'
+                ]
+              });
+              // If no shift end time, allow the slot but log warning
+              exceedsShiftBoundary = false;
+            }
+            
+            // ENHANCED VALIDATION 2: Check for conflicts with existing bookings
+            const hasBookingConflict = Object.values(employeeBookings).some(booking => {
+              const normalizedBookingStart = normalizeTime(booking.startTime);
+              const normalizedBookingEnd = normalizeTime(booking.endTime);
+              const bookingStartMin = timeToMinutes(normalizedBookingStart);
+              const bookingEndMin = timeToMinutes(normalizedBookingEnd);
+              
+              // ENHANCED DEBUG: Show detailed time comparison for EVERY slot check
+              console.log('[Time] 🔍 DETAILED BOOKING CONFLICT CHECK - Slot vs Booking:', {
+                slotBeingChecked: {
+                  startTime: normalizedSlotStart,
+                  endTime: normalizedSlotEnd,
+                  actualServiceEndTime: actualServiceEndTime,
+                  duration: `${duration} minutes`,
+                  rawSlotData: slot
+                },
+                existingBooking: {
+                  startTime: normalizedBookingStart,
+                  endTime: normalizedBookingEnd,
+                  serviceName: booking.serviceName,
+                  bookingId: booking.bookingId,
+                  duration: `${booking.duration} minutes`,
+                  rawBookingStartTime: booking.startTime,
+                  rawBookingEndTime: booking.endTime
+                },
+                overlapCalculation: {
+                  slotStartMin,
+                  bookingStartMin,
+                  bookingEndMin,
+                  serviceEndMin,
+                  overlapFormula: 'slot_start_min < booking_end_min AND service_end_min > booking_start_min'
+                }
+              });
+              
+              // Enhanced overlap detection (numeric): Two time ranges overlap if:
+              // (slot_start_min < booking_end_min) AND (service_end_min > booking_start_min)
+              const overlap = (slotStartMin < bookingEndMin && serviceEndMin > bookingStartMin);
+              
+              if (overlap) {
+                console.log('🚫 BOOKING CONFLICT DETECTED - This slot WILL BE REMOVED:', {
+                  conflictedSlot: `${normalizedSlotStart}-${actualServiceEndTime}`,
+                  conflictsWith: `${normalizedBookingStart}-${normalizedBookingEnd}`,
+                  bookingService: booking.serviceName,
+                  bookingId: booking.bookingId,
+                  overlapType: normalizedSlotStart === normalizedBookingStart ? 'exact-match' : 'partial-overlap',
+                  reason: 'Time slot overlaps with existing booking',
+                  conflictDetails: {
+                    slotStart: normalizedSlotStart,
+                    serviceWouldEnd: actualServiceEndTime,
+                    bookingStart: normalizedBookingStart,
+                    bookingEnd: normalizedBookingEnd,
+                    overlapStart: minutesToTime(Math.max(slotStartMin, bookingStartMin)),
+                    overlapEnd: minutesToTime(Math.min(serviceEndMin, bookingEndMin))
+                  }
+                });
+              } else {
+                console.log('✅ NO CONFLICT - Slot is clear of this booking (minutes):', {
+                  slotTime: `${normalizedSlotStart}-${actualServiceEndTime}`,
+                  bookingTime: `${normalizedBookingStart}-${normalizedBookingEnd}`,
+                  bookingService: booking.serviceName,
+                  reason: slotStartMin >= bookingEndMin ? 'Slot starts after booking ends' : 'Service ends before booking starts'
+                });
+              }
+              return overlap;
+            });
+            
+            // FINAL VALIDATION: Log the decision for this slot
+            const isValidSlot = !exceedsShiftBoundary && !hasBookingConflict;
+            
+            if (isValidSlot) {
+              console.log('✅ SLOT APPROVED for chosen employee on chosen date:', {
+                employeeId: empId,
+                date: dateKey,
+                approvedSlot: `${normalizedSlotStart}-${actualServiceEndTime}`,
+                duration: `${duration} minutes`,
+                shiftBoundaryCheck: shiftEndTime ? '✅ Valid' : '⚠️ Unchecked',
+                bookingConflictCheck: '✅ No conflicts',
+                message: 'This slot will be shown as available to the user',
+                slotDisplayTime: normalizedSlotStart
+              });
+            } else {
+              console.log('❌ SLOT REJECTED for chosen employee on chosen date:', {
+                employeeId: empId,
+                date: dateKey,
+                rejectedSlot: `${normalizedSlotStart}-${actualServiceEndTime}`,
+                duration: `${duration} minutes`,
+                rejectionReasons: {
+                  shiftBoundaryViolation: exceedsShiftBoundary,
+                  bookingConflict: hasBookingConflict
+                },
+                message: 'This slot will NOT be shown to the user',
+                slotDisplayTime: normalizedSlotStart
+              });
+            }
+            
+            // Slot is valid only if it doesn't exceed shift boundary AND has no booking conflicts
+            return isValidSlot;
+          });
+          
+          console.log('[Time] STEP 3 - ENHANCED WORKFLOW RESULT after conflict + shift boundary validation:', {
+            beforeFilter: rawScheduleSlots.length,
+            afterFilter: filteredSlots.length,
+            removedConflicts: rawScheduleSlots.length - filteredSlots.length,
+            shiftEndTime: shiftEndTime,
+            serviceDuration: duration,
+            validationTypes: ['booking conflicts', 'shift boundary violations'],
+            finalSlots: filteredSlots.slice(0,6).map(s => s.time || s.startTime)
+          });
+
+          // 📋 SUMMARY: Show exactly what was filtered out
+          console.log('📋 BOOKING CONFLICT FILTERING SUMMARY:', {
+            employeeId: empId,
+            selectedDate: dateKey,
+            originalSlots: rawScheduleSlots.length,
+            finalSlots: filteredSlots.length,
+            removedSlots: rawScheduleSlots.length - filteredSlots.length,
+            bookingConflicts: Object.keys(employeeBookings).length,
+            conflictingTimes: Object.values(employeeBookings).map(b => {
+              const startTime = b.startTime.includes('T') ? b.startTime.split('T')[1].substring(0, 5) : b.startTime;
+              const endTime = b.endTime.includes('T') ? b.endTime.split('T')[1].substring(0, 5) : b.endTime;
+              return `${startTime}-${endTime} (${b.serviceName})`;
+            }),
+            message: filteredSlots.length === 0 ? 
+              'NO SLOTS AVAILABLE - All blocked by conflicts or shift boundaries' :
+              `${filteredSlots.length} slots available after filtering conflicts`
+          });
+
+          // 📋 SUMMARY: Final booking conflict report for chosen employee on chosen date
+          console.log('📋 FINAL BOOKING CONFLICT SUMMARY for chosen employee on chosen date:', {
+            employeeInfo: {
+              id: empId,
+              name: assigned?.user ? `${assigned.user.firstName} ${assigned.user.lastName}` : assigned?.name
+            },
+            dateInfo: {
+              selectedDate: dateKey,
+              formattedDate: formattedDate
+            },
+            conflictAnalysis: {
+              totalScheduleSlots: rawScheduleSlots.length,
+              blockedByBookings: Object.keys(employeeBookings).length,
+              blockedTimeSlots: Object.values(employeeBookings).map(b => {
+                const normalizeTime = (timeStr) => {
+                  if (!timeStr) return 'N/A';
+                  if (timeStr.includes('T')) {
+                    const date = new Date(timeStr);
+                    return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+                  }
+                  return timeStr;
+                };
+                return `${normalizeTime(b.startTime)}-${normalizeTime(b.endTime)} (${b.serviceName})`;
+              }),
+              finalAvailableSlots: filteredSlots.length,
+              slotsRemoved: rawScheduleSlots.length - filteredSlots.length
+            },
+            availableSlotsPreview: filteredSlots.slice(0, 10).map(s => {
+              const slotTime = s.time || s.startTime;
+              const normalizeTime = (timeStr) => {
+                if (!timeStr) return 'N/A';
+                if (timeStr.includes('T')) {
+                  const date = new Date(timeStr);
+                  return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+                }
+                return timeStr;
+              };
+              return normalizeTime(slotTime);
+            }),
+            message: filteredSlots.length > 0 ? 
+              `${filteredSlots.length} time slots are available for booking` : 
+              'NO time slots available - all blocked by conflicts or shift boundaries'
+          });
+          
+          const mapped = filteredSlots.map((slot, i) => ({ 
+            id: i, 
+            time: slot.time || slot.startTime, // Display in 24-hour HH:mm format
+            timeValue: slot.time || slot.startTime, // Keep original 24-hour format for calculations
+            startTime: slot.startTime || slot.time, 
+            endTime: slot.endTime || addMinutesToTime(slot.time || slot.startTime, duration), 
+            available: true 
+          }));
+          setAvailableTimeSlots(mapped);
+          console.log('[Time] SUCCESS: Using FIXED WORKFLOW filtered time slots for', assigned?.user?.firstName, assigned?.user?.lastName);
+        } catch (apiError) {
+          console.error('[Time] DETAILED ERROR: getEmployeeSchedule API failed', {
+            error: apiError,
+            errorMessage: apiError.message,
+            employeeId: empId,
+            date: formattedDate,
+            employeeName: assigned?.user ? `${assigned.user.firstName} ${assigned.user.lastName}` : assigned?.name
+          });
+          console.warn('[Time] getEmployeeSchedule API failed, falling back to local computation', apiError.message);
+          
+          // Fallback to local computation with enhanced workSchedule
+          const slotsArr = getValidTimeSlotsForProfessional(assigned, selectedDate, duration, appointmentsIndex);
+          console.log('[Time] fallback local slots computed count', slotsArr.length, slotsArr.slice(0,6));
+          const mapped = slotsArr.map((t, i) => ({ 
+            id: i, 
+            time: t, // Display in 24-hour HH:mm format
+            timeValue: t, // Keep original 24-hour format for calculations
+            startTime: t, 
+            endTime: addMinutesToTime(t, duration), 
+            available: true 
+          }));
+          setAvailableTimeSlots(mapped);
+        }
+      } catch (err) {
+        console.error('[Time] fetchTimeSlots error', err);
+        setAvailableTimeSlots([]);
+        setError(err.message || 'Failed to compute time slots');
+      } finally {
+        setLoadingTimeSlots(false);
+      }
     };
-    loadTimeSlots();
-  }, [selectedService?._id, selectedProfessional?._id, selectedDate.toDateString()]);
+    fetchTimeSlots();
+  }, [selectedService?._id, selectedProfessional?._id, selectedDate.toDateString()]); // Use stable identifiers
+
+  const handleTimeSelect = async (timeSlot) => {
+    setSelectedTime(timeSlot);
+
+    // Create proper date-time strings for startTime and endTime
+    const selectedDateStr = `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}`; // YYYY-MM-DD in local timezone
+    // Use timeValue (24-hour format) for calculations, fallback to original fields for backward compatibility
+    const startTimeStr = timeSlot.timeValue || timeSlot.startTime || timeSlot.time; // e.g., "09:00" or "2025-09-03T09:00:00.000Z"
+    const endTimeStr = timeSlot.endTime;
+
+    // If the time is in ISO format, extract just the time part
+    const formatTime = (timeStr) => {
+      if (!timeStr) return null;
+      if (timeStr.includes('T')) {
+        // ISO format: extract time part
+        return timeStr.split('T')[1].substring(0, 5); // "HH:mm"
+      }
+      return timeStr; // Already in "HH:mm" format
+    };
+
+    const formattedStartTime = formatTime(startTimeStr);
+    const formattedEndTime = formatTime(endTimeStr);
+
+    // TIMEZONE FIX: Create datetime objects WITHOUT automatic timezone conversion
+    // This preserves the selected time as-is in the target timezone
+    const [startHour, startMinute] = formattedStartTime.split(':').map(n => parseInt(n));
+    const [endHour, endMinute] = formattedEndTime.split(':').map(n => parseInt(n));
+    
+    // Create date objects for the selected date at the exact time selected
+    const startDateTimeLocal = new Date(selectedDate);
+    startDateTimeLocal.setHours(startHour, startMinute, 0, 0);
+    
+    const endDateTimeLocal = new Date(selectedDate);
+    endDateTimeLocal.setHours(endHour, endMinute, 0, 0);
+    
+    console.log('[Time] TIMEZONE FIX v2 - Time slot selection:', {
+      selectedDateString: selectedDateStr,
+      formattedStartTime,
+      formattedEndTime,
+      startHour, startMinute,
+      endHour, endMinute,
+      selectedDateBase: selectedDate.toString(),
+      startDateTimeLocal: startDateTimeLocal.toString(),
+      endDateTimeLocal: endDateTimeLocal.toString(),
+      startDateTimeUTC: startDateTimeLocal.toISOString(),
+      endDateTimeUTC: endDateTimeLocal.toISOString(),
+      timezoneOffset: startDateTimeLocal.getTimezoneOffset()
+    });
+
+    // Get the current professional assignment (should already be set from professional page)
+    const flow = bookingFlow.load();
+    const currentProfessional = flow.selectedProfessionals?.[selectedService?._id] || selectedProfessional;
+
+    console.log('[Time] Using already assigned professional:', {
+      serviceId: selectedService?._id,
+      professionalId: currentProfessional?._id,
+      professionalName: currentProfessional?.user ? 
+        `${currentProfessional.user.firstName} ${currentProfessional.user.lastName}` : 
+        currentProfessional?.name
+    });
+
+    const timeData = {
+      date: selectedDateStr, // Store as YYYY-MM-DD string to avoid timezone shifts
+      time: formattedStartTime, // Store simple time format like "09:00"
+      startTime: startDateTimeLocal.toISOString(), // Proper UTC conversion from local time
+      endTime: endDateTimeLocal.toISOString(), // Proper UTC conversion from local time
+      professional: currentProfessional, // Use the already assigned professional
+      service: selectedService
+    };
+
+    console.log('[Time] handleTimeSelect - storing timeData (FIXED):', timeData);
+
+    // Show loading only in the selected time slot
+    setProcessingTimeSlotId(timeSlot.id);
+
+    setTimeout(() => {
+      bookingFlow.selectedTimeSlot = timeData;
+      bookingFlow.save();
+      setProcessingTimeSlotId(null);
+    }, 800);
+  };
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -1004,14 +1517,93 @@ if (appointmentsIndex[empId]) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // NOW we can safely have the conditional return after ALL hooks are declared
+  // Derive display name considering multiple per-service assignments
+  const professionalName = (() => {
+    const flow = bookingFlow.load();
+    const services = flow.selectedServices || [];
+    const profMap = flow.selectedProfessionals || {};
+    const mode = flow.selectionMode || selectionMode;
+    if (mode === 'anyAll') return 'Any professional';
+    const unique = new Set();
+    services.forEach(s => {
+      const p = profMap[s._id];
+      if (p) unique.add(p.id || p._id || (p === 'any' ? 'any' : ''));
+    });
+    if (mode === 'perService' && unique.size > 1) return 'Multiple professionals';
+    if (selectedProfessional?.id === 'any') return 'Any professional';
+    if (selectedProfessional?.user?.firstName && selectedProfessional?.user?.lastName) {
+      return `${selectedProfessional.user.firstName} ${selectedProfessional.user.lastName}`;
+    }
+    return selectedProfessional?.name || (unique.size > 0 ? 'Professional selected' : 'Select Professional');
+  })();
+
+  const from = location.state?.from;
+
+  const handleBackToProfessionals = () => {
+    localStorage.removeItem('showPerServiceAssignment');
+    if (window.history && window.history.length > 1) navigate(-1);
+    else navigate("/professionals");
+  };
+
+  // derive assigned professionals list (unique) from bookingFlow
+  const assignedProfessionals = (() => {
+    const flow = bookingFlow.load();
+    const services = flow.selectedServices || [];
+    const profMap = flow.selectedProfessionals || {};
+    const arr = services.map(s => profMap?.[s._id]).filter(Boolean);
+    const uniq = [];
+    const seen = new Set();
+    arr.forEach(p => {
+      const id = p?.id || p?._id || (p?.user?.email) || p?.name || JSON.stringify(p);
+      if (!seen.has(id)) {
+        seen.add(id);
+        uniq.push(p);
+      }
+    });
+    return uniq;
+  })();
+
+  const multipleAssigned = assignedProfessionals.length > 1;
+  const primaryProfessional = assignedProfessionals[0] || selectedProfessional;
+
   if (loading) {
     return <FullPageLoader />;
   }
 
+  // If a specific professional is selected and they are explicitly marked
+  // not working on the selected date, show a clear message so the user can
+  // choose another date or professional.
+  const selectedFlow = bookingFlow.load();
+  const assignedForService = selectedFlow.selectedProfessionals?.[selectedService?._id];
+  const chosenProfessional = assignedForService || selectedProfessional;
+  const professionalMarkedNotWorking = chosenProfessional && isEmployeeMarkedNotWorking(chosenProfessional, selectedDate);
+
+  if (professionalMarkedNotWorking) {
+    return (
+      <div className="time-selector">
+        {/* <button className="back-to-professionals" onClick={handleBackToProfessionals} aria-label="Back to Professionals">
+          ← Back to professionals
+        </button> */}
+        <h1 className="header-title">Select time</h1>
+        <div className="info-container error-state">
+          <p>The selected professional is not working on this date. Please choose another date or select a different professional.</p>
+          <div style={{ marginTop: 12 }}>
+            <button className="btn btn-primary" onClick={() => navigate('/professionals')}>Choose another professional</button>
+            <button className="btn btn-secondary" style={{ marginLeft: 8 }} onClick={() => setSelectedDate(new Date())}>Pick another date</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="time-selector">
-      <h1 className="header-title">Select time</h1>
+      <div className="svc-header" role="banner">
+        <button className="svc-exit-btn" aria-label="Back to professionals" onClick={handleBackToProfessionals}>
+          <FaArrowLeft />
+        </button>
+        <h1 className="header-title">Select time</h1>
+      </div>
 
       <div className="profile-section">
         <div className="profile-info" onClick={() => setShowPopup(!showPopup)}>
@@ -1025,7 +1617,7 @@ if (appointmentsIndex[empId]) {
                 <>
                   <div className="avatar multiple">
                     <div className="avatar-stack" aria-hidden="true">
-                      {assigned.slice(0, 3).map((p, i) => {
+                      {assigned.slice(0,3).map((p,i) => {
                         const ch = p?.user?.firstName?.charAt(0) || p?.name?.charAt(0) || '?';
                         return <div key={i} className="avatar-small" title={p?.user?.firstName ? `${p.user.firstName} ${p.user.lastName}` : p?.name}>{ch}</div>;
                       })}
@@ -1049,33 +1641,20 @@ if (appointmentsIndex[empId]) {
         </div>
 
         <div className="calendar-picker-wrapper">
-          <button
-            className="calendar-btn"
-            onClick={() => setCalendarOpen(!calendarOpen)}
-            aria-label="Open calendar"
-          >
+          <button className="calendar-btn" onClick={() => setCalendarOpen(!calendarOpen)}>
             <Calendar className="calendar-icon" />
           </button>
 
           {calendarOpen && (
             <div className="calendar-popup">
               <div className="calendar-header">
-                <button
-                  onClick={() => changeMonth(-1)}
-                  className="cal-arrow"
-                  disabled={isCurrentMonth(selectedDate)}
-                  aria-label="Previous month"
-                >
-                  <ChevronLeft className={isCurrentMonth(selectedDate) ? 'cal-arrow-disabled' : ''} />
+                <button onClick={() => changeMonth(-1)} className="cal-arrow">
+                  <ChevronLeft />
                 </button>
-                <span className="calendar-month-title">
+                <span>
                   {selectedDate.toLocaleString("default", { month: "long" })} {selectedDate.getFullYear()}
                 </span>
-                <button
-                  onClick={() => changeMonth(1)}
-                  className="cal-arrow"
-                  aria-label="Next month"
-                >
+                <button onClick={() => changeMonth(1)} className="cal-arrow">
                   <ChevronRight />
                 </button>
               </div>
@@ -1083,7 +1662,24 @@ if (appointmentsIndex[empId]) {
                 {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((d, i) => (
                   <div key={i} className="cal-day-name">{d}</div>
                 ))}
-                {generateWeekDays()}
+                {Array(getFirstDayOfMonth(selectedDate.getFullYear(), selectedDate.getMonth()))
+                  .fill("")
+                  .map((_, i) => <div key={`empty-${i}`} className="cal-empty"></div>)}
+                {Array(getDaysInMonth(selectedDate.getFullYear(), selectedDate.getMonth()))
+                  .fill(0)
+                  .map((_, i) => {
+                    const day = i + 1;
+                    const isSelected = day === selectedDate.getDate();
+                    return (
+                      <div
+                        key={day}
+                        className={`cal-day ${isSelected ? "cal-day-selected" : ""}`}
+                        onClick={() => handleDateClick(day)}
+                      >
+                        {day}
+                      </div>
+                    );
+                  })}
               </div>
             </div>
           )}
@@ -1103,6 +1699,7 @@ if (appointmentsIndex[empId]) {
 
             <div className="popup-scroll-view">
               <Professionals onProfessionalSelected={() => {
+                // Auto-close popup after 2 seconds when professional is selected
                 setTimeout(() => {
                   setShowPopup(false);
                 }, 2000);
@@ -1118,25 +1715,22 @@ if (appointmentsIndex[empId]) {
         </h2>
         <div className="nav-buttons">
           <button
-            className={`nav-btn ${isPastDate(selectedDate) ? 'nav-btn-disabled' : ''}`}
+            className="nav-btn"
             onClick={() => {
-              const selectedDate = new Date(selectedDate);
-              selectedDate.setDate(selectedDate.getDate() - 7);
-              if (!isPastDate(selectedDate)) {
-                setSelectedDate(selectedDate);
-              }
+              const newDate = new Date(selectedDate);
+              newDate.setDate(newDate.getDate() - 7);
+              setSelectedDate(newDate);
             }}
             aria-label="Previous week"
-            disabled={isPastDate(selectedDate)}
           >
             <ChevronLeft className="nav-icon" />
           </button>
           <button
             className="nav-btn nav-btn-active"
             onClick={() => {
-              const selectedDate = new Date(selectedDate);
-              selectedDate.setDate(selectedDate.getDate() + 7);
-              setSelectedDate(selectedDate);
+              const newDate = new Date(selectedDate);
+              newDate.setDate(newDate.getDate() + 7);
+              setSelectedDate(newDate);
             }}
             aria-label="Next week"
           >
@@ -1146,42 +1740,16 @@ if (appointmentsIndex[empId]) {
       </div>
 
       <div className="date-grid">
-        {weekDates.length > 0 ? (
-          weekDates.map((date, index) => {
-            const isToday = date.toDateString() === new Date().toDateString();
-            const isSelected = selectedDate.toDateString() === date.toDateString();
-
-            return (
-              <button
-                key={index}
-                onClick={() => handleDateClick(date.getDate(), date.getMonth(), date.getFullYear())}
-                className={`date-btn 
-                  ${isSelected ? "date-btn-selected" : ""} 
-                  ${isToday ? "date-btn-today" : ""}`}
-                aria-current={isToday ? "date" : undefined}
-              >
-                <span className="date-number">
-                  {date.getDate()}
-                  {isToday && <span className="today-indicator">•</span>}
-                </span>
-                <span className="date-weekday">
-                  {isToday ? 'Today' : date.toLocaleString("default", { weekday: 'short' })}
-                </span>
-              </button>
-            );
-          })
-        ) : (
+        {weekDates.map((date, index) => (
           <button
-            className="date-btn date-btn-selected"
-            aria-current="date"
+            key={index}
+            onClick={() => handleDateClick(date.getDate())}
+            className={`date-btn ${selectedDate.toDateString() === date.toDateString() ? "date-btn-selected" : ""}`}
           >
-            <span className="date-number">
-              {new Date().getDate()}
-              <span className="today-indicator">•</span>
-            </span>
-            <span className="date-weekday">Today</span>
+            <span className="date-number">{date.getDate()}</span>
+            <span className="date-weekday">{date.toLocaleString("default", { weekday: 'short' })}</span>
           </button>
-        )}
+        ))}
       </div>
 
       <div className="time-grid-section">
@@ -1190,29 +1758,21 @@ if (appointmentsIndex[empId]) {
             <LoadingDots />
             <p>Loading available time slots...</p>
           </div>
-        ) : error ? (
-          <div className="info-container error-state">
-            <p>{error}</p>
-          </div>
-        ) : filteredTimeSlots.length === 0 && !initialLoad ? (
+        ) : availableTimeSlots.length === 0 ? (
           <div className="info-container no-slots">
-            <p>No available time slots found for this date. Please try another date.</p>
+            <p>Please select another date or professional or another service </p>
           </div>
         ) : (
           <div className="time-slots-grid">
-            {filteredTimeSlots.map((timeSlot, index) => (
+            {availableTimeSlots.map((timeSlot, index) => (
               <button
                 key={index}
                 onClick={() => handleTimeSelect(timeSlot)}
-                className={`time-slot ${selectedTime?.id === timeSlot.id ? "time-slot-selected" : ""}`}
-                disabled={processingTimeSlotId !== null}
+                className={`time-slot ${selectedTime?.id === timeSlot.id ? "time-slot-selected" : ""} ${!timeSlot.available ? "time-slot-disabled" : ""}`}
+                disabled={!timeSlot.available || processingTimeSlotId !== null}
               >
                 {selectedTime?.id === timeSlot.id && processingTimeSlotId === timeSlot.id ? (
-                  <div className="loading-dots white">
-                    <div className="dot"></div>
-                    <div className="dot"></div>
-                    <div className="dot"></div>
-                  </div>
+                  <div className="loading-dots white"><div className="dot"></div><div className="dot"></div><div className="dot"></div></div>
                 ) : (
                   <span className="time-text">{timeSlot.time}</span>
                 )}
@@ -1222,21 +1782,28 @@ if (appointmentsIndex[empId]) {
         )}
       </div>
 
-      <div className="unified-bottom-bar">
-        <div className="unified-bottom-bar__summary">
-          <span className="unified-bottom-bar__primary-info">AED {bookingFlow.getTotalPrice()}</span>
-          <span className="unified-bottom-bar__secondary-info">
-            {bookingFlow.selectedServices?.length || 0} service{bookingFlow.selectedServices?.length !== 1 ? 's' : ''} • {bookingFlow.getTotalDuration()} min
-          </span>
+      {/* Fixed bottom bar for mobile: summary + continue */}
+      <div className="bottom-bar time-bottom-bar">
+        <div className="bar-summary">
+          <span>{bookingFlow.getTotalDuration()} min</span>
+          <span>{(bookingFlow.selectedServices?.length || 0)} services</span>
+          <span>AED {bookingFlow.getTotalPrice()}</span>
         </div>
-
-        <button
-          className="unified-bottom-bar__button"
-          disabled={!selectedTime}
-          onClick={handleContinue}
-        >
-          Continue
-        </button>
+        <div className="bar-actions">
+          <button
+            className="continue-btn"
+            disabled={!selectedTime}
+            onClick={() => {
+              if (!selectedTime) {
+                Swal.fire({ title: 'Time Slot Required', text: 'Please select an available time slot.', icon: 'warning', confirmButtonText: 'OK' });
+                return;
+              }
+              navigate('/payment');
+            }}
+          >
+            Continue
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -86,26 +86,11 @@ export function floorToInterval(min, interval) { return Math.floor(min / interva
 export function isTimeSlotConflicting(startTime, duration, existingBookings = []) {
   const s = timeToMinutesFn(startTime);
   const e = s + duration;
-  const conflict = existingBookings.some(b => {
+  return existingBookings.some(b => {
     const bs = timeToMinutesFn(b.startTime);
     const be = timeToMinutesFn(b.endTime);
-    const overlaps = s < be && e > bs;
-    if (overlaps) {
-      const slotEndTime = addMinutesToTime(startTime, duration);
-      console.warn('[Conflict DETECTED]', {
-        proposedSlot: `${startTime} - ${slotEndTime} (${duration}min)`,
-        conflictingBooking: `${b.startTime} - ${b.endTime}`,
-        overlapDetails: {
-          proposedStartMinutes: s,
-          proposedEndMinutes: e,
-          bookingStartMinutes: bs,
-          bookingEndMinutes: be
-        }
-      });
-    }
-    return overlaps;
+    return s < be && e > bs;
   });
-  return conflict;
 }
 
 /**
@@ -193,8 +178,19 @@ export function getEmployeeShiftHours(employee, date) {
 
   // Handle single day entry (not array)
   if (dayEntry && !Array.isArray(dayEntry)) {
-    // Check if not working
-    if ('isWorking' in dayEntry && dayEntry.isWorking === false) return [];
+    // NOTE: Do not bail out early when dayEntry.isWorking===false here.
+    // Previously we returned an empty array which hid the fact the
+    // employee was explicitly marked as not working. We prefer to
+    // continue parsing available shift fields so higher-level UI can
+    // surface a clearer message (eg: "professional not working on
+    // this date"). Keep a debug trace for visibility.
+    if ('isWorking' in dayEntry && dayEntry.isWorking === false) {
+      console.debug('[bookingUtils] dayEntry marked not working - continuing to parse shifts to allow explicit UI messaging', dayEntry);
+      // intentionally continue (do not return []). Shift parsing will
+      // still run if shift fields exist. If no shifts are found the
+      // caller will receive an empty list and can use the explicit
+      // marker via helper `isEmployeeMarkedNotWorking` added below.
+    }
     
     // Handle shiftsData array (admin format) - PRIORITY 1
     if (Array.isArray(dayEntry.shiftsData) && dayEntry.shiftsData.length) {
@@ -575,4 +571,23 @@ export async function computeSequentialServiceStartTimes(servicesOrdered = [], p
   }
 
   return sequences;
+}
+
+// Helper: Report whether an employee/day entry is explicitly marked not working
+export function isEmployeeMarkedNotWorking(employee, date) {
+  if (!employee) return false;
+  const schedule = employee.workSchedule || employee.schedule || employee.shifts || employee.work_hours || employee.availability;
+  if (!schedule) return false;
+  const dateStr = localDateKey(date);
+  if (typeof schedule === 'object' && !Array.isArray(schedule)) {
+    const dayEntry = schedule[dateStr] || schedule[dateStr.replace(/\s+/g,'')] || null;
+    if (dayEntry && typeof dayEntry === 'object' && ('isWorking' in dayEntry) && dayEntry.isWorking === false) return true;
+    const dayNames = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
+    const dayIndex = (date instanceof Date ? date : new Date(date)).getDay();
+    const dayKey = dayNames[dayIndex];
+    const shortKey = dayKey.slice(0,3);
+    const entry = schedule[dayKey] ?? schedule[shortKey] ?? schedule[String(dayIndex)];
+    if (entry && typeof entry === 'object' && ('isWorking' in entry) && entry.isWorking === false) return true;
+  }
+  return false;
 }

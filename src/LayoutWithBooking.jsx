@@ -251,7 +251,7 @@ const LayoutWithBooking = ({ children }) => {
 
   const confirmExit = () => {
     try {
-      bookingFlow.clear();
+      // bookingFlow.clear();
       // Notify other parts of app
       window.dispatchEvent(new CustomEvent('bookingFlowChange'));
     } catch (err) {

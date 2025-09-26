@@ -101,7 +101,7 @@ function Services() {
   // Initialize component
   useEffect(() => {
     // Clear any existing booking flow when component mounts
-    bookingFlow.clear();
+    // bookingFlow.clear();
     
     // Reset local state
     setSelectedService(null);
