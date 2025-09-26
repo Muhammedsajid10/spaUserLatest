@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { ChevronLeft, ChevronRight, Calendar } from "lucide-react";
 import { FaArrowLeft } from 'react-icons/fa';
 import { useNavigate, useLocation } from "react-router-dom";
@@ -17,7 +17,7 @@ import {
   timeToMinutes,
   minutesToTime,
   getAvailableProfessionalsForService,
-  // formatTimeToAMPM removed - display 24-hour format instead
+  formatTimeToAMPM
 } from "../bookingUtils";
 import { isEmployeeMarkedNotWorking } from '../bookingUtils';
 import Swal from 'sweetalert2';
@@ -60,22 +60,110 @@ const Time = (props) => {
   const location = useLocation();
 
   const [processingTimeSlotId, setProcessingTimeSlotId] = useState(null);
+  // Week navigation offset: 0 = current week window starting today, +1 = next week, etc.
+  const [weekOffset, setWeekOffset] = useState(0);
 
   // FIX: Use a ref to track if initial load is complete
   const isInitialLoad = useRef(true);
 
-  // compute 7-day array (Sunday -> Saturday) for the current selectedDate
+  // Utility function to check if a time slot is in the future
+  const isTimeSlotInFuture = useCallback((timeSlot, selectedDate) => {
+    const now = new Date();
+    const currentDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const slotDate = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate());
+    
+    // If slot is on a future date, it's always valid
+    if (slotDate.getTime() > currentDate.getTime()) {
+      return true;
+    }
+    
+    // If slot is on a past date, it's never valid
+    if (slotDate.getTime() < currentDate.getTime()) {
+      return false;
+    }
+    
+    // For today, check the actual time
+    const timeStr = timeSlot.time || timeSlot.timeValue || timeSlot.startTime;
+    if (!timeStr) return false;
+    
+    // Parse time string (supports both HH:MM and H:MM formats)
+    const [hourStr, minuteStr] = timeStr.split(':');
+    const hour = parseInt(hourStr, 10);
+    const minute = parseInt(minuteStr, 10);
+    
+    if (isNaN(hour) || isNaN(minute)) return false;
+    
+    const currentHour = now.getHours();
+    const currentMinute = now.getMinutes();
+    
+    // Add a buffer of 15 minutes for booking preparation
+    const slotTotalMinutes = hour * 60 + minute;
+    const currentTotalMinutes = currentHour * 60 + currentMinute + 15; // 15-minute buffer
+    
+    return slotTotalMinutes > currentTotalMinutes;
+  }, []);
+
+  // Apply future-time filtering as the FINAL step after all business logic
+  const finalFilteredTimeSlots = useMemo(() => {
+    if (!Array.isArray(availableTimeSlots) || availableTimeSlots.length === 0) {
+      return [];
+    }
+
+    // Apply future filtering only as the final step
+    const futureSlots = availableTimeSlots.filter(slot => isTimeSlotInFuture(slot, selectedDate));
+    
+    console.log('[Time] FINAL FUTURE FILTER (after all business logic):', {
+      afterBusinessLogic: availableTimeSlots.length,
+      afterFutureFilter: futureSlots.length,
+      selectedDate: selectedDate.toDateString(),
+      isToday: new Date().toDateString() === selectedDate.toDateString(),
+      pastSlotsRemoved: availableTimeSlots.length - futureSlots.length,
+      sampleBeforeFilter: availableTimeSlots.slice(0, 3).map(s => s.time || s.timeValue || s.startTime),
+      sampleAfterFilter: futureSlots.slice(0, 3).map(s => s.time || s.timeValue || s.startTime),
+      businessLogicComplete: true
+    });
+
+    return futureSlots;
+  }, [availableTimeSlots, isTimeSlotInFuture, selectedDate]);
+
+  // Display helper: always show AM/PM times consistently for UI without changing internal logic
+  const toDisplayTime = useCallback((slot) => {
+    if (!slot) return '';
+    const raw = slot.time || slot.timeValue || slot.startTime;
+    if (!raw) return '';
+    try {
+      let hhmm = raw;
+      if (raw.includes('T') || /\b(am|pm)\b/i.test(raw)) {
+        // Normalize various inputs (ISO, AM/PM) to HH:mm first
+        hhmm = toLocalHHMM(raw);
+      }
+      return formatTimeToAMPM(hhmm);
+    } catch (e) {
+      console.warn('[Time] toDisplayTime failed for', raw, e);
+      return raw;
+    }
+  }, []);
+
+  // compute 7-day array where the leftmost is always "today" + 7*weekOffset
+  const todayStart = useMemo(() => {
+    const t = new Date();
+    t.setHours(0,0,0,0);
+    return t;
+  }, []);
+
+  const weekStart = useMemo(() => {
+    const s = new Date(todayStart);
+    s.setDate(s.getDate() + weekOffset * 7);
+    return s;
+  }, [todayStart, weekOffset]);
+
   const weekDates = useMemo(() => {
-    const start = new Date(selectedDate);
-    const day = start.getDay(); // 0 = Sunday
-    start.setDate(start.getDate() - day);
-    start.setHours(0,0,0,0);
     return Array.from({ length: 7 }, (_, i) => {
-      const d = new Date(start);
-      d.setDate(start.getDate() + i);
+      const d = new Date(weekStart);
+      d.setDate(weekStart.getDate() + i);
       return d;
     });
-  }, [selectedDate.toDateString()]); // Use stable date string
+  }, [weekStart.toDateString()]);
 
   // Load booking flow data and initial page load
   useEffect(() => {
@@ -188,6 +276,7 @@ const Time = (props) => {
       if (bookingsAPI && typeof bookingsAPI.getTotalBookingsFromAdminSide === 'function') {
         const resp = await bookingsAPI.getTotalBookingsFromAdminSide(formattedDate);
         allBookings = resp?.data?.bookings ?? resp?.bookings ?? resp?.data ?? resp ?? [];
+        console.log("allBookings: ", allBookings);
         console.log('[Time] EMPLOYEE-SPECIFIC: Raw bookings fetched:', {
           totalCount: allBookings.length,
           requestedDate: formattedDate,
@@ -441,6 +530,7 @@ const Time = (props) => {
       if (bookingsAPI && typeof bookingsAPI.getTotalBookingsFromAdminSide === 'function') {
         const resp = await bookingsAPI.getTotalBookingsFromAdminSide(formattedDate);
         allBookings = resp?.data?.bookings ?? resp?.bookings ?? resp?.data ?? resp ?? [];
+        console.log("allBookings: ", allBookings);
         console.log('[Time] Raw bookings fetched from admin:', {
           totalCount: allBookings.length,
           requestedDate: formattedDate,
@@ -681,9 +771,15 @@ const Time = (props) => {
     return { appointmentsIndex };
   };
 
-  const handleDateClick = async (day) => {
-    console.log('[Time] handleDateClick start (local computation)', { day, selectedService, selectedProfessional });
-    const newDate = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), day);
+  const handleDateClick = async (dayOrDate) => {
+    console.log('[Time] handleDateClick start (local computation)', { dayOrDate, selectedService, selectedProfessional });
+    let newDate;
+    if (dayOrDate instanceof Date) {
+      newDate = new Date(dayOrDate.getFullYear(), dayOrDate.getMonth(), dayOrDate.getDate());
+    } else {
+      // Backward compatibility for calendar day clicks passing a number
+      newDate = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), dayOrDate);
+    }
     setSelectedDate(newDate);
     setCalendarOpen(false);
     setLoadingTimeSlots(true);
@@ -719,14 +815,17 @@ const Time = (props) => {
           const union = [];
           (avail || []).forEach(r => (r.slots || []).forEach(s => union.push(s)));
           const uniq = Array.from(new Set(union)).sort();
-          const slots = uniq.map((t,i) => ({ 
-            id:i, 
-            time: t, // Display in 24-hour HH:mm format
-            timeValue: t, // Keep original 24-hour format for calculations
-            startTime:t, 
-            endTime: addMinutesToTime(t, svc.duration||30), 
-            available:true 
-          }));
+          const slots = uniq.map((t,i) => {
+            const normalized = toLocalHHMM(t) || t;
+            return ({
+              id: i,
+              time: normalized,
+              timeValue: normalized,
+              startTime: normalized,
+              endTime: addMinutesToTime(normalized, svc.duration || 30),
+              available: true
+            });
+          });
           console.log('[Time] union slots count', slots.length);
           setAvailableTimeSlots(slots);
           return;
@@ -738,14 +837,17 @@ const Time = (props) => {
         console.log('[Time] computing local slots for employee', { employeeId: empId, date: localDateKey(newDate), duration });
         const slotsArr = getValidTimeSlotsForProfessional(assigned, new Date(newDate), duration, appointmentsIndex);
         console.log('[Time] local slots computed count', slotsArr.length, slotsArr.slice(0,6));
-        const mapped = slotsArr.map((t, i) => ({ 
-          id: i, 
-          time: t, // Display in 24-hour HH:mm format
-          timeValue: t, // Keep original 24-hour format for calculations
-          startTime: t, 
-          endTime: addMinutesToTime(t, duration), 
-          available: true 
-        }));
+        const mapped = slotsArr.map((t, i) => {
+          const normalized = toLocalHHMM(t) || t;
+          return ({
+            id: i,
+            time: normalized,
+            timeValue: normalized,
+            startTime: normalized,
+            endTime: addMinutesToTime(normalized, duration),
+            available: true
+          });
+        });
         setAvailableTimeSlots(mapped);
         return;
       }
@@ -774,10 +876,10 @@ const Time = (props) => {
       }
       const slots = sequences.map((s, idx) => ({
         id: idx,
-        time: s.startTime, // Display in 24-hour HH:mm format
-        timeValue: s.startTime, // Keep original 24-hour format for calculations
-        startTime: s.startTime,
-        endTime: s.sequence[s.sequence.length - 1].endTime,
+        time: toLocalHHMM(s.startTime) || s.startTime,
+        timeValue: toLocalHHMM(s.startTime) || s.startTime,
+        startTime: toLocalHHMM(s.startTime) || s.startTime,
+        endTime: toLocalHHMM(s.sequence[s.sequence.length - 1].endTime) || s.sequence[s.sequence.length - 1].endTime,
         available: true,
         sequence: s.sequence
       }));
@@ -918,11 +1020,11 @@ const Time = (props) => {
           const uniq = Array.from(new Set(union)).sort();
           const slots = uniq.map((t,i) => ({ 
             id:i, 
-            time: t, // Display in 24-hour HH:mm format
-            timeValue: t, // Keep original 24-hour format for calculations
-            startTime:t, 
-            endTime:addMinutesToTime(t, svc.duration||30), 
-            available:true 
+            time: toLocalHHMM(t) || t,
+            timeValue: toLocalHHMM(t) || t,
+            startTime: toLocalHHMM(t) || t,
+            endTime: addMinutesToTime(toLocalHHMM(t) || t, svc.duration || 30),
+            available: true
           }));
           console.log('[Time] union slots count', slots.length);
           setAvailableTimeSlots(slots);
@@ -1090,68 +1192,18 @@ const Time = (props) => {
           
           // Apply booking conflict detection AND shift boundary validation
           const filteredSlots = rawScheduleSlots.filter(slot => {
-            const slotStartTime = slot.time || slot.startTime;
-            const slotEndTime = slot.endTime || addMinutesToTime(slotStartTime, duration);
-            
-            // Convert times to comparable format (24-hour HH:mm)
+            const slotStartTimeRaw = slot.time || slot.startTime;
+            const slotEndTimeRaw = slot.endTime || addMinutesToTime(slotStartTimeRaw, duration);
+
+            // Normalize ALL inputs to LOCAL 24-hour HH:mm using shared helper
             const normalizeTime = (timeStr) => {
               if (!timeStr) return null;
-
-              // Normalize common formats to local HH:mm (24-hour)
-              //  - ISO with T: e.g. 2025-09-08T09:00:00.000Z or 2025-09-08T09:00:00
-              //  - 12-hour with AM/PM: e.g. "12:00 AM", "2:30 pm"
-              //  - already HH:mm: e.g. "09:00"
-
-              // Log input for debugging
-              console.log('[Time] 🕐 NORMALIZING TIME - input:', timeStr);
-
-              // ISO datetime (contains 'T')
-              if (timeStr.includes('T')) {
-                // If ends with Z (UTC), extract time part directly to avoid timezone conversion
-                if (timeStr.endsWith('Z')) {
-                  const timePart = timeStr.split('T')[1].substring(0, 5);
-                  console.log('[Time] 🌍 NORMALIZE - extracted UTC time part:', timePart);
-                  return timePart;
-                }
-                // Other ISO - convert to local time
-                const date = new Date(timeStr);
-                if (!isNaN(date)) {
-                  const localTime = `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
-                  console.log('[Time] 🌍 NORMALIZE - converted ISO to local HH:mm:', localTime);
-                  return localTime;
-                }
-              }
-
-              // AM/PM pattern (e.g. "12:00 AM", "2:30 pm")
-              const ampm = timeStr.match(/^(\d{1,2}):(\d{2})\s*([AaPp][Mm])$/);
-              if (ampm) {
-                let hh = parseInt(ampm[1], 10);
-                const mm = ampm[2];
-                const period = ampm[3].toUpperCase();
-                if (period === 'AM' && hh === 12) hh = 0;
-                if (period === 'PM' && hh !== 12) hh += 12;
-                const out = `${String(hh).padStart(2, '0')}:${mm}`;
-                console.log('[Time] 🔁 NORMALIZE - AM/PM -> HH:mm:', out);
-                return out;
-              }
-
-              // If it's already HH:mm (or close), try to coerce to HH:mm
-              if (timeStr.includes(':')) {
-                const parts = timeStr.trim().split(':');
-                const hh = String(Number(parts[0] || 0)).padStart(2, '0');
-                const mm = String((parts[1] || '00').slice(0,2)).padStart(2, '0');
-                const out = `${hh}:${mm}`;
-                console.log('[Time] ✅ NORMALIZE - coerced to HH:mm:', out);
-                return out;
-              }
-
-              // Fallback - return original
-              console.warn('[Time] ⚠️ NORMALIZE - unknown format, returning original:', timeStr);
-              return timeStr;
+              const hhmm = toLocalHHMM(timeStr);
+              return hhmm || timeStr; // fall back to original if unparsable
             };
-            
-            const normalizedSlotStart = normalizeTime(slotStartTime);
-            const normalizedSlotEnd = normalizeTime(slotEndTime);
+
+            const normalizedSlotStart = normalizeTime(slotStartTimeRaw);
+            const normalizedSlotEnd = normalizeTime(slotEndTimeRaw);
             
             // CRITICAL FIX: Calculate the actual service end time based on service duration
             const actualServiceEndTime = addMinutesToTime(normalizedSlotStart, duration);
@@ -1382,14 +1434,21 @@ const Time = (props) => {
               'NO time slots available - all blocked by conflicts or shift boundaries'
           });
           
-          const mapped = filteredSlots.map((slot, i) => ({ 
-            id: i, 
-            time: slot.time || slot.startTime, // Display in 24-hour HH:mm format
-            timeValue: slot.time || slot.startTime, // Keep original 24-hour format for calculations
-            startTime: slot.startTime || slot.time, 
-            endTime: slot.endTime || addMinutesToTime(slot.time || slot.startTime, duration), 
-            available: true 
-          }));
+          // Map to consistent HH:mm objects for downstream logic and UI
+          const mapped = filteredSlots.map((slot, i) => {
+            const startRaw = slot.time || slot.startTime;
+            const endRaw = slot.endTime || addMinutesToTime(startRaw, duration);
+            const startHHMM = toLocalHHMM(startRaw) || startRaw;
+            const endHHMM = toLocalHHMM(endRaw) || endRaw;
+            return {
+              id: i,
+              time: startHHMM,        // display base
+              timeValue: startHHMM,   // calculations base
+              startTime: startHHMM,
+              endTime: endHHMM,
+              available: true
+            };
+          });
           setAvailableTimeSlots(mapped);
           console.log('[Time] SUCCESS: Using FIXED WORKFLOW filtered time slots for', assigned?.user?.firstName, assigned?.user?.lastName);
         } catch (apiError) {
@@ -1406,12 +1465,12 @@ const Time = (props) => {
           const slotsArr = getValidTimeSlotsForProfessional(assigned, selectedDate, duration, appointmentsIndex);
           console.log('[Time] fallback local slots computed count', slotsArr.length, slotsArr.slice(0,6));
           const mapped = slotsArr.map((t, i) => ({ 
-            id: i, 
-            time: t, // Display in 24-hour HH:mm format
-            timeValue: t, // Keep original 24-hour format for calculations
-            startTime: t, 
-            endTime: addMinutesToTime(t, duration), 
-            available: true 
+            id: i,
+            time: toLocalHHMM(t) || t,
+            timeValue: toLocalHHMM(t) || t,
+            startTime: toLocalHHMM(t) || t,
+            endTime: addMinutesToTime(toLocalHHMM(t) || t, duration),
+            available: true
           }));
           setAvailableTimeSlots(mapped);
         }
@@ -1670,14 +1729,19 @@ const Time = (props) => {
                   .map((_, i) => {
                     const day = i + 1;
                     const isSelected = day === selectedDate.getDate();
+                    const thisDate = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), day);
+                    thisDate.setHours(0,0,0,0);
+                    const isPast = thisDate.getTime() < todayStart.getTime();
                     return (
-                      <div
+                      <button
+                        type="button"
                         key={day}
-                        className={`cal-day ${isSelected ? "cal-day-selected" : ""}`}
-                        onClick={() => handleDateClick(day)}
+                        className={`cal-day ${isSelected ? "cal-day-selected" : ""} ${isPast ? "cal-day-disabled" : ""}`}
+                        onClick={() => !isPast && handleDateClick(day)}
+                        disabled={isPast}
                       >
                         {day}
-                      </div>
+                      </button>
                     );
                   })}
               </div>
@@ -1711,16 +1775,20 @@ const Time = (props) => {
 
       <div className="month-navigation">
         <h2 className="month-title">
-          {selectedDate.toLocaleString("default", { month: "long" })} {selectedDate.getFullYear()}
+          {weekStart.toLocaleString("default", { month: "long" })} {weekStart.getFullYear()}
         </h2>
         <div className="nav-buttons">
           <button
             className="nav-btn"
             onClick={() => {
-              const newDate = new Date(selectedDate);
-              newDate.setDate(newDate.getDate() - 7);
-              setSelectedDate(newDate);
+              if (weekOffset === 0) return; // Already at current week
+              const nextOffset = weekOffset - 1;
+              setWeekOffset(nextOffset);
+              const newStart = new Date(todayStart);
+              newStart.setDate(newStart.getDate() + nextOffset * 7);
+              setSelectedDate(newStart);
             }}
+            disabled={weekOffset === 0}
             aria-label="Previous week"
           >
             <ChevronLeft className="nav-icon" />
@@ -1728,9 +1796,11 @@ const Time = (props) => {
           <button
             className="nav-btn nav-btn-active"
             onClick={() => {
-              const newDate = new Date(selectedDate);
-              newDate.setDate(newDate.getDate() + 7);
-              setSelectedDate(newDate);
+              const nextOffset = weekOffset + 1;
+              setWeekOffset(nextOffset);
+              const newStart = new Date(todayStart);
+              newStart.setDate(newStart.getDate() + nextOffset * 7);
+              setSelectedDate(newStart);
             }}
             aria-label="Next week"
           >
@@ -1740,16 +1810,23 @@ const Time = (props) => {
       </div>
 
       <div className="date-grid">
-        {weekDates.map((date, index) => (
-          <button
-            key={index}
-            onClick={() => handleDateClick(date.getDate())}
-            className={`date-btn ${selectedDate.toDateString() === date.toDateString() ? "date-btn-selected" : ""}`}
-          >
-            <span className="date-number">{date.getDate()}</span>
-            <span className="date-weekday">{date.toLocaleString("default", { weekday: 'short' })}</span>
-          </button>
-        ))}
+        {weekDates.map((date, index) => {
+          const isPast = date.getTime() < todayStart.getTime();
+          const isSelected = selectedDate.toDateString() === date.toDateString();
+          const isToday = date.getTime() === todayStart.getTime();
+          return (
+            <button
+              key={index}
+              onClick={() => !isPast && handleDateClick(date)}
+              className={`date-btn ${isSelected ? "date-btn-selected" : ""} ${isToday ? "date-btn-today" : ""}`}
+              disabled={isPast}
+            >
+              {isToday && <span className="today-indicator">Today</span>}
+              <span className="date-number">{date.getDate()}</span>
+              <span className="date-weekday">{date.toLocaleString("default", { weekday: 'short' })}</span>
+            </button>
+          );
+        })}
       </div>
 
       <div className="time-grid-section">
@@ -1758,13 +1835,13 @@ const Time = (props) => {
             <LoadingDots />
             <p>Loading available time slots...</p>
           </div>
-        ) : availableTimeSlots.length === 0 ? (
+        ) : finalFilteredTimeSlots.length === 0 ? (
           <div className="info-container no-slots">
             <p>Please select another date or professional or another service </p>
           </div>
         ) : (
           <div className="time-slots-grid">
-            {availableTimeSlots.map((timeSlot, index) => (
+            {finalFilteredTimeSlots.map((timeSlot, index) => (
               <button
                 key={index}
                 onClick={() => handleTimeSelect(timeSlot)}
@@ -1774,7 +1851,7 @@ const Time = (props) => {
                 {selectedTime?.id === timeSlot.id && processingTimeSlotId === timeSlot.id ? (
                   <div className="loading-dots white"><div className="dot"></div><div className="dot"></div><div className="dot"></div></div>
                 ) : (
-                  <span className="time-text">{timeSlot.time}</span>
+                  <span className="time-text">{toDisplayTime(timeSlot)}</span>
                 )}
               </button>
             ))}

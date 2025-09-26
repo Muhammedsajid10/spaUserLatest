@@ -10,6 +10,8 @@ export default defineConfig({
       generateScopedName: '[name]__[local]___[hash:base64:5]',
     },
   },
+  devtool: 'source-map', // or similar
+
   build: {
     outDir: 'dist',
     sourcemap: false,

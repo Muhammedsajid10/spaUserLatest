@@ -22,17 +22,58 @@ export function localDateKey(date) {
 export function toLocalHHMM(val) {
   if (!val) return null;
   if (typeof val !== 'string') val = String(val);
-  if (val.includes('T')) {
-    const dt = new Date(val);
-    if (isNaN(dt)) return null;
+
+  // Trim and normalize spaces
+  const input = val.trim();
+
+  // 1) ISO datetime (contains 'T') -> convert to local HH:mm
+  if (input.includes('T')) {
+    // Extract the raw time portion after the 'T' (strip timezone offsets like 'Z' or '+02:00')
+    const afterT = input.split('T')[1] || '';
+    const rawTimeMatch = afterT.replace(/Z|[+-]\d{2}:?\d{2}$/, '').match(/^(\d{1,2}:\d{2})/);
+    const rawHHMM = rawTimeMatch ? rawTimeMatch[1].padStart(5, '0') : null;
+
+    const dt = new Date(input);
+    // If date parsing fails, fall back to raw HH:MM
+    if (isNaN(dt)) return rawHHMM;
+
     const hh = String(dt.getHours()).padStart(2, '0');
     const mm = String(dt.getMinutes()).padStart(2, '0');
+    const parsedHHMM = `${hh}:${mm}`;
+
+    // If the raw time in the ISO string differs from the parsed local time,
+    // that usually indicates the backend serialized a local time as UTC (added 'Z')
+    // or included an offset. In that case prefer the raw HH:MM (admin-entered local time)
+    // to avoid shifting times unexpectedly in the UI.
+    if (rawHHMM && rawHHMM !== parsedHHMM) {
+      console.warn('[bookingUtils] ISO time mismatch: parsed local time differs from raw ISO time. Using raw time to avoid timezone shift.', { input, rawHHMM, parsedHHMM });
+      return rawHHMM;
+    }
+
+    return parsedHHMM;
+  }
+
+  // 2) AM/PM patterns like "2:30 PM", "12:00 am"
+  const ampm = input.match(/^(\d{1,2}):(\d{2})\s*([AaPp][Mm])$/);
+  if (ampm) {
+    let hh = parseInt(ampm[1], 10);
+    const mm = ampm[2];
+    const period = ampm[3].toUpperCase();
+    if (period === 'AM' && hh === 12) hh = 0;
+    if (period === 'PM' && hh !== 12) hh += 12;
+    return `${String(hh).padStart(2, '0')}:${mm}`;
+  }
+
+  // 3) HH:mm or H:mm possibly with stray AM/PM suffix
+  if (input.includes(':')) {
+    const [hRaw, mRaw] = input.split(':');
+    // Drop anything after minutes that's not numeric (e.g., "30 PM")
+    const mmOnly = String((mRaw || '').trim()).replace(/[^0-9].*$/, '');
+    const hh = String(parseInt(hRaw, 10) || 0).padStart(2, '0');
+    const mm = String(parseInt(mmOnly, 10) || 0).padStart(2, '0');
     return `${hh}:${mm}`;
   }
-  if (val.includes(':')) {
-    const parts = val.split(':');
-    return `${parts[0].padStart(2,'0')}:${parts[1].padStart(2,'0')}`;
-  }
+
   return null;
 }
 
@@ -84,11 +125,16 @@ export function floorToInterval(min, interval) { return Math.floor(min / interva
 
 // Check overlap between [start, start+duration) and existing bookings
 export function isTimeSlotConflicting(startTime, duration, existingBookings = []) {
-  const s = timeToMinutesFn(startTime);
+  // Always normalize to HH:mm first per rules
+  const normStart = toLocalHHMM(startTime) || startTime;
+  const s = timeToMinutesFn(normStart);
   const e = s + duration;
-  return existingBookings.some(b => {
-    const bs = timeToMinutesFn(b.startTime);
-    const be = timeToMinutesFn(b.endTime);
+  return (existingBookings || []).some(b => {
+    const normBs = toLocalHHMM(b.startTime) || b.startTime;
+    const normBe = toLocalHHMM(b.endTime) || b.endTime;
+    const bs = timeToMinutesFn(normBs);
+    const be = timeToMinutesFn(normBe);
+    // Overlap if slotStart < bookingEnd && slotEnd > bookingStart
     return s < be && e > bs;
   });
 }
@@ -319,15 +365,38 @@ export function getValidTimeSlotsForProfessional(employee, date, serviceDuration
 
   // Extract existing appointments for this employee on this day
   const empId = employee._id || employee.id;
-  const persisted = (appointments?.[empId] && appointments[empId][dayKey])
-    ? Object.values(appointments[empId][dayKey]).map(a => {
+  // Robust lookup: appointment data keys may be stored as strings, numbers,
+  // or alternate ids (eg: with prefixes). Try multiple strategies to find
+  // the correct appointments bucket for this employee.
+  const resolveAppointmentsForEmployee = () => {
+    if (!appointments) return null;
+    // direct lookup
+    if (appointments[empId] && appointments[empId][dayKey]) return appointments[empId][dayKey];
+    // stringified id
+    const sId = String(empId);
+    if (appointments[sId] && appointments[sId][dayKey]) return appointments[sId][dayKey];
+    // search for a key that endsWith the empId (handles variations like "user_1234")
+    const altKey = Object.keys(appointments).find(k => String(k).endsWith(sId));
+    if (altKey && appointments[altKey] && appointments[altKey][dayKey]) return appointments[altKey][dayKey];
+    // finally, check for any key that loosely matches when trimmed
+    const looseKey = Object.keys(appointments).find(k => String(k).includes(sId));
+    if (looseKey && appointments[looseKey] && appointments[looseKey][dayKey]) return appointments[looseKey][dayKey];
+    return null;
+  };
+
+  const persistedBucket = resolveAppointmentsForEmployee();
+  const persisted = persistedBucket
+    ? Object.values(persistedBucket).map(a => {
         const rawStart = a.startTime || a.time || a.slot || a.start || a.appointmentDate;
         const startHHMM = toLocalHHMM(rawStart) || (a.startTime && a.startTime.includes(':') ? a.startTime : null);
         const duration = a.duration || a.totalDuration || (a.services && a.services[0] && a.services[0].duration) || 30;
         const endHHMM = startHHMM ? addMinutesToTime(startHHMM, duration) : null;
         return {
           startTime: startHHMM,
-          endTime: endHHMM
+          endTime: endHHMM,
+          // Keep the original raw value and duration to aid debugging timezone/format issues
+          _raw: rawStart,
+          _duration: duration
         };
       }).filter(x => x.startTime && x.endTime)
     : [];
@@ -336,7 +405,8 @@ export function getValidTimeSlotsForProfessional(employee, date, serviceDuration
     employeeId: empId, 
     dayKey, 
     persistedCount: persisted.length,
-    persisted: persisted.slice(0, 3) // Log first 3 for debugging
+    // Show original raw payloads with parsed times to diagnose timezone shifts
+    persisted: persisted.slice(0, 6).map(p => ({ startTime: p.startTime, endTime: p.endTime, raw: p._raw, duration: p._duration }))
   });
 
   // Check if today and handle "now" constraint
@@ -378,25 +448,27 @@ export function getValidTimeSlotsForProfessional(employee, date, serviceDuration
     
     // Generate time slots within this shift
     while (timeToMinutesFn(cursor) + serviceDuration <= timeToMinutesFn(shiftEnd) && slotCount < maxSlotsPerShift) {
-      // Check for conflicts with existing appointments
-      const hasConflict = isTimeSlotConflicting(cursor, serviceDuration, persisted);
-      
-      if (!hasConflict) {
-        // Ensure cursor is aligned to interval grid
-        const aligned = roundUpTimeToInterval(cursor, intervalMinutes);
-        if (aligned === cursor) {
-          slots.push(cursor);
-          slotCount++;
-        } else {
-          // If cursor not aligned, push aligned next (but ensure within shift)
-          if (timeToMinutesFn(aligned) + serviceDuration <= timeToMinutesFn(shiftEnd)) {
-            slots.push(aligned);
-            slotCount++;
-          }
-        }
+      // Always align candidate to the interval grid first. We only want
+      // to evaluate aligned start times for both fitting the service and
+      // for conflicts.
+      const aligned = roundUpTimeToInterval(cursor, intervalMinutes);
+
+      // If the aligned start plus service duration doesn't fit in the
+      // shift, then no further aligned starts (which are >= aligned)
+      // will fit either, so we can stop processing this shift.
+      if (timeToMinutesFn(aligned) + serviceDuration > timeToMinutesFn(shiftEnd)) {
+        break;
       }
-      
-      // Move to next interval
+
+      // Check for conflicts on the aligned candidate (not the unaligned cursor)
+      const hasConflict = isTimeSlotConflicting(aligned, serviceDuration, persisted);
+
+      if (!hasConflict) {
+        slots.push(aligned);
+        slotCount++;
+      }
+
+      // Move the cursor forward by one interval to consider the next candidate
       cursor = addMinutesToTime(cursor, intervalMinutes);
     }
     

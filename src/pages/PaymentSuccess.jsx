@@ -190,13 +190,13 @@ const PaymentSuccess = () => {
             <div className={styles.detailRow}>
               <span className={styles.detailLabel}>Booking ID</span>
               <span className={styles.detailValue}>
-                {bookingDetails?.bookingId || bookingDetails?._id || 'N/A'}
+                {bookingDetails?.bookingId || bookingDetails?._id || 'Loading...'}
               </span>
             </div>
             <div className={styles.detailRow}>
               <span className={styles.detailLabel}>Booking Number</span>
               <span className={styles.detailValue}>
-                {bookingDetails?.bookingNumber || 'N/A'}
+                {bookingDetails?.bookingNumber || 'Loading...'}
               </span>
             </div>
             {bookingDetails?.date && (
