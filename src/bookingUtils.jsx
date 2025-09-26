@@ -532,9 +532,12 @@ export async function computeSequentialServiceStartTimesWithBookings(servicesOrd
     }
     const duration = svc.duration || svc.minutes || 30;
     const employeeId = emp._id || emp.id;
-    const empAppointments = (appointmentsIndex && appointmentsIndex[employeeId]) || {};
     try {
-      const slots = getValidTimeSlotsForProfessional(emp, date, duration, empAppointments || {});
+      // Pass the full appointmentsIndex so getValidTimeSlotsForProfessional can
+      // resolve the correct per-employee/day bucket internally. Previously we
+      // passed only the per-employee bucket which caused the resolver to miss
+      // booking data and therefore not filter conflicts.
+      const slots = getValidTimeSlotsForProfessional(emp, date, duration, appointmentsIndex || {});
       console.log('[bookingUtils] slots for service', svc._id, 'employee', employeeId, 'count', slots && slots.length ? slots.length : 0);
       perServiceSlots[svc._id] = new Set(Array.isArray(slots) ? slots : []);
     } catch (err) {
@@ -755,6 +758,95 @@ export function filterSlotsAgainstBookingsUTC(bookings = [], timeSlots = [], shi
       endTime: eDate.toISOString(),
       available: true
     });
+  }
+
+  return out;
+}
+
+/**
+ * Validate candidate start slots against bookings for a chain of services.
+ * - bookings: array of confirmed bookings (UTC ISO string or Date) with rawStartTime/rawEndTime or startTime/endTime
+ * - shifts: array of { start: <UTC ISO string or Date>, end: <UTC ISO string or Date> } (employee shift windows in UTC)
+ * - services: array of services [{ id, duration }] to be scheduled sequentially (in minutes)
+ * - timeSlots: candidate start slots in UTC (each slot must contain startTime and endTime as UTC ISO string or Date)
+ * - options.keepUnavailable: if true, return unavailable slots with available:false instead of filtering them out
+ *
+ * Rules:
+ * - All checks are performed in UTC using Date.getTime().
+ * - A slot is valid only if the entire chain (sum of service durations) fits inside one of the provided shifts
+ *   and none of the chained service intervals overlap any existing booking.
+ * - Returned slot objects are in the shape:
+ *   { time: 'HH:mm' (local display), startTime: <UTC ISO>, endTime: <UTC ISO>, available: true|false }
+ */
+export function filterSequentialSlotsAgainstBookingsUTC(bookings = [], shifts = [], services = [], timeSlots = [], options = {}) {
+  const keepUnavailable = !!options.keepUnavailable;
+
+  // Normalize bookings into [startMs, endMs]
+  const bookingRanges = (bookings || []).map(b => {
+    const sRaw = b.rawStartTime ?? b.startTime ?? b.start ?? b.appointmentDate;
+    const eRaw = b.rawEndTime ?? b.endTime ?? b.end;
+    const s = sRaw ? new Date(sRaw).getTime() : null;
+    const e = eRaw ? new Date(eRaw).getTime() : null;
+    if (!s || !e || isNaN(s) || isNaN(e)) return null;
+    return [s, e];
+  }).filter(Boolean);
+
+  // Accept shifts as either an array of {start,end} or a single {start,end}
+  let shiftRanges = [];
+  if (!shifts) shiftRanges = [];
+  else if (Array.isArray(shifts)) {
+    shiftRanges = shifts.map(sh => {
+      const s = sh && (sh.start ?? sh.startTime) ? new Date(sh.start ?? sh.startTime).getTime() : null;
+      const e = sh && (sh.end ?? sh.endTime) ? new Date(sh.end ?? sh.endTime).getTime() : null;
+      if (!s || !e || isNaN(s) || isNaN(e)) return null;
+      return [s, e];
+    }).filter(Boolean);
+  } else if (typeof shifts === 'object') {
+    const s = shifts.start ? new Date(shifts.start).getTime() : (shifts.startTime ? new Date(shifts.startTime).getTime() : null);
+    const e = shifts.end ? new Date(shifts.end).getTime() : (shifts.endTime ? new Date(shifts.endTime).getTime() : null);
+    if (s && e && !isNaN(s) && !isNaN(e)) shiftRanges = [[s, e]];
+  }
+
+  // Total duration required for the sequential chain (minutes -> ms)
+  const totalDurationMinutes = (services || []).reduce((acc, svc) => acc + (svc?.duration || 0), 0);
+  const totalDurationMs = totalDurationMinutes * 60 * 1000;
+
+  const out = [];
+
+  for (const slot of (timeSlots || [])) {
+    const slotStartRaw = slot.startTime ?? slot.time ?? null;
+    const slotEndRaw = slot.endTime ?? null;
+    const slotStartMs = slotStartRaw ? new Date(slotStartRaw).getTime() : null;
+
+    if (!slotStartMs || isNaN(slotStartMs)) {
+      if (keepUnavailable) {
+        out.push({ time: slot.time || null, startTime: slot.startTime, endTime: slot.endTime, available: false });
+      }
+      continue;
+    }
+
+    const blockEndMs = slotStartMs + totalDurationMs;
+
+    // Must fit entirely within at least one shift
+    const fitsShift = shiftRanges.length > 0 ? shiftRanges.some(([s, e]) => slotStartMs >= s && blockEndMs <= e) : true;
+    if (!fitsShift) {
+      if (keepUnavailable) out.push({ time: utcToLocalHHMM(slotStartRaw), startTime: new Date(slotStartRaw).toISOString(), endTime: slotEndRaw ? new Date(slotEndRaw).toISOString() : new Date(slotStartMs + 15*60*1000).toISOString(), available: false });
+      continue;
+    }
+
+    // Check block overlap with any booking: overlap if bookingStart < blockEnd && bookingEnd > slotStart
+    let conflict = false;
+    for (const [bs, be] of bookingRanges) {
+      if (bs < blockEndMs && be > slotStartMs) { conflict = true; break; }
+    }
+
+    if (conflict) {
+      if (keepUnavailable) out.push({ time: utcToLocalHHMM(slotStartRaw), startTime: new Date(slotStartRaw).toISOString(), endTime: slotEndRaw ? new Date(slotEndRaw).toISOString() : new Date(slotStartMs + 15*60*1000).toISOString(), available: false });
+      continue;
+    }
+
+    // Slot is valid for the whole service chain
+    out.push({ time: utcToLocalHHMM(slotStartRaw), startTime: new Date(slotStartRaw).toISOString(), endTime: slotEndRaw ? new Date(slotEndRaw).toISOString() : new Date(slotStartMs + 15*60*1000).toISOString(), available: true });
   }
 
   return out;
