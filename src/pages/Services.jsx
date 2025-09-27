@@ -100,8 +100,17 @@ function Services() {
 
   // Initialize component
   useEffect(() => {
-    // Clear any existing booking flow when component mounts
-    // bookingFlow.clear();
+    // Clear any existing booking flow (only booking flow/local booking keys).
+    // Do NOT touch user auth data/cookies/token.
+    try {
+      if (bookingFlow && typeof bookingFlow.clear === "function") {
+        bookingFlow.clear();
+        // reload internal wrapper state after clear
+        bookingFlow.load();
+      }
+    } catch (err) {
+      console.warn("bookingFlow.clear() failed:", err);
+    }
     
     // Reset local state
     setSelectedService(null);

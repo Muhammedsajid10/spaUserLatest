@@ -19,38 +19,42 @@ export function localDateKey(date) {
 }
 
 // Convert various time/date representations -> local "HH:MM"
-export function toLocalHHMM(val) {
+export function toLocalHHMM(val, timeZone) {
   if (!val) return null;
   if (typeof val !== 'string') val = String(val);
+
+  // If no explicit timezone provided, use user's runtime timezone
+  const tz = timeZone || Intl.DateTimeFormat().resolvedOptions().timeZone;
 
   // Trim and normalize spaces
   const input = val.trim();
 
-  // 1) ISO datetime (contains 'T') -> convert to local HH:mm
+  // 1) ISO datetime (contains 'T') -> convert to target timezone HH:mm
   if (input.includes('T')) {
-    // Extract the raw time portion after the 'T' (strip timezone offsets like 'Z' or '+02:00')
+    // Extract raw time part (admin-entered)
     const afterT = input.split('T')[1] || '';
     const rawTimeMatch = afterT.replace(/Z|[+-]\d{2}:?\d{2}$/, '').match(/^(\d{1,2}:\d{2})/);
     const rawHHMM = rawTimeMatch ? rawTimeMatch[1].padStart(5, '0') : null;
 
     const dt = new Date(input);
-    // If date parsing fails, fall back to raw HH:MM
     if (isNaN(dt)) return rawHHMM;
 
-    const hh = String(dt.getHours()).padStart(2, '0');
-    const mm = String(dt.getMinutes()).padStart(2, '0');
-    const parsedHHMM = `${hh}:${mm}`;
-
-    // If the raw time in the ISO string differs from the parsed local time,
-    // that usually indicates the backend serialized a local time as UTC (added 'Z')
-    // or included an offset. In that case prefer the raw HH:MM (admin-entered local time)
-    // to avoid shifting times unexpectedly in the UI.
-    if (rawHHMM && rawHHMM !== parsedHHMM) {
-      console.warn('[bookingUtils] ISO time mismatch: parsed local time differs from raw ISO time. Using raw time to avoid timezone shift.', { input, rawHHMM, parsedHHMM });
-      return rawHHMM;
+    try {
+      // Format in the requested timezone to get hours/minutes as the user expects
+      const formatted = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: tz }).format(dt);
+      const parsedHHMM = formatted.replace(/\u200E/g, '').trim(); // strip possible LTR marks
+      // Prefer raw admin-entered time when it differs (preserve admin intention)
+      if (rawHHMM && rawHHMM !== parsedHHMM) {
+        console.warn('[bookingUtils] ISO time mismatch: using raw admin time to avoid shift', { input, rawHHMM, parsedHHMM, timeZone: tz });
+        return rawHHMM;
+      }
+      return parsedHHMM;
+    } catch (e) {
+      // Intl might fail for unexpected timezone strings; fallback to Date-derived local time
+      const hh = String(dt.getHours()).padStart(2, '0');
+      const mm = String(dt.getMinutes()).padStart(2, '0');
+      return `${hh}:${mm}`;
     }
-
-    return parsedHHMM;
   }
 
   // 2) AM/PM patterns like "2:30 PM", "12:00 am"
@@ -468,7 +472,7 @@ export function getValidTimeSlotsForProfessional(employee, date, serviceDuration
         slotCount++;
       }
 
-      // Move the cursor forward by one interval to consider the next candidate
+      // Move the cursor forward to consider the next candidate
       cursor = addMinutesToTime(cursor, intervalMinutes);
     }
     
@@ -672,13 +676,19 @@ export function isEmployeeMarkedNotWorking(employee, date) {
  * Example: '2025-09-27T07:00:00.000Z' -> '12:30' for IST (UTC+5:30) when run
  * in an environment with that local timezone.
  */
-export function utcToLocalHHMM(utcInput) {
+export function utcToLocalHHMM(utcInput, timeZone) {
   if (!utcInput) return null;
   const d = (utcInput instanceof Date) ? utcInput : new Date(utcInput);
   if (isNaN(d)) return null;
-  const hh = String(d.getHours()).padStart(2, '0');
-  const mm = String(d.getMinutes()).padStart(2, '0');
-  return `${hh}:${mm}`;
+  const tz = timeZone || Intl.DateTimeFormat().resolvedOptions().timeZone;
+  try {
+    const formatted = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: tz }).format(d);
+    return formatted.replace(/\u200E/g, '').trim();
+  } catch (e) {
+    const hh = String(d.getHours()).padStart(2, '0');
+    const mm = String(d.getMinutes()).padStart(2, '0');
+    return `${hh}:${mm}`;
+  }
 }
 
 /**

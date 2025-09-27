@@ -744,22 +744,41 @@ const SpaProfilePage = () => {
       }
       
       const feedbackData = {
+        // Basic references
         bookingId: ratingBookingId,
         serviceId: serviceId,
         employeeId: employeeId,
+        // Include client/server-visible booking/service/employee snapshots so backend stores exact context
+        booking: booking
+          ? {
+              _id: booking._id || booking.id,
+              id: booking._id || booking.id,
+              bookingNumber: booking.bookingNumber || null,
+              appointmentDate: booking.appointmentDate || booking.createdAt || null,
+              status: booking.status || null,
+              currency: booking.currency || null,
+              finalAmount: booking.finalAmount || booking.totalAmount || null,
+            }
+          : null,
+        service: booking?.services?.[0]?.service || null,
+        employee: booking?.services?.[0]?.employee || null,
+        client: booking?.client || profile || null,
         // Main user inputs
-        ratings: { 
-          overall: ratingValue
+        ratings: {
+          overall: ratingValue,
         },
         comment: ratingComment,
-        // Dummy fields with proper types
+        // Extra metadata: client-side timestamp + timezone (server may override)
+        createdAt: new Date().toISOString(),
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        // Dummy / compatibility fields
         comments: "",
         wouldRecommend: true,
         wouldReturnAsCustomer: true,
         visitFrequency: "first-time",
         discoveryMethod: "friend-referral",
         suggestions: ""
-      };
+       };
 
       console.log('Submitting feedback:', feedbackData);
       console.log('Available booking data:', booking);
