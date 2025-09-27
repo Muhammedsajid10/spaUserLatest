@@ -873,132 +873,136 @@ body {
 }
 
 .service-item {
-  background-color: var(--bg-tertiary);
-  border-radius: var(--radius-md);
-  padding: var(--spacing-3);
+  background: #fff;
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  margin-bottom: 12px;
 }
 
-.service-info {
-  display: flex;
-  justify-content: space-between;
+.service-grid {
+  display: grid;
+  gap: 12px;
   align-items: center;
-  margin-bottom: var(--spacing-1);
+}
+
+/* Desktop layout */
+@media (min-width: 768px) {
+  .service-grid {
+    grid-template-columns: 2fr 1fr 1fr;
+  }
+}
+
+/* Tablet layout */
+@media (min-width: 640px) and (max-width: 767px) {
+  .service-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+  .service-time {
+    grid-column: 1 / -1;
+  }
+}
+
+/* Mobile layout */
+@media (max-width: 639px) {
+  .service-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.service-basic-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .service-name {
-  font-weight: 500;
-  color: var(--text-primary);
+  font-weight: 600;
+  color: #111;
+  font-size: 1rem;
 }
 
-.service-duration {
-  font-size: var(--font-size-sm);
-  color: var(--text-secondary);
+.service-professional {
+  color: #666;
+  font-size: 0.9rem;
 }
 
 .service-details {
   display: flex;
-  justify-content: space-between;
+  gap: 16px;
   align-items: center;
-  margin-bottom: var(--spacing-1);
+  color: #444;
 }
 
-.service-price {
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-.service-employee {
-  font-size: var(--font-size-sm);
-  color: var(--text-secondary);
+.duration, .price {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.9rem;
 }
 
 .service-time {
-  font-size: var(--font-size-sm);
-  color: var(--text-tertiary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: #fafafa;
+  border-left: 3px solid;  /* Status-based border */
+  margin: 8px 0;
+  font-size: 14px;
+}
+
+.service-time.confirmed {
+  border-left-color: #22c55e; /* green for confirmed */
+}
+
+.service-time.pending {
+  border-left-color: #f59e0b; /* yellow for pending */
+}
+
+.service-time.completed {
+  border-left-color: #3b82f6; /* blue for completed */
+}
+
+.service-time.cancelled {
+  border-left-color: #ef4444; /* red for cancelled */
+}
+
+.service-time-label {
+  font-weight: 500;
+  color: #374151;
+  min-width: 90px;
+}
+
+.service-time-value {
+  color: #111;
+  font-weight: 600;
 }
 
 .booking-footer {
   display: flex;
+  flex-wrap: wrap; /* allow wrapping on smaller screens */
   justify-content: space-between;
   align-items: center;
-  margin-top: var(--spacing-4);
-  padding-top: var(--spacing-3);
-  border-top: 1px solid var(--border-primary);
+  gap: var(--spacing-3); /* adds breathing space */
 }
 
-.booking-total {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-2);
+.booking-footer .btn {
+  flex-shrink: 0;       /* button won’t shrink */
+  min-width: 120px;     /* consistent size */
+  text-align: center;   /* keep text centered */
 }
 
-.total-label {
-  font-size: var(--font-size-sm);
-  color: var(--text-secondary);
-}
+/* Mobile screens: stack layout */
+@media (max-width: 640px) {
+  .booking-footer {
+    flex-direction: column; /* stack vertically */
+    align-items: stretch;   /* button stretches full width */
+  }
 
-.total-amount {
-  font-size: var(--font-size-lg);
-  font-weight: 700;
-  color: var(--text-primary);
-}
-
-.payment-status {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-2);
-}
-
-.payment-label {
-  font-size: var(--font-size-sm);
-  color: var(--text-secondary);
-}
-
-.payment-badge {
-  padding: var(--spacing-1) var(--spacing-2);
-  border-radius: var(--radius-md);
-  font-size: var(--font-size-xs);
-  font-weight: 600;
-  text-transform: uppercase;
-}
-
-.payment-badge.paid {
-  background-color: #10b981;
-  color: white;
-}
-
-.payment-badge.pending {
-  background-color: #f59e0b;
-  color: white;
-}
-
-.booking-client {
-  margin-top: var(--spacing-4);
-  padding-top: var(--spacing-3);
-  border-top: 1px solid var(--border-primary);
-}
-
-.client-title {
-  font-size: var(--font-size-sm);
-  font-weight: 600;
-  color: var(--text-secondary);
-  margin-bottom: var(--spacing-2);
-}
-
-.client-info {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--spacing-4);
-}
-
-.client-name,
-.client-email,
-.client-phone {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-1);
-  font-size: var(--font-size-sm);
-  color: var(--text-secondary);
+  .booking-footer .btn {
+    width: 100%; /* full width button */
+  }
 }
 
 /* Invoice Styles */

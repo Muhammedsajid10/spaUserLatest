@@ -26,6 +26,7 @@ import {
   feedbackAPI,
 } from "../services/api";
 import { useNavigate } from "react-router-dom";
+import { formatLocalDateTime, formatTimeRange, formatLocalDate } from '../utils/timeZoneUtils';
 
 /* -------------------
    Utility UI States
@@ -199,19 +200,6 @@ const ProfileHeader = ({ profile }) => (
    ------------------- */
 
 const BookingItem = ({ booking, feedbackList, onGiveRating }) => {
-  const formatDate = (dateString) =>
-    new Date(dateString).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    });
-
-  const formatTime = (dateString) =>
-    new Date(dateString).toLocaleTimeString("en-US", {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-
   const getStatusBadgeClass = (status) => {
     switch (status?.toLowerCase()) {
       case "confirmed":
@@ -225,36 +213,19 @@ const BookingItem = ({ booking, feedbackList, onGiveRating }) => {
     }
   };
 
-  // ✅ Check if feedback exists for this booking
-  const bookingFeedback = feedbackList?.find(
-    (f) =>
-      f.bookingId === booking._id ||
-      f.bookingId === booking.id ||
-      f.booking?._id === booking._id
-  );
-
-  const hasRating =
-    bookingFeedback?.ratings?.overall > 0 || bookingFeedback?.rating > 0;
-
   return (
     <div className="booking-item">
       {/* Booking Header */}
       <div className="booking-header">
         <div className="booking-info">
           <h4 className="booking-title">
-            Booking #{booking.bookingNumber || booking.id || booking._id}
+            Booking Number {booking.bookingNumber }
           </h4>
           <div className="booking-meta">
             <span className="booking-date">
               <Calendar className="w-4 h-4" />
-              {formatDate(booking.appointmentDate || booking.createdAt)}
+              {formatLocalDateTime( booking.createdAt)}
             </span>
-            {booking.appointmentDate && (
-              <span className="booking-time">
-                <Clock className="w-4 h-4" />
-                {formatTime(booking.appointmentDate)}
-              </span>
-            )}
           </div>
         </div>
         <span className={`badge ${getStatusBadgeClass(booking.status)}`}>
@@ -262,45 +233,98 @@ const BookingItem = ({ booking, feedbackList, onGiveRating }) => {
         </span>
       </div>
 
-      {/* Services */}
       {booking.services && booking.services.length > 0 && (
         <div className="booking-services">
           <h5 className="services-title">Services:</h5>
           <div className="services-list">
             {booking.services.map((service, index) => (
-              <div
-                key={service.id || service._id || index}
-                className="service-item"
-              >
-                <div className="service-info">
-                  <span className="service-name">
-                    {service.service?.name || `Service ${index + 1}`}
-                  </span>
-                  <span className="service-duration">{service.duration} min</span>
-                </div>
-                <div className="service-details">
-                  <span className="service-price">
-                    {booking.currency || "AED"} {service.price}
-                  </span>
-                  {service.employee?.user && (
-                    <span className="service-employee">
-                      with {service.employee.user.firstName}{" "}
-                      {service.employee.user.lastName}
-                    </span>
-                  )}
-                </div>
-                {service.startTime && service.endTime && (
-                  <div className="service-time">
-                    {formatTime(service.startTime)} - {formatTime(service.endTime)}
+              <div key={service.id || service._id || index} className="service-item">
+                <div className="service-grid">
+                  {/* Service Basic Info */}
+                  <div className="service-basic-info">
+                    <h4 className="service-name">
+                      {service.service?.name || `Service ${index + 1}`}
+                    </h4>
+                    {service.employee?.user && (
+                      <p className="service-professional">
+                        {service.employee.user.firstName} {service.employee.user.lastName}
+                      </p>
+                    )}
                   </div>
-                )}
+
+                  {/* Service Details */}
+                  <div className="service-details">
+                    <span className="duration">
+                      <Clock className="w-4 h-4" />
+                      {service.duration} min
+                    </span>
+                    <span className="price">
+                      {booking.currency || "AED"} {service.price}
+                    </span>
+                  </div>
+
+                  {/* Service Time */}
+               {service.startTime && service.endTime && (
+  <div className="service-time">
+    <strong>Service Date & Time: </strong>
+    {(() => {
+      // Format both date and time without timezone conversion
+      const formatDateTime = (dateStr) => {
+        const date = new Date(dateStr);
+        
+        // Get date components
+        const dateFormatted = date.toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric'
+        });
+        
+        // Extract time components to avoid timezone shifts
+        const timeStr = dateStr.split('T')[1]?.split('.')[0] || dateStr;
+        let timeFormatted;
+        
+        if (timeStr.includes(':') && timeStr.length <= 8) {
+          const [hours, minutes] = timeStr.split(':');
+          const localDate = new Date();
+          localDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+          timeFormatted = localDate.toLocaleTimeString('en-US', {
+            hour: 'numeric',
+            minute: '2-digit',
+            hour12: true
+          });
+        } else {
+          const hours = date.getUTCHours();
+          const minutes = date.getUTCMinutes();
+          const localDate = new Date();
+          localDate.setHours(hours, minutes, 0, 0);
+          timeFormatted = localDate.toLocaleTimeString('en-US', {
+            hour: 'numeric',
+            minute: '2-digit',
+            hour12: true
+          });
+        }
+        
+        return { date: dateFormatted, time: timeFormatted };
+      };
+      
+      const startDateTime = formatDateTime(service.startTime);
+      const endDateTime = formatDateTime(service.endTime);
+      
+      // Check if both times are on the same date
+      if (startDateTime.date === endDateTime.date) {
+        return `${startDateTime.date} from ${startDateTime.time} to ${endDateTime.time}`;
+      } else {
+        return `${startDateTime.date} ${startDateTime.time} - ${endDateTime.date} ${endDateTime.time}`;
+      }
+    })()}
+  </div>
+)}
+                </div>
               </div>
             ))}
           </div>
         </div>
       )}
-
-      {/* Footer */}
       <div className="booking-footer">
         <div className="booking-total">
           <span className="total-label">Total Amount:</span>
@@ -323,47 +347,24 @@ const BookingItem = ({ booking, feedbackList, onGiveRating }) => {
           </div>
         )}
 
-        {/* ✅ Give Rating button - disabled if rating already exists */}
-        <button
-          className="btn btn-secondary btn-sm mt-2"
-          disabled={hasRating}
-          onClick={() => {
-            if (hasRating) return; // prevent click if already rated
-            const firstService = booking.services?.[0];
-            const serviceId =
-              firstService?.service?._id || firstService?.serviceId;
-            const employeeId =
-              firstService?.employee?._id || firstService?.employeeId;
-            onGiveRating(booking._id || booking.id, serviceId, employeeId);
-          }}
-        >
-          Give Rating
-        </button>
+        {/* Show Give Rating button only if completed and no rating */}
+        {booking.status?.toLowerCase() === "completed" && !booking.hasRating && (
+          <button
+            className="btn btn-secondary btn-sm mt-2"
+            onClick={() => {
+              const firstService = booking.services?.[0];
+              const serviceId = firstService?.service?._id || firstService?.serviceId;
+              const employeeId = firstService?.employee?._id || firstService?.employeeId;
+              onGiveRating(booking._id || booking.id, serviceId, employeeId);
+            }}
+          >
+            Give Rating
+          </button>
+        )}
       </div>
 
-      {/* Client Info */}
-      {booking.client && (
-        <div className="booking-client">
-          <h6 className="client-title">Client Information:</h6>
-          <div className="client-info">
-            <span className="client-name">
-              <User className="w-4 h-4" />
-              {booking.client.fullName ||
-                `${booking.client.firstName} ${booking.client.lastName}`}
-            </span>
-            <span className="client-email">
-              <Mail className="w-4 h-4" />
-              {booking.client.email}
-            </span>
-            {booking.client.phone && (
-              <span className="client-phone">
-                <Phone className="w-4 h-4" />
-                {booking.client.phone}
-              </span>
-            )}
-          </div>
-        </div>
-      )}
+      {/* Client Info with timezone-aware created date */}
+  
     </div>
   );
 };
@@ -580,74 +581,51 @@ const SpaProfilePage = () => {
         setLoading(true);
         setError(null);
 
-        console.log("Making API requests...");
-        const [profileRes, bookingsRes, invoicesRes, feedbackRes] =
-          await Promise.allSettled([
-            authAPI.getCurrentUser(),
-            bookingsAPI.getUserBookings(),
-            paymentsAPI.getPaymentHistory(),
-            feedbackAPI.getUserFeedback(),
-          ]);
+        // Get all data in parallel
+        const [profileRes, bookingsRes, invoicesRes, feedbackRes] = await Promise.allSettled([
+          authAPI.getCurrentUser(),
+          bookingsAPI.getUserBookings(),
+          paymentsAPI.getPaymentHistory(),
+          feedbackAPI.getUserFeedback(),
+        ]);
 
-        console.log("API Responses:", {
-          profile:
-            profileRes.status === "fulfilled"
-              ? profileRes.value?.data
-              : profileRes.reason,
-          bookings:
-            bookingsRes.status === "fulfilled"
-              ? bookingsRes.value?.data
-              : bookingsRes.reason,
-          payments:
-            invoicesRes.status === "fulfilled"
-              ? invoicesRes.value?.data
-              : invoicesRes.reason,
-          feedback:
-            feedbackRes.status === "fulfilled"
-              ? feedbackRes.value?.data
-              : feedbackRes.reason,
+        // Get feedback data first to check against bookings
+        const feedbackData = feedbackRes.status === "fulfilled" ? feedbackRes.value?.data?.feedback || [] : [];
+        
+        // Process bookings data with feedback check
+        let bookingsData = [];
+        if (bookingsRes.status === "fulfilled") {
+          bookingsData = (bookingsRes.value?.data?.bookings || []).map(booking => {
+            // Check if this booking has feedback
+            const hasFeedback = feedbackData.some(feedback => 
+              feedback.booking?._id === booking._id || 
+              feedback.booking?.id === booking.id || 
+              feedback.bookingId === booking._id ||
+              feedback.bookingId === booking.id
+            );
+
+            // Return booking with hasRating flag
+            return {
+              ...booking,
+              hasRating: hasFeedback
+            };
+          });
+        }
+
+        // Set states with processed data
+        setProfile(profileRes.status === "fulfilled" ? profileRes.value?.data?.user || null : null);
+        setBookings(bookingsData);
+        setInvoices(invoicesRes.status === "fulfilled" ? invoicesRes.value?.data?.payments || [] : []);
+        setFeedback(feedbackData);
+
+        console.log("Processed data:", {
+          bookingsWithRatings: bookingsData.map(b => ({
+            id: b._id || b.id,
+            hasRating: b.hasRating
+          })),
+          feedbackCount: feedbackData.length
         });
 
-        // Set states with proper fallbacks and error handling
-        setProfile(
-          profileRes.status === "fulfilled"
-            ? profileRes.value?.data?.user || null
-            : null
-        );
-        setBookings(
-          bookingsRes.status === "fulfilled"
-            ? bookingsRes.value?.data?.bookings || []
-            : []
-        );
-        setInvoices(
-          invoicesRes.status === "fulfilled"
-            ? invoicesRes.value?.data?.payments || []
-            : []
-        );
-        setFeedback(
-          feedbackRes.status === "fulfilled"
-            ? feedbackRes.value?.data?.feedback || []
-            : []
-        );
-
-        console.log("State after update:", {
-          profile:
-            profileRes.status === "fulfilled"
-              ? profileRes.value?.data?.user || null
-              : null,
-          bookingsCount:
-            bookingsRes.status === "fulfilled"
-              ? bookingsRes.value?.data?.bookings?.length || 0
-              : 0,
-          invoicesCount:
-            invoicesRes.status === "fulfilled"
-              ? invoicesRes.value?.data?.payments?.length || 0
-              : 0,
-          feedbackCount:
-            feedbackRes.status === "fulfilled"
-              ? feedbackRes.value?.data?.feedback?.length || 0
-              : 0,
-        });
       } catch (err) {
         console.error("Unexpected error:", err);
         setError("An unexpected error occurred while loading data.");
