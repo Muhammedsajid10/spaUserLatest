@@ -207,6 +207,9 @@ const StripePaymentForm = ({ onPaymentSuccess, onPaymentError, paymentData, load
 
       {cardError && <div className="card-error">{cardError}</div>}
 
+      {/* Visible submit button so mobile users can trigger payment */}
+    
+
     </form>
   );
 };
@@ -558,23 +561,32 @@ const Payment = () => {
 
       // Handle card payments separately (Stripe component handles these)
       if (selectedMethod === 'card') {
-        // For card payments, prepare payment data and let Stripe component handle it
-        const paymentData = {
-          bookingId: finalBookingData.bookingNumber || finalBookingData.bookingId,
-          amount: finalBookingData.totalAmount,
-          currency: 'AED',
-          paymentMethod: 'card',
-          gateway: 'stripe',
-          description: `Payment for booking ${finalBookingData.bookingNumber || finalBookingData.bookingId} - ${finalBookingData.serviceNames}`,
-          clientInfo: {
-            name: `${user.firstName || ''} ${user.lastName || ''}`.trim(),
-            email: user.email,
-            phone: user.phone
-          }
-        };
-        console.log('[PAYMENT] Prepared card payment data:', paymentData);
-        setPaymentIntent(paymentData);
-        setProcessing(false); // Stop generic processing so user can enter card details
+        // For card payments we skip Stripe integration and create booking directly
+        // (user requested no Stripe integration; mimic cash flow behavior)
+        try {
+          console.log('[PAYMENT] Creating booking in DB for card payment (no Stripe)');
+          const created = await createBookingInDatabase();
+          const booking = created?.data || created || null;
+
+          // Simulate a successful payment result object
+          const paymentResult = {
+            paymentData: {
+              status: 'SUCCESS',
+              amount: finalBookingData.totalAmount || 0,
+              currency: 'AED',
+              created: new Date().toISOString()
+            },
+            paymentMethod: 'card',
+            booking
+          };
+
+          await handlePaymentSuccess(paymentResult);
+        } catch (err) {
+          console.error('[PAYMENT] Failed to create booking for card payment:', err);
+          setError(err.message || 'Failed to create booking after card payment');
+          setLoading(false);
+          setProcessing(false);
+        }
         return;
       }
 
@@ -648,9 +660,45 @@ const Payment = () => {
 
  const handlePaymentSuccess = async (result) => {
     console.log('[PAYMENT] Payment successful:', result);
-    
-    // Clear booking flow data
-    // bookingFlow.clear();
+
+    setLoading(true);
+
+    // Ensure booking is created in backend if not provided by the payment flow
+    let booking = result.booking;
+    if (!booking) {
+      try {
+        console.log('[PAYMENT] No booking present from payment flow - creating booking now');
+        const created = await createBookingInDatabase();
+        booking = created?.data || created || null;
+        console.log('[PAYMENT] Booking created:', booking);
+      } catch (err) {
+        console.error('[PAYMENT] Failed to create booking after payment:', err);
+        setLoading(false);
+        setProcessing(false);
+        Swal.fire({
+          title: 'Booking Creation Failed',
+          text: 'Payment succeeded but we could not create the booking. Please contact support with your payment details.',
+          icon: 'error'
+        });
+        return;
+      }
+    }
+
+    // Optionally clear booking flow
+    // Clear booking flow data and related localStorage keys to avoid stale state
+    try {
+      if (bookingFlow && typeof bookingFlow.clear === 'function') {
+        bookingFlow.clear();
+      }
+      // Remove common bookingFlow/local keys
+      localStorage.removeItem('bookingFlow');
+      localStorage.removeItem('bookingData');
+      localStorage.removeItem('selectedServices');
+      localStorage.removeItem('selectedTimeSlot');
+      localStorage.removeItem('selectedProfessionals');
+    } catch (e) {
+      console.warn('[PAYMENT] Failed to fully clear bookingFlow/localStorage:', e);
+    }
 
     // Set local success result so UI can render immediately
     setSuccessResult({
@@ -659,10 +707,10 @@ const Payment = () => {
       summaryText: result.paymentMethod === 'cash' ? 'Please pay at the venue.' : 'Payment processed successfully.'
     });
 
-    // Navigate to centralized success page and pass data
+    // Navigate to centralized success page and pass data (prefer backend booking if available)
     try {
       navigate('/payment/success', { state: {
-        bookingData: finalBookingData,
+        bookingData: booking || finalBookingData,
         paymentData: result.paymentData,
         paymentMethod: result.paymentMethod,
         summaryText: result.paymentMethod === 'cash' ? 'Please pay at the venue.' : 'Payment processed successfully.'
@@ -740,8 +788,8 @@ const Payment = () => {
                 <div className="summary-section">
                   <div className="booking-details">
                     <div className="detail-item">
-                      <span className="detail-label">Date & Time</span>
-                      <span className="detail-value">{finalBookingData.date} at {finalBookingData.time}</span>
+                      <span className="detail-label"> Time</span>
+                      <span className="detail-value">{finalBookingData.time}</span>
                     </div>
 
                     {finalBookingData.professionalName && finalBookingData.professionalName !== 'Any professional' && (
@@ -774,15 +822,7 @@ const Payment = () => {
                 </div>
 
                 {/* Desktop Confirm Button */}
-                <div className="summary-actions">
-                  <button
-                    className="btn-confirm-payment"
-                    onClick={() => { if (!processing) handlePayment(); }}
-                    disabled={processing || loading}
-                  >
-                    {processing || loading ? 'Processing...' : 'Confirm & Pay'}
-                  </button>
-                </div>
+            
               </div>
             </div>
           </div>
