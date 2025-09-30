@@ -61,7 +61,7 @@ const ErrorState = ({ message, onRetry }) => (
 /* -------------------
    Enhanced Sidebar
    ------------------- */
-const Sidebar = ({ activeTab, onTabChange, isOpen, onClose, isMobile }) => {
+const Sidebar = ({ activeTab, onTabChange, isOpen, onClose, isMobile, navigateToService }) => {
   const sidebarItems = [
     { key: "bookings", label: "Bookings", icon: Calendar },
     { key: "invoices", label: "Invoices & Payments", icon: CreditCard },
@@ -75,10 +75,7 @@ const Sidebar = ({ activeTab, onTabChange, isOpen, onClose, isMobile }) => {
       onClose();
     }
   };
-  const navigate = useNavigate();
-  const navigateToService = () => {
-    navigate("/booking");
-  };
+
 
   const sidebarContent = (
     <div className="h-full flex flex-col">
@@ -108,9 +105,8 @@ const Sidebar = ({ activeTab, onTabChange, isOpen, onClose, isMobile }) => {
               <li key={item.key}>
                 <button
                   onClick={() => handleTabChange(item.key)}
-                  className={`sidebar-link ${
-                    activeTab === item.key ? "active" : ""
-                  }`}
+                  className={`sidebar-link ${activeTab === item.key ? "active" : ""
+                    }`}
                   aria-current={activeTab === item.key ? "page" : undefined}
                 >
                   <Icon className="icon" />
@@ -219,12 +215,12 @@ const BookingItem = ({ booking, feedbackList, onGiveRating }) => {
       <div className="booking-header">
         <div className="booking-info">
           <h4 className="booking-title">
-            Booking Number {booking.bookingNumber }
+            Booking Number {booking.bookingNumber}
           </h4>
           <div className="booking-meta">
             <span className="booking-date">
               <Calendar className="w-4 h-4" />
-              {formatLocalDateTime( booking.createdAt)}
+              {formatLocalDateTime(booking.createdAt)}
             </span>
           </div>
         </div>
@@ -264,61 +260,61 @@ const BookingItem = ({ booking, feedbackList, onGiveRating }) => {
                   </div>
 
                   {/* Service Time */}
-               {service.startTime && service.endTime && (
-  <div className="service-time">
-    <strong>Service Date & Time: </strong>
-    {(() => {
-      // Format both date and time without timezone conversion
-      const formatDateTime = (dateStr) => {
-        const date = new Date(dateStr);
-        
-        // Get date components
-        const dateFormatted = date.toLocaleDateString('en-US', {
-          year: 'numeric',
-          month: 'short',
-          day: 'numeric'
-        });
-        
-        // Extract time components to avoid timezone shifts
-        const timeStr = dateStr.split('T')[1]?.split('.')[0] || dateStr;
-        let timeFormatted;
-        
-        if (timeStr.includes(':') && timeStr.length <= 8) {
-          const [hours, minutes] = timeStr.split(':');
-          const localDate = new Date();
-          localDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
-          timeFormatted = localDate.toLocaleTimeString('en-US', {
-            hour: 'numeric',
-            minute: '2-digit',
-            hour12: true
-          });
-        } else {
-          const hours = date.getUTCHours();
-          const minutes = date.getUTCMinutes();
-          const localDate = new Date();
-          localDate.setHours(hours, minutes, 0, 0);
-          timeFormatted = localDate.toLocaleTimeString('en-US', {
-            hour: 'numeric',
-            minute: '2-digit',
-            hour12: true
-          });
-        }
-        
-        return { date: dateFormatted, time: timeFormatted };
-      };
-      
-      const startDateTime = formatDateTime(service.startTime);
-      const endDateTime = formatDateTime(service.endTime);
-      
-      // Check if both times are on the same date
-      if (startDateTime.date === endDateTime.date) {
-        return `${startDateTime.date} from ${startDateTime.time} to ${endDateTime.time}`;
-      } else {
-        return `${startDateTime.date} ${startDateTime.time} - ${endDateTime.date} ${endDateTime.time}`;
-      }
-    })()}
-  </div>
-)}
+                  {service.startTime && service.endTime && (
+                    <div className="service-time">
+                      <strong>Service Date & Time: </strong>
+                      {(() => {
+                        // Format both date and time without timezone conversion
+                        const formatDateTime = (dateStr) => {
+                          const date = new Date(dateStr);
+
+                          // Get date components
+                          const dateFormatted = date.toLocaleDateString('en-US', {
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric'
+                          });
+
+                          // Extract time components to avoid timezone shifts
+                          const timeStr = dateStr.split('T')[1]?.split('.')[0] || dateStr;
+                          let timeFormatted;
+
+                          if (timeStr.includes(':') && timeStr.length <= 8) {
+                            const [hours, minutes] = timeStr.split(':');
+                            const localDate = new Date();
+                            localDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+                            timeFormatted = localDate.toLocaleTimeString('en-US', {
+                              hour: 'numeric',
+                              minute: '2-digit',
+                              hour12: true
+                            });
+                          } else {
+                            const hours = date.getUTCHours();
+                            const minutes = date.getUTCMinutes();
+                            const localDate = new Date();
+                            localDate.setHours(hours, minutes, 0, 0);
+                            timeFormatted = localDate.toLocaleTimeString('en-US', {
+                              hour: 'numeric',
+                              minute: '2-digit',
+                              hour12: true
+                            });
+                          }
+
+                          return { date: dateFormatted, time: timeFormatted };
+                        };
+
+                        const startDateTime = formatDateTime(service.startTime);
+                        const endDateTime = formatDateTime(service.endTime);
+
+                        // Check if both times are on the same date
+                        if (startDateTime.date === endDateTime.date) {
+                          return `${startDateTime.date} from ${startDateTime.time} to ${endDateTime.time}`;
+                        } else {
+                          return `${startDateTime.date} ${startDateTime.time} - ${endDateTime.date} ${endDateTime.time}`;
+                        }
+                      })()}
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
@@ -338,9 +334,8 @@ const BookingItem = ({ booking, feedbackList, onGiveRating }) => {
           <div className="payment-status">
             <span className="payment-label">Payment:</span>
             <span
-              className={`payment-badge ${
-                booking.paymentStatus === "paid" ? "paid" : "pending"
-              }`}
+              className={`payment-badge ${booking.paymentStatus === "paid" ? "paid" : "pending"
+                }`}
             >
               {booking.paymentStatus}
             </span>
@@ -364,7 +359,7 @@ const BookingItem = ({ booking, feedbackList, onGiveRating }) => {
       </div>
 
       {/* Client Info with timezone-aware created date */}
-  
+
     </div>
   );
 };
@@ -425,18 +420,6 @@ const InvoiceItem = ({ invoice }) => {
             Payment via {invoice.paymentMethod || "N/A"} •{" "}
             {invoice.paymentGateway || "N/A"}
           </p>
-          {invoice.booking && (
-            <p className="invoice-booking">
-              Booking: {invoice.booking.id || "N/A"} •{" "}
-              <span
-                className={`badge ${getStatusBadgeClass(
-                  invoice.booking.status
-                )}`}
-              >
-                {invoice.booking.status}
-              </span>
-            </p>
-          )}
         </div>
 
         <div className="invoice-amount">
@@ -468,11 +451,6 @@ const InvoiceItem = ({ invoice }) => {
                   <span className="service-price">
                     {invoice.currency || "AED"} {service.price}
                   </span>
-                  {service.employee?.user && (
-                    <span className="service-employee">
-                      with {service.employee.user.fullName}
-                    </span>
-                  )}
                 </div>
                 {service.startTime && service.endTime && (
                   <div className="service-time">
@@ -485,30 +463,8 @@ const InvoiceItem = ({ invoice }) => {
           </div>
         </div>
       )}
-
-      {/* Client Section */}
-      {invoice.booking?.client && (
-        <div className="booking-client">
-          <h6 className="client-title">Client Information:</h6>
-          <div className="client-info">
-            <span className="client-name">
-              <User className="w-4 h-4" />
-              {invoice.booking.client.fullName}
-            </span>
-            <span className="client-email">
-              <Mail className="w-4 h-4" />
-              {invoice.booking.client.email}
-            </span>
-            {invoice.booking.client.phone && (
-              <span className="client-phone">
-                <Phone className="w-4 h-4" />
-                {invoice.booking.client.phone}
-              </span>
-            )}
-          </div>
-        </div>
-      )}
     </div>
+
   );
 };
 
@@ -516,6 +472,12 @@ const InvoiceItem = ({ invoice }) => {
    Enhanced Main Page
    ------------------- */
 const SpaProfilePage = () => {
+  const navigate = useNavigate(); // Move useNavigate inside component
+
+  const navigateToService = () => {
+    navigate("/booking");
+  };
+
   const [activeTab, setActiveTab] = useState("bookings");
   const [profile, setProfile] = useState(null);
   const [bookings, setBookings] = useState([]);
@@ -546,7 +508,7 @@ const SpaProfilePage = () => {
   const [editingFeedbackId, setEditingFeedbackId] = useState(null);
   const [editFeedbackValue, setEditFeedbackValue] = useState(0);
   const [editFeedbackComment, setEditFeedbackComment] = useState("");
-
+  const [serviceRatings, setServiceRatings] = useState({}); // { serviceId: number }
   // Enhanced responsive check with debouncing
   useEffect(() => {
     let timeoutId;
@@ -591,15 +553,15 @@ const SpaProfilePage = () => {
 
         // Get feedback data first to check against bookings
         const feedbackData = feedbackRes.status === "fulfilled" ? feedbackRes.value?.data?.feedback || [] : [];
-        
+
         // Process bookings data with feedback check
         let bookingsData = [];
         if (bookingsRes.status === "fulfilled") {
           bookingsData = (bookingsRes.value?.data?.bookings || []).map(booking => {
             // Check if this booking has feedback
-            const hasFeedback = feedbackData.some(feedback => 
-              feedback.booking?._id === booking._id || 
-              feedback.booking?.id === booking.id || 
+            const hasFeedback = feedbackData.some(feedback =>
+              feedback.booking?._id === booking._id ||
+              feedback.booking?.id === booking.id ||
               feedback.bookingId === booking._id ||
               feedback.bookingId === booking.id
             );
@@ -679,125 +641,91 @@ const SpaProfilePage = () => {
   };
 
   // 2. Handler functions for rating popup
-  const openRatingPopup = (bookingId, serviceId = null, employeeId = null) => {
+  const openRatingPopup = (bookingId) => {
     setRatingBookingId(bookingId);
-    setRatingServiceId(serviceId);
-    setRatingEmployeeId(employeeId);
     setShowRatingPopup(true);
-    setRatingValue(0);
+    setServiceRatings({}); // reset ratings
     setRatingComment("");
   };
 
   const closeRatingPopup = () => {
     setShowRatingPopup(false);
     setRatingBookingId(null);
-    setRatingServiceId(null);
-    setRatingEmployeeId(null);
-    setRatingValue(0);
+    setServiceRatings({});
     setRatingComment("");
   };
-
-  const handleRatingSubmit = async () => {
-    if (isSubmittingRating) return; // Prevent double submission
-    
-    try {
-      setIsSubmittingRating(true);
-      
-      // Get the booking to extract service and employee information if not provided
-      const booking = bookings.find((b) => (b._id || b.id) === ratingBookingId);
-      
-      // Use provided IDs or extract from booking
-      const serviceId = ratingServiceId || booking?.services?.[0]?.service?._id || booking?.services?.[0]?.serviceId;
-      const employeeId = ratingEmployeeId || booking?.services?.[0]?.employee?._id || booking?.services?.[0]?.employeeId;
-      
-      // Validate required fields
-      if (!ratingBookingId) {
-        throw new Error("Booking ID is required");
-      }
-      if (!serviceId) {
-        throw new Error("Service ID is required");
-      }
-      if (!employeeId) {
-        throw new Error("Employee ID is required");
-      }
-      
-      const feedbackData = {
-        // Basic references
-        bookingId: ratingBookingId,
-        serviceId: serviceId,
-        employeeId: employeeId,
-        // Include client/server-visible booking/service/employee snapshots so backend stores exact context
-        booking: booking
-          ? {
-              _id: booking._id || booking.id,
-              id: booking._id || booking.id,
-              bookingNumber: booking.bookingNumber || null,
-              appointmentDate: booking.appointmentDate || booking.createdAt || null,
-              status: booking.status || null,
-              currency: booking.currency || null,
-              finalAmount: booking.finalAmount || booking.totalAmount || null,
-            }
-          : null,
-        service: booking?.services?.[0]?.service || null,
-        employee: booking?.services?.[0]?.employee || null,
-        client: booking?.client || profile || null,
-        // Main user inputs
-        ratings: {
-          overall: ratingValue,
-        },
-        comment: ratingComment,
-        // Extra metadata: client-side timestamp + timezone (server may override)
-        createdAt: new Date().toISOString(),
-        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-        // Dummy / compatibility fields
-        comments: "",
-        wouldRecommend: true,
-        wouldReturnAsCustomer: true,
-        visitFrequency: "first-time",
-        discoveryMethod: "friend-referral",
-        suggestions: ""
-       };
-
-      console.log('Submitting feedback:', feedbackData);
-      console.log('Available booking data:', booking);
-      console.log('Service ID extracted:', serviceId);
-      console.log('Employee ID extracted:', employeeId);
-
-      // Call the API to create feedback
-      const response = await feedbackAPI.createFeedback(feedbackData);
-      
-      if (response.success) {
-        // Add the new feedback to local state for immediate UI update
-        const newFeedback = {
-          ...response.data,
-          serviceName: booking?.services?.[0]?.service?.name || "Service",
-          date: new Date()
-        };
-        setFeedback((prev) => [newFeedback, ...prev]);
-        
-        closeRatingPopup();
-        Swal.fire({
-          title: "Thank you!",
-          text: "Your feedback has been submitted successfully.",
-          icon: "success",
-          timer: 2000,
-          showConfirmButton: false,
-        });
-      } else {
-        throw new Error(response.message || "Failed to submit feedback");
-      }
-    } catch (error) {
-      console.error("Error submitting feedback:", error);
-      Swal.fire({
-        title: "Error!",
-        text: error.message || "Failed to submit feedback. Please try again.",
-        icon: "error",
-        confirmButtonText: "OK"
-      });
-    } finally {
-      setIsSubmittingRating(false);
-    }
+  const handleServiceRating = (serviceId, value) => {
+    setServiceRatings((prev) => ({
+      ...prev,
+      [serviceId]: value,
+    }));
   };
+  const handleRatingSubmit = async () => {
+  if (isSubmittingRating) return;
+
+  try {
+    setIsSubmittingRating(true);
+
+    const booking = bookings.find((b) => (b._id || b.id) === ratingBookingId);
+    if (!booking) throw new Error("Booking not found");
+
+    // Ensure all services have a rating
+    const missing = booking.services.filter(
+      (s) => !serviceRatings[s.service?._id || s.serviceId]
+    );
+    if (missing.length > 0) {
+      throw new Error("Please rate all services before submitting.");
+    }
+
+    // Prepare feedback array
+    const feedbackServices = booking.services.map((s) => ({
+      serviceId: s.service?._id || s.serviceId,
+      employeeId: s.employee?._id || s.employeeId,
+      rating: serviceRatings[s.service?._id || s.serviceId],
+    }));
+
+    const feedbackData = {
+      bookingId: booking._id || booking.id,
+      bookingNumber: booking.bookingNumber || null,
+      ratings: feedbackServices,
+      comment: ratingComment,
+      client: booking?.client || profile || null,
+      createdAt: new Date().toISOString(),
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    };
+
+    console.log("Submitting feedback:", feedbackData);
+
+    const response = await feedbackAPI.createFeedback(feedbackData);
+
+    if (response.success) {
+      try {
+        const feedbackRes = await feedbackAPI.getUserFeedback();
+        setFeedback(feedbackRes?.data?.feedback || []);
+      } catch {}
+      closeRatingPopup();
+      Swal.fire({
+        title: "Thank you!",
+        text: "Your feedback has been submitted successfully.",
+        icon: "success",
+        timer: 2000,
+        showConfirmButton: false,
+      });
+    } else {
+      throw new Error(response.message || "Failed to submit feedback");
+    }
+  } catch (error) {
+    console.error("Error submitting feedback:", error);
+    Swal.fire({
+      title: "Error!",
+      text: error.message || "Failed to submit feedback. Please try again.",
+      icon: "error",
+      confirmButtonText: "OK",
+    });
+  } finally {
+    setIsSubmittingRating(false);
+  }
+};
 
   // Start editing feedback
   const handleEditFeedback = (item) => {
@@ -811,7 +739,7 @@ const SpaProfilePage = () => {
     try {
       const feedbackData = {
         // Main user inputs
-        ratings: { 
+        ratings: {
           overall: editFeedbackValue
         },
         comment: editFeedbackComment,
@@ -828,7 +756,7 @@ const SpaProfilePage = () => {
 
       // Call the API to update feedback
       const response = await feedbackAPI.updateFeedback(editingFeedbackId, feedbackData);
-      
+
       if (response.success) {
         // Update the local state with the updated feedback
         setFeedback((prev) =>
@@ -838,11 +766,11 @@ const SpaProfilePage = () => {
               : item
           )
         );
-        
+
         setEditingFeedbackId(null);
         setEditFeedbackValue(0);
         setEditFeedbackComment("");
-        
+
         Swal.fire({
           title: "Updated!",
           text: "Your feedback has been updated successfully.",
@@ -994,13 +922,7 @@ const SpaProfilePage = () => {
               <div className="empty-state-actions">
                 <button
                   className="btn btn-primary"
-                  onClick={() =>
-                    Swal.fire({
-                      title: "Book Service",
-                      text: "Service booking functionality would be implemented here.",
-                      icon: "info",
-                    })
-                  }
+                  onClick={navigateToService}
                 >
                   <Plus className="w-4 h-4" />
                   Book a Service
@@ -1061,10 +983,10 @@ const SpaProfilePage = () => {
                         <div className="feedback-header">
                           <div>
                             <h4 className="feedback-title">
-                              {item.booking?.services?.[0]?.service?.name || 
-                               item.service?.name || 
-                               item.serviceName || 
-                               `Service ${index + 1}`}
+                              {item.booking?.services?.[0]?.service?.name ||
+                                item.service?.name ||
+                                item.serviceName ||
+                                `Service ${index + 1}`}
                             </h4>
                             <div className="feedback-professional">
                               Professional: {item.employee?.user?.firstName} {item.employee?.user?.lastName}
@@ -1075,9 +997,8 @@ const SpaProfilePage = () => {
                               {[1, 2, 3, 4, 5].map((star) => (
                                 <Star
                                   key={star}
-                                  className={`star ${
-                                    star <= editFeedbackValue ? "filled" : ""
-                                  } cursor-pointer`}
+                                  className={`star ${star <= editFeedbackValue ? "filled" : ""
+                                    } cursor-pointer`}
                                   onClick={() => setEditFeedbackValue(star)}
                                 />
                               ))}
@@ -1115,10 +1036,10 @@ const SpaProfilePage = () => {
                         <div className="feedback-header">
                           <div>
                             <h4 className="feedback-title">
-                              {item.booking?.services?.[0]?.service?.name || 
-                               item.service?.name || 
-                               item.serviceName || 
-                               `Service ${index + 1}`}
+                              {item.booking?.services?.[0]?.service?.name ||
+                                item.service?.name ||
+                                item.serviceName ||
+                                `Service ${index + 1}`}
                             </h4>
                             <div className="feedback-professional">
                               Professional: {item.employee?.user?.firstName} {item.employee?.user?.lastName}
@@ -1129,8 +1050,8 @@ const SpaProfilePage = () => {
                                 {item.createdAt
                                   ? new Date(item.createdAt).toLocaleDateString()
                                   : item.date
-                                  ? new Date(item.date).toLocaleDateString()
-                                  : "N/A"}
+                                    ? new Date(item.date).toLocaleDateString()
+                                    : "N/A"}
                               </span>
                             </div>
                           </div>
@@ -1139,9 +1060,8 @@ const SpaProfilePage = () => {
                               {[1, 2, 3, 4, 5].map((star) => (
                                 <Star
                                   key={star}
-                                  className={`star ${
-                                    star <= (item.ratings?.overall || item.rating || 0) ? "filled" : ""
-                                  }`}
+                                  className={`star ${star <= (item.ratings?.overall || item.rating || 0) ? "filled" : ""
+                                    }`}
                                 />
                               ))}
                             </div>
@@ -1169,9 +1089,8 @@ const SpaProfilePage = () => {
                               {[1, 2, 3, 4, 5].map((star) => (
                                 <Star
                                   key={star}
-                                  className={`star ${
-                                    star <= value ? "filled" : ""
-                                  }`}
+                                  className={`star ${star <= value ? "filled" : ""
+                                    }`}
                                 />
                               ))}
                             </div>
@@ -1290,9 +1209,8 @@ const SpaProfilePage = () => {
                     <p className="info-label">Full Name</p>
                     <p className="info-value">
                       {profile?.fullName ||
-                        `${profile?.firstName || ""} ${
-                          profile?.lastName || ""
-                        }`.trim()}
+                        `${profile?.firstName || ""} ${profile?.lastName || ""
+                          }`.trim()}
                     </p>
                   </div>
                 </div>
@@ -1335,11 +1253,10 @@ const SpaProfilePage = () => {
                     <p className="info-label">Account Status</p>
                     <p className="info-value">
                       <span
-                        className={`badge ${
-                          profile?.isActive
-                            ? "badge-default"
-                            : "badge-destructive"
-                        }`}
+                        className={`badge ${profile?.isActive
+                          ? "badge-default"
+                          : "badge-destructive"
+                          }`}
                       >
                         {profile?.isActive ? "Active" : "Inactive"}
                       </span>
@@ -1353,11 +1270,10 @@ const SpaProfilePage = () => {
                     <p className="info-label">Email Verified</p>
                     <p className="info-value">
                       <span
-                        className={`badge ${
-                          profile?.isEmailVerified
-                            ? "badge-default"
-                            : "badge-secondary"
-                        }`}
+                        className={`badge ${profile?.isEmailVerified
+                          ? "badge-default"
+                          : "badge-secondary"
+                          }`}
                       >
                         {profile?.isEmailVerified ? "Verified" : "Not Verified"}
                       </span>
@@ -1395,9 +1311,8 @@ const SpaProfilePage = () => {
 
   return (
     <div
-      className={`min-h-screen bg-gray-50 flex ${
-        sidebarOpen && isMobile ? "overflow-hidden" : ""
-      }`}
+      className={`min-h-screen bg-gray-50 flex ${sidebarOpen && isMobile ? "overflow-hidden" : ""
+        }`}
     >
       {/* Mobile overlay */}
       {isMobile && (
@@ -1410,9 +1325,8 @@ const SpaProfilePage = () => {
 
       {/* Enhanced Sidebar */}
       <aside
-        className={`sidebar-container ${
-          sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
-        }`}
+        className={`sidebar-container ${sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+          }`}
         aria-label="Main navigation"
       >
         <Sidebar
@@ -1421,6 +1335,7 @@ const SpaProfilePage = () => {
           isOpen={sidebarOpen}
           onClose={closeSidebar}
           isMobile={isMobile}
+          navigateToService={navigateToService} // Pass the function as prop
         />
       </aside>
 
@@ -1453,94 +1368,56 @@ const SpaProfilePage = () => {
         </main>
         {/* Rating Popup */}
         {showRatingPopup && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm">
-            <div
-              className="relative bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md animate-fade-in"
-              style={{
-                boxShadow: "0 8px 32px 0 rgba(31, 38, 135, 0.37)",
-                border: "1px solid rgba(255,255,255,0.18)",
-                borderRadius: "30px",
-              }}
-            >
-              {/* Close Button */}
-              <button
-                className="absolute top-3 right-3 
-                   flex items-center justify-center
-                   w-9 h-9 bg-white text-black
-                   hover:bg-black hover:text-white
-                   shadow-sm transition-all duration-200 ease-in-out"
-                onClick={closeRatingPopup}
-                aria-label="Close"
-              >
-                <X className="w-5 h-5" />
-              </button>
+          <div className="rating-modal-overlay">
+            <div className="rating-modal" role="dialog" aria-modal="true">
+              <h3>Rate Your Services</h3>
 
-              <h3 className="text-2xl font-bold mb-2 text-center text-gray-800">
-                Give Rating
-              </h3>
-              <p className="mb-4 text-center text-gray-500 text-sm">
-                How was your experience?
-              </p>
+              {(() => {
+                const booking = bookings.find((b) => (b._id || b.id) === ratingBookingId);
+                if (!booking) return <p>No booking selected.</p>;
 
-              {/* Service Information */}
-              {ratingBookingId && (
-                <div className="mb-4 p-3 bg-gray-50 rounded-lg">
-                  <p className="text-sm text-gray-600 mb-1">Rating for:</p>
-                  <p className="font-semibold text-gray-800">
-                    {(() => {
-                      const booking = bookings.find((b) => (b._id || b.id) === ratingBookingId);
-                      const serviceName = booking?.services?.[0]?.service?.name || "Service";
-                      const employeeName = booking?.services?.[0]?.employee?.user 
-                        ? `${booking.services[0].employee.user.firstName} ${booking.services[0].employee.user.lastName}`
-                        : booking?.services?.[0]?.employee?.name || "Staff Member";
-                      return `${serviceName} with ${employeeName}`;
-                    })()}
-                  </p>
-                </div>
-              )}
+                return (
+                  <>
+                    <div className="service-rating">
+                      {booking.services.map((service) => {
+                        const sid = service._id || service.serviceId;
+                        const current = serviceRatings[sid] || 0;
+                        return (
+                          <div key={sid} className="service-rating-item">
+                            <label>{service.service?.name}</label>
+                            <div className="stars">
+                              {[1, 2, 3, 4, 5].map((star) => (
+                                <span
+                                  key={star}
+                                  className={current >= star ? "active" : ""}
+                                  onClick={() => handleServiceRating(sid, star)}
+                                >
+                                  ★
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
 
-              {/* Rating Stars */}
-              <div className="flex items-center justify-center mb-4 gap-1">
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <Star
-                    key={star}
-                    className={`w-9 h-9 cursor-pointer transition-transform duration-150 ${
-                      star <= ratingValue
-                        ? "text-yellow-400 scale-110 drop-shadow"
-                        : "text-gray-300 hover:text-yellow-300"
-                    }`}
-                    onClick={() => setRatingValue(star)}
-                    fill={star <= ratingValue ? "#facc15" : "none"}
-                    style={{ transition: "color 0.2s, transform 0.2s" }}
-                  />
-                ))}
-              </div>
+                    <textarea
+                      placeholder="Leave a comment..."
+                      value={ratingComment}
+                      onChange={(e) => setRatingComment(e.target.value)}
+                    />
 
-              {/* Comment Box */}
-              <textarea
-                className="w-full border border-gray-200 rounded-lg p-3 mb-4 focus:outline-none focus:ring-2 focus:ring-yellow-400 transition"
-                rows={3}
-                placeholder="Write your feedback..."
-                value={ratingComment}
-                onChange={(e) => setRatingComment(e.target.value)}
-                maxLength={300}
-              />
-
-              {/* Submit Button */}
-              <button
-                className={`w-full py-2 text-lg font-semibold shadow transition 
-                   ${ratingValue === 0 || isSubmittingRating ? "opacity-60 cursor-not-allowed" : ""}`}
-                onClick={handleRatingSubmit}
-                disabled={ratingValue === 0 || isSubmittingRating}
-                style={{
-                  background: "#000", // pure black background
-                  color: "#fff", // white text
-                  border: "none", // no border
-                  borderRadius: "5px", // no border radius
-                }}
-              >
-                {isSubmittingRating ? "Submitting..." : "Submit"}
-              </button>
+                    <div className="modal-actions">
+                      <button className="btn-cancel" onClick={closeRatingPopup}>
+                        Cancel
+                      </button>
+                      <button className="btn-submit" onClick={handleRatingSubmit}>
+                        Submit
+                      </button>
+                    </div>
+                  </>
+                );
+              })()}
             </div>
           </div>
         )}

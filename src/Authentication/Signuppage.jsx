@@ -139,11 +139,13 @@ const SignInPage = () => {
 
     setForgotPasswordLoading(true);
     try {
+      console.log("Forgot Password Email:", forgotPasswordEmail);
       if (resetPassword) {
         const result = await resetPassword({ email: forgotPasswordEmail });
+        console.log("Reset Password Result:", result);
         if (result.success) {
           Swal.fire({
-            title: "Reset Link Sent",
+            title: "Reset Link",
             text: "Please check your email for password reset instructions.",
             icon: "success",
             confirmButtonText: "OK",

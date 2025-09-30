@@ -17,7 +17,9 @@ import {
   timeToMinutes,
   minutesToTime,
   getAvailableProfessionalsForService,
-  formatTimeToAMPM
+  formatTimeToAMPM,
+    exceedsLastAllowedSlot  // ADD THIS
+
 } from "../bookingUtils";
 import { isEmployeeMarkedNotWorking } from '../bookingUtils';
 import Swal from 'sweetalert2';
@@ -1206,7 +1208,14 @@ const Time = (props) => {
 
             const normalizedSlotStart = normalizeTime(slotStartTimeRaw);
             const normalizedSlotEnd = normalizeTime(slotEndTimeRaw);
-            
+            if (exceedsLastAllowedSlot(normalizedSlotStart, duration)) {
+  console.log('[Time] ⛔ 10:45 PM CUTOFF - Slot rejected:', {
+    slotTime: normalizedSlotStart,
+    duration: `${duration} min`,
+    wouldEndAt: addMinutesToTime(normalizedSlotStart, duration)
+  });
+  return false; // REJECT this slot immediately
+}
             // CRITICAL FIX: Calculate the actual service end time based on service duration
             const actualServiceEndTime = addMinutesToTime(normalizedSlotStart, duration);
             // Convert to minutes for robust numeric comparison
@@ -1437,20 +1446,21 @@ const Time = (props) => {
           });
           
           // Map to consistent HH:mm objects for downstream logic and UI
-          const mapped = filteredSlots.map((slot, i) => {
-            const startRaw = slot.time || slot.startTime;
-            const endRaw = slot.endTime || addMinutesToTime(startRaw, duration);
-            const startHHMM = toLocalHHMM(startRaw) || startRaw;
-            const endHHMM = toLocalHHMM(endRaw) || endRaw;
-            return {
-              id: i,
-              time: startHHMM,        // display base
-              timeValue: startHHMM,   // calculations base
-              startTime: startHHMM,
-              endTime: endHHMM,
-              available: true
-            };
-          });
+         const mapped = filteredSlots.map((slot, i) => {
+  const startRaw = slot.time || slot.startTime;
+  const startHHMM = toLocalHHMM(startRaw) || startRaw; // Keep internal as 24-hour
+  const endHHMM = addMinutesToTime(startHHMM, duration);
+  
+  return {
+    id: i,
+    time: startHHMM,              // Internal: 24-hour "HH:MM"
+    timeValue: startHHMM,         // Internal: 24-hour "HH:MM"
+    displayTime: formatTimeToAMPM(startHHMM), // Display: "2:30 PM"
+    startTime: startHHMM,
+    endTime: endHHMM,
+    available: true
+  };
+});
           setAvailableTimeSlots(mapped);
           console.log('[Time] SUCCESS: Using FIXED WORKFLOW filtered time slots for', assigned?.user?.firstName, assigned?.user?.lastName);
         } catch (apiError) {
@@ -1851,7 +1861,7 @@ const Time = (props) => {
                 {selectedTime?.id === timeSlot.id && processingTimeSlotId === timeSlot.id ? (
                   <div className="loading-dots white"><div className="dot"></div><div className="dot"></div><div className="dot"></div></div>
                 ) : (
-                  <span className="time-text">{toDisplayTime(timeSlot)}</span>
+<span className="time-text">{timeSlot.displayTime || toDisplayTime(timeSlot)}</span>
                 )}
               </button>
             ))}

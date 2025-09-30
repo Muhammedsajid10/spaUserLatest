@@ -337,6 +337,10 @@ export function getEmployeeShiftHours(employee, date) {
  * intervalMinutes controls stepping (15 = every 15 minutes).
  * Enhanced to support 24-hour shifts from admin schedule data.
  */
+// ============================================
+// UPDATED: getValidTimeSlotsForProfessional
+// ============================================
+
 export function getValidTimeSlotsForProfessional(employee, date, serviceDuration, appointments = {}) {
   const dateLocal = (date instanceof Date) ? new Date(date.getFullYear(), date.getMonth(), date.getDate()) : new Date(date);
   const dayKey = localDateKey(dateLocal);
@@ -346,43 +350,26 @@ export function getValidTimeSlotsForProfessional(employee, date, serviceDuration
     employeeId: employee?._id || employee?.id || employee,
     date: dayKey,
     serviceDuration,
-    employee: employee ? {
-      id: employee._id || employee.id,
-      name: employee.name || employee.user?.firstName,
-      workSchedule: employee.workSchedule ? Object.keys(employee.workSchedule) : 'none'
-    } : 'null'
+    lastAllowedSlot: '22:45 (10:45 PM)'
   });
 
   const shifts = getEmployeeShiftHours(employee, dateLocal);
-  console.debug('[bookingUtils] employee shifts found', { 
-    employeeId: employee?._id, 
-    dayKey,
-    shifts,
-    shiftsCount: shifts.length,
-    shiftsDetail: shifts.map(s => `${s.start}-${s.end}`)
-  });
-
+  
   if (!shifts || shifts.length === 0) {
-    console.debug('[bookingUtils] no shifts for employee on', dayKey, '=> returning empty slots');
+    console.debug('[bookingUtils] no shifts for employee on', dayKey);
     return [];
   }
 
-  // Extract existing appointments for this employee on this day
   const empId = employee._id || employee.id;
-  // Robust lookup: appointment data keys may be stored as strings, numbers,
-  // or alternate ids (eg: with prefixes). Try multiple strategies to find
-  // the correct appointments bucket for this employee.
+  
+  // Resolve appointments for this employee
   const resolveAppointmentsForEmployee = () => {
     if (!appointments) return null;
-    // direct lookup
     if (appointments[empId] && appointments[empId][dayKey]) return appointments[empId][dayKey];
-    // stringified id
     const sId = String(empId);
     if (appointments[sId] && appointments[sId][dayKey]) return appointments[sId][dayKey];
-    // search for a key that endsWith the empId (handles variations like "user_1234")
     const altKey = Object.keys(appointments).find(k => String(k).endsWith(sId));
     if (altKey && appointments[altKey] && appointments[altKey][dayKey]) return appointments[altKey][dayKey];
-    // finally, check for any key that loosely matches when trimmed
     const looseKey = Object.keys(appointments).find(k => String(k).includes(sId));
     if (looseKey && appointments[looseKey] && appointments[looseKey][dayKey]) return appointments[looseKey][dayKey];
     return null;
@@ -398,101 +385,98 @@ export function getValidTimeSlotsForProfessional(employee, date, serviceDuration
         return {
           startTime: startHHMM,
           endTime: endHHMM,
-          // Keep the original raw value and duration to aid debugging timezone/format issues
           _raw: rawStart,
           _duration: duration
         };
       }).filter(x => x.startTime && x.endTime)
     : [];
 
-  console.debug('[bookingUtils] existing appointments for employee on day', { 
-    employeeId: empId, 
-    dayKey, 
-    persistedCount: persisted.length,
-    // Show original raw payloads with parsed times to diagnose timezone shifts
-    persisted: persisted.slice(0, 6).map(p => ({ startTime: p.startTime, endTime: p.endTime, raw: p._raw, duration: p._duration }))
-  });
-
-  // Check if today and handle "now" constraint
   const todayLocalKey = localDateKey(new Date());
   const isToday = (dayKey === todayLocalKey);
   const now = new Date();
   const nowHHMM = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
 
   const slots = [];
+  let totalGenerated = 0;
+  let totalBlocked = 0;
 
   // Process each shift period
   shifts.forEach((shift, shiftIndex) => {
     const shiftStart = shift.start;
     const shiftEnd = shift.end;
     
-    console.debug('[bookingUtils] processing shift', shiftIndex, { shiftStart, shiftEnd, isToday, nowHHMM });
+    console.debug('[bookingUtils] processing shift', shiftIndex, { 
+      shiftStart, 
+      shiftEnd, 
+      isToday, 
+      nowHHMM,
+      serviceDuration 
+    });
     
     let cursor = shiftStart;
     
-    // If today, start from current time (rounded up to next interval)
+    // If today, start from current time (rounded up)
     if (isToday) {
       const roundedNow = roundUpTimeToInterval(nowHHMM, intervalMinutes);
-      console.debug('[bookingUtils] today constraint', { nowHHMM, roundedNow, shiftStart, shiftEnd });
       
       // Check if there's enough time left in shift for the service
       if (timeToMinutesFn(roundedNow) + serviceDuration > timeToMinutesFn(shiftEnd)) {
-        console.debug('[bookingUtils] not enough time in shift after now', { roundedNow, shiftEnd, serviceDuration });
-        return; // Skip this shift
+        console.debug('[bookingUtils] not enough time in shift after now');
+        return;
       }
       
-      // Start from later of rounded now or shift start
       cursor = (timeToMinutesFn(roundedNow) > timeToMinutesFn(shiftStart)) ? roundedNow : shiftStart;
     }
 
-    console.debug('[bookingUtils] starting cursor at', cursor, 'for shift', shiftStart, '-', shiftEnd);
-
     let slotCount = 0;
-    const maxSlotsPerShift = 200; // Safety limit
+    const maxSlotsPerShift = 200;
     
     // Generate time slots within this shift
     while (timeToMinutesFn(cursor) + serviceDuration <= timeToMinutesFn(shiftEnd) && slotCount < maxSlotsPerShift) {
-      // Always align candidate to the interval grid first. We only want
-      // to evaluate aligned start times for both fitting the service and
-      // for conflicts.
       const aligned = roundUpTimeToInterval(cursor, intervalMinutes);
+      totalGenerated++;
 
-      // If the aligned start plus service duration doesn't fit in the
-      // shift, then no further aligned starts (which are >= aligned)
-      // will fit either, so we can stop processing this shift.
+      // CRITICAL CHECK 1: Verify slot doesn't exceed 10:45 PM (considering service duration)
+      if (exceedsLastAllowedSlot(aligned, serviceDuration)) {
+        console.debug('[bookingUtils] ⛔ Stopping slot generation: slot would exceed 10:45 PM limit', {
+          slotTime: aligned,
+          serviceDuration: `${serviceDuration} min`,
+          wouldEndAt: addMinutesToTime(aligned, serviceDuration)
+        });
+        totalBlocked++;
+        break; // Stop generating more slots - we've reached the daily cutoff
+      }
+
+      // Check if slot fits within shift end
       if (timeToMinutesFn(aligned) + serviceDuration > timeToMinutesFn(shiftEnd)) {
         break;
       }
 
-      // Check for conflicts on the aligned candidate (not the unaligned cursor)
+      // CRITICAL CHECK 2: Check for booking conflicts
       const hasConflict = isTimeSlotConflicting(aligned, serviceDuration, persisted);
 
       if (!hasConflict) {
         slots.push(aligned);
-        slotCount++;
+      } else {
+        totalBlocked++;
       }
 
-      // Move the cursor forward to consider the next candidate
       cursor = addMinutesToTime(cursor, intervalMinutes);
+      slotCount++;
     }
-    
-    console.debug('[bookingUtils] shift', shiftIndex, 'generated', slotCount, 'slots');
   });
 
-  console.debug('[bookingUtils] total slots before deduplication', slots.length);
+  console.debug('[bookingUtils] Slot generation summary', {
+    totalGenerated,
+    totalBlocked,
+    validSlots: slots.length,
+    blockedByTimeLimit: totalBlocked,
+    lastSlotGenerated: slots[slots.length - 1],
+    serviceDuration: `${serviceDuration} min`
+  });
   
   // Remove duplicates and sort
   const uniq = Array.from(new Set(slots)).sort((a,b) => timeToMinutesFn(a) - timeToMinutesFn(b));
-  
-  console.debug('[bookingUtils] getValidTimeSlotsForProfessional final result', {
-    employeeId: empId,
-    dayKey,
-    totalSlots: uniq.length,
-    firstFew: uniq.slice(0, 10),
-    lastFew: uniq.slice(-5),
-    shifts: shifts.map(s => `${s.start}-${s.end}`),
-    employeeName: employee?.name || employee?.user?.firstName
-  });
   
   return uniq;
 }
@@ -518,31 +502,41 @@ export function getAvailableProfessionalsForService(serviceId, date, employees, 
  * Compute sequential start times with bookings/shifts considered for each professional.
  * Returns sequences where each service start is available for its assigned professional.
  */
-export async function computeSequentialServiceStartTimesWithBookings(servicesOrdered = [], professionalsMap = {}, date = new Date(), appointmentsIndex = {}) {
+// ============================================
+// UPDATED: computeSequentialServiceStartTimesWithBookings
+// ============================================
+
+export async function computeSequentialServiceStartTimesWithBookings(
+  servicesOrdered = [], 
+  professionalsMap = {}, 
+  date = new Date(), 
+  appointmentsIndex = {}
+) {
   console.log('[bookingUtils] computeSequentialServiceStartTimesWithBookings start', {
     services: servicesOrdered.map(s => s._id || s.id),
     date: localDateKey(date),
-    professionalsMapKeys: Object.keys(professionalsMap || {})
+    lastAllowedSlot: '22:45 (10:45 PM)'
   });
 
   if (!Array.isArray(servicesOrdered) || servicesOrdered.length === 0) return [];
+
+  // Calculate total duration for all services
+  const totalDuration = servicesOrdered.reduce((sum, svc) => 
+    sum + (svc.duration || svc.minutes || 30), 0
+  );
 
   const perServiceSlots = {};
   for (const svc of servicesOrdered) {
     const emp = professionalsMap?.[svc._id];
     if (!emp) {
-      console.warn('[bookingUtils] computeSequential... missing professional for service', svc._id);
+      console.warn('[bookingUtils] missing professional for service', svc._id);
       return [];
     }
     const duration = svc.duration || svc.minutes || 30;
     const employeeId = emp._id || emp.id;
+    
     try {
-      // Pass the full appointmentsIndex so getValidTimeSlotsForProfessional can
-      // resolve the correct per-employee/day bucket internally. Previously we
-      // passed only the per-employee bucket which caused the resolver to miss
-      // booking data and therefore not filter conflicts.
       const slots = getValidTimeSlotsForProfessional(emp, date, duration, appointmentsIndex || {});
-      console.log('[bookingUtils] slots for service', svc._id, 'employee', employeeId, 'count', slots && slots.length ? slots.length : 0);
       perServiceSlots[svc._id] = new Set(Array.isArray(slots) ? slots : []);
     } catch (err) {
       console.error('[bookingUtils] error computing slots for', svc._id, employeeId, err);
@@ -551,7 +545,9 @@ export async function computeSequentialServiceStartTimesWithBookings(servicesOrd
   }
 
   const firstSvc = servicesOrdered[0];
-  const candidates = Array.from(perServiceSlots[firstSvc._id] || []).sort((a,b) => timeToMinutesFn(a) - timeToMinutesFn(b));
+  const candidates = Array.from(perServiceSlots[firstSvc._id] || [])
+    .sort((a,b) => timeToMinutesFn(a) - timeToMinutesFn(b));
+  
   if (!candidates.length) return [];
 
   const offsets = [];
@@ -562,9 +558,24 @@ export async function computeSequentialServiceStartTimesWithBookings(servicesOrd
   }
 
   const sequences = [];
+  let blockedByTimeLimit = 0;
+  
   candidateLoop:
   for (const start of candidates) {
     if (!start) continue;
+    
+    // CRITICAL CHECK: Verify entire sequence wouldn't exceed 10:45 PM
+    const sequenceEndTime = addMinutesToTime(start, totalDuration);
+    if (exceedsLastAllowedSlot(start, totalDuration)) {
+      blockedByTimeLimit++;
+      console.debug('[bookingUtils] ⛔ Sequential slot blocked: would exceed 10:45 PM', {
+        startTime: start,
+        totalDuration: `${totalDuration} min`,
+        wouldEndAt: sequenceEndTime
+      });
+      continue; // Skip this candidate
+    }
+    
     const seq = [];
     for (let i = 0; i < servicesOrdered.length; i++) {
       const svc = servicesOrdered[i];
@@ -572,9 +583,11 @@ export async function computeSequentialServiceStartTimesWithBookings(servicesOrd
       const tStart = addMinutesToTime(start, offsetMinutes);
       const tEnd = addMinutesToTime(tStart, svc.duration || svc.minutes || 30);
       const slotsSet = perServiceSlots[svc._id] || new Set();
+      
       if (!slotsSet.has(tStart)) {
         continue candidateLoop;
       }
+      
       const emp = professionalsMap[svc._id];
       const employeeId = emp._id || emp.id;
       seq.push({
@@ -589,9 +602,16 @@ export async function computeSequentialServiceStartTimesWithBookings(servicesOrd
     if (sequences.length >= 80) break;
   }
 
-  console.log('[bookingUtils] computed sequences count', sequences.length);
+  console.log('[bookingUtils] Sequential sequences summary', {
+    totalCandidates: candidates.length,
+    validSequences: sequences.length,
+    blockedByTimeLimit,
+    totalDuration: `${totalDuration} min`
+  });
+  
   return sequences;
 }
+
 
 /**
  * Simpler sequential computation that reuses getValidTimeSlotsForProfessional (kept for compatibility).
@@ -651,6 +671,48 @@ export async function computeSequentialServiceStartTimes(servicesOrdered = [], p
 
   return sequences;
 }
+// ============================================
+// CRITICAL CONSTRAINT: Last booking slot enforcement
+// ============================================
+
+/**
+ * Check if a time slot would exceed the last allowed booking time (10:45 PM)
+ * IMPORTANT: This checks if the SERVICE WOULD END after 10:45 PM, not just if it starts after
+ * 
+ * @param {string} startTimeStr - Start time in "HH:MM" format (24-hour)
+ * @param {number} durationMinutes - Service duration in minutes
+ * @returns {boolean} - True if the service would end after 10:45 PM
+ */
+export function exceedsLastAllowedSlot(startTimeStr, durationMinutes = 0) {
+  const LAST_ALLOWED_TIME = "23:45"; // 10:45 PM in 24-hour format
+  
+  // Convert start time to minutes
+  const startMinutes = timeToMinutesFn(startTimeStr);
+  
+  // Calculate when the service would end
+  const endMinutes = startMinutes + durationMinutes;
+  
+  // Convert last allowed time to minutes
+  const lastAllowedMinutes = timeToMinutesFn(LAST_ALLOWED_TIME);
+  
+  // Service is invalid if it would START after 10:45 PM OR END after 10:45 PM
+  const wouldExceed = startMinutes > lastAllowedMinutes || endMinutes > lastAllowedMinutes;
+  
+  if (wouldExceed) {
+    console.log('[TIME CONSTRAINT] Slot exceeds 10:45 PM limit:', {
+      startTime: startTimeStr,
+      duration: `${durationMinutes} min`,
+      endTime: minutesToTime(endMinutes),
+      lastAllowed: LAST_ALLOWED_TIME,
+      reason: startMinutes > lastAllowedMinutes ? 
+        'Starts after 10:45 PM' : 
+        `Ends at ${minutesToTime(endMinutes)}, exceeding 10:45 PM limit`
+    });
+  }
+  
+  return wouldExceed;
+}
+
 
 // Helper: Report whether an employee/day entry is explicitly marked not working
 export function isEmployeeMarkedNotWorking(employee, date) {
@@ -861,3 +923,8 @@ export function filterSequentialSlotsAgainstBookingsUTC(bookings = [], shifts = 
 
   return out;
 }
+
+// Add this helper function
+/**
+ * Check if a time exceeds the last allowed booking time (10:45 PM)
+ */

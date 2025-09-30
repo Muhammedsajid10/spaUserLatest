@@ -234,10 +234,10 @@ const isManualScroll = useRef(false);
   const handleServiceClick = (service) => {
     bookingFlow.load();
     const currentCount = bookingFlow.selectedServices.length;
-    if (currentCount >= 15) {
+    if (currentCount >= 3) {
       Swal.fire({
         title: 'Limit reached',
-        text: 'You can only select up to 15 services.',
+        text: 'You can only select up to 3 services.\nadd more on next booking',
         icon: 'warning',
         confirmButtonText: 'OK'
       });

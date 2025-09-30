@@ -1,0 +1,744 @@
+/*
+ * Consolidated Stylesheet for a cohesive Fresha-like UI/UX.
+ * This version features a clean, professional aesthetic and responsive design.
+ */
+
+/* --- Global & Base Styles --- */
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background: #f8f9fa;
+  color: #212529;
+}
+
+/* Hide scrollbars globally */
+* {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+}
+*::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
+}
+
+/* --- Main Layout Structure (Desktop First) --- */
+.layout-container {
+  display: flex;
+  min-height: 100vh;
+  flex-direction: row; 
+}
+
+/* Main Content Area for Services */
+.main-content {
+  flex-grow: 1;
+  height: 100vh;
+  overflow-y: auto;
+  padding: 0;
+  box-sizing: border-box;
+  background-color: #fff; /* Services side background is now pure white */
+}
+
+/* Right Sidebar for Booking Summary */
+.booking-sidebar {
+  width: 400px;
+  flex-shrink: 0;
+  background: #fff;
+  border-left: 1px solid #e0e0e0;
+  padding: 24px;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+/* --- Global Header --- */
+.global-header {
+  width: 100%;
+  height: 72px;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+  position: sticky;
+  top: 0;
+  left: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.logo-link {
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+}
+
+.header-logo {
+  height: 36px;
+  width: auto;
+  max-width: 140px;
+  transition: transform 0.3s ease;
+  cursor: pointer;
+}
+
+.header-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #333;
+}
+
+/* User Profile Dropdown */
+.user-profile-dropdown {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.profile-trigger {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 20px;
+  transition: background 0.2s;
+}
+.profile-trigger:hover {
+  background: #f5f5f5;
+}
+.profile-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid #eee;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+}
+.dropdown-content {
+  position: absolute;
+  right: 0;
+  top: 120%;
+  background: #fff;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  border-radius: 12px;
+  min-width: 160px;
+  z-index: 1000;
+  padding: 8px 0;
+  opacity: 0;
+  transform: translateY(-10px);
+  pointer-events: none;
+  transition: opacity 0.25s cubic-bezier(.4,0,.2,1), transform 0.25s cubic-bezier(.4,0,.2,1);
+}
+.user-profile-dropdown.open .dropdown-content {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+.dropdown-content a, .dropdown-content button {
+  display: block;
+  width: 100%;
+  padding: 10px 20px;
+  background: none;
+  border: none;
+  text-align: left;
+  color: #222;
+  text-decoration: none;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 0.18s;
+}
+.dropdown-content a:hover, .dropdown-content button:hover {
+  background: #f0f0f0;
+}
+
+/* --- Booking Summary UI Components (Redesigned) --- */
+.booking-summary {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  color: #333;
+}
+
+/* Spa Header Section (matches screenshot) */
+.spa-summary-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.spa-logo-image {
+  width: 64px;
+  height: 64px;
+  border-radius: 8px;
+  object-fit: cover;
+}
+.spa-info-text h4 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 0 0 4px 0;
+}
+.spa-info-text .rating {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 4px;
+  font-size: 0.9rem;
+  color: #ffc107;
+}
+.rating .score, .rating .review-count {
+  color: #6c757d;
+  font-size: 0.85rem;
+}
+.rating .stars {
+  color: #000; /* Star color from the screenshot */
+}
+.spa-info-text .address {
+  font-size: 0.8rem;
+  color: #6c757d;
+  margin: 0;
+}
+
+
+/* Service List (matches screenshot) */
+.selected-services-scroll {
+  flex: 1 1 auto;
+  max-height: 40vh;
+  overflow-y: auto;
+  margin-bottom: 1rem;
+  scrollbar-width: thin;
+  -ms-overflow-style: scrollbar;
+}
+.selected-services-scroll::-webkit-scrollbar {
+  display: block;
+  width: 8px;
+}
+.selected-services-scroll::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+.selected-services-scroll::-webkit-scrollbar-thumb {
+  background: #ccc;
+  border-radius: 4px;
+}
+.selected-services-scroll::-webkit-scrollbar-thumb:hover {
+  background: #888;
+}
+.selected-services {
+  display: flex;
+  flex-direction: column;
+  gap: 0; /* No gap needed, the border creates separation */
+}
+.selected-service {
+  padding: 16px 0;
+  position: relative;
+  border-bottom: 1px solid #e9ecef; /* Thin line for separation */
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.selected-service:last-child {
+  border-bottom: none;
+}
+.service-content {
+  display: flex;
+  justify-content: space-between;
+  font-weight: 600;
+  font-size: 1rem;
+}
+.service-name {
+  color: #212529;
+}
+.service-price {
+  color: #212529;
+}
+.service-meta {
+  font-size: 0.9rem;
+  color: #6c757d;
+  font-weight: 400;
+}
+.remove-service-btn {
+  position: absolute;
+  top: 16px;
+  right: 0;
+  background: none;
+  border: none;
+  color: #999;
+  font-size: 18px;
+  cursor: pointer;
+  transition: color 0.2s ease;
+  padding: 0;
+  line-height: 1;
+}
+.remove-service-btn:hover {
+  color: #000;
+}
+.no-services {
+  text-align: center;
+  padding: 40px 0;
+  color: #6c757d;
+}
+
+.sidebar-bottom-fixed {
+  flex-shrink: 0;
+  padding-top: 16px;
+}
+
+/* Total Summary Section (matches screenshot) */
+.total-summary {
+  display: flex;
+  justify-content: space-between;
+  font-size: 1.25rem;
+  font-weight: 700;
+  border-top: 1px solid #e0e0e0;
+  padding-top: 16px;
+  margin-bottom: 24px;
+}
+.total-label {
+  color: #212529;
+}
+.total-price {
+  color: #212529;
+}
+
+/* Redesigned Continue button */
+.action-buttons {
+  display: flex;
+}
+.btn-continue.large {
+  flex: 1;
+  padding: 1rem 20px;
+  font-size: 1.1rem;
+  font-weight: 700;
+  border-radius: 12px;
+  background: black;
+  color: white;
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+.btn-continue.large:hover:not(:disabled) {
+  background: #333;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+.btn-continue.disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* --- Main Content Services & Categories (Refined) --- */
+.services-page-wrapper {
+  padding: 24px;
+}
+.content-container {
+  max-width: 963px;
+  margin: 0 auto;
+}
+.sticky-header-container {
+  background: #fff;
+  border-bottom: 1px solid #e0e0e0;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  transition: all 0.3s ease-in-out;
+}
+.sticky-header-container.scrolled .svc-heading {
+  font-size: 24px;
+}
+.svc-header {
+  padding: 24px 0;
+  display: flex;
+  align-items: center;
+}
+.svc-heading {
+  font-size: 40px;
+  font-weight: 700;
+  margin: 0;
+  transition: font-size 0.3s ease-in-out;
+}
+.svc-nav-wrapper-outer {
+  border-top: 1px solid #e0e0e0;
+}
+.svc-nav-wrapper-inner {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.svc-nav {
+  display: flex;
+  overflow-x: auto;
+  gap: 8px;
+  padding: 12px 0;
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+  width: 100%;
+}
+.svc-nav button {
+  flex-shrink: 0;
+  padding: 8px 16px;
+  background: #f0f0f0;
+  border: none;
+  border-radius: 20px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.3s;
+  white-space: nowrap;
+}
+.svc-nav button:hover {
+  background: #e0e0e0;
+}
+.svc-nav button.active {
+  background-color: #000;
+  color: #fff;
+}
+.svc-list-container {
+  padding: 24px 0;
+}
+.svc-category-section {
+  margin-top: 40px;
+}
+.svc-category-title {
+  font-size: 20px;
+  font-weight: 600;
+  margin-bottom: 16px;
+  padding-left: 12px;
+  border-left: 4px solid #000;
+}
+.svc-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.svc-item {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  background-color: #fff;
+  border-radius: 12px;
+  border: 1px solid #e0e0e0;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  cursor: pointer;
+}
+.svc-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  border-color: #ccc;
+}
+.svc-info {
+  flex-grow: 1;
+}
+.svc-info h4 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0;
+}
+.svc-info .time {
+  font-size: 0.8rem;
+  color: #6c757d;
+}
+.svc-info p {
+  font-size: 0.9rem;
+  color: #495057;
+  line-height: 1.5;
+  margin: 8px 0;
+  white-space: pre-wrap;
+}
+.svc-info .svc-price {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #000;
+  display: block;
+}
+.svc-info .svc-original-price {
+  text-decoration: line-through;
+  color: #999;
+  margin-left: 8px;
+  font-weight: 400;
+}
+.svc-add-btn {
+  background: #f0f0f0;
+  border: none;
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  font-size: 24px;
+  line-height: 1;
+  font-weight: 300;
+  color: #333;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.3s;
+}
+.svc-add-btn:hover {
+  background-color: #e0e0e0;
+  transform: scale(1.1);
+}
+
+/* --- Service Modal Styles (Popup) --- */
+.svc-popup-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  animation: fadeIn 0.3s ease-out;
+}
+.svc-popup {
+  background: #fff;
+  width: 95%;
+  max-width: 520px;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 15px 30px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(0, 0, 0, 0.05);
+  animation: slideInUp 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+.svc-popup-header {
+  padding: 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #f0f0f0;
+}
+.svc-popup-header h2 {
+  font-size: 24px;
+  font-weight: 600;
+  margin: 0;
+}
+.close-btn {
+  background: none;
+  border: none;
+  font-size: 28px;
+  line-height: 1;
+  color: #999;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+.svc-popup-body {
+  padding: 24px;
+  overflow-y: auto;
+  max-height: 70vh;
+}
+.svc-popup-desc {
+  font-size: 14px;
+  color: #555;
+  margin-bottom: 24px;
+  line-height: 1.6;
+}
+.svc-popup-subtitle {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+.svc-option-item {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  border: 2px solid #e0e0e0;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.svc-option-item:has(input[type="radio"]:checked) {
+  border-color: #000;
+}
+.svc-option-item:hover {
+  border-color: #000;
+}
+.svc-option-item input[type="radio"] {
+  accent-color: #000;
+  transform: scale(1.2);
+}
+.svc-option-time, .svc-option-price {
+  font-size: 14px;
+  color: #555;
+}
+.svc-popup-footer {
+  padding: 20px 24px;
+  border-top: 1px solid #f0f0f0;
+}
+.btn-add-to-booking {
+  background-color: #000;
+  color: white;
+  padding: 14px 20px;
+  border-radius: 8px;
+  border: none;
+  width: 100%;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+.btn-add-to-booking:hover:not(:disabled) {
+  background-color: #333;
+}
+.btn-add-to-booking:disabled {
+  background-color: #e9ecef;
+  color: #6c757d;
+  cursor: not-allowed;
+}
+
+/* --- Mobile Bottom Bar --- */
+.mobile-bottom-bar {
+  display: none;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background-color: #fff;
+  border-top: 1px solid #e0e0e0;
+  padding: 12px 16px;
+  z-index: 1000;
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.08);
+  align-items: center;
+  justify-content: space-between;
+}
+.mobile-bottom-bar-info {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+}
+.mobile-bottom-bar-price {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #000;
+}
+.mobile-bottom-bar-details {
+  font-size: 0.8rem;
+  color: #6c757d;
+}
+.mobile-bottom-bar-details span {
+  font-weight: 600;
+  color: #333;
+}
+.mobile-bottom-bar .btn-continue {
+  padding: 10px 20px;
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+
+/* --- Responsive Layout & Overrides --- */
+@media (max-width: 992px) {
+  .layout-container {
+    flex-direction: column;
+  }
+  .booking-sidebar {
+    width: 100%;
+    height: auto;
+    position: static;
+    border-left: none;
+    border-top: 1px solid #e0e0e0;
+  }
+  .main-content {
+    height: auto;
+  }
+  .sidebar-bottom-fixed {
+    position: static;
+    box-shadow: none;
+  }
+}
+
+@media (max-width: 768px) {
+  .global-header {
+    height: 60px;
+    padding: 0 16px;
+  }
+  .header-logo {
+    height: 32px;
+  }
+  .header-title {
+    font-size: 16px;
+  }
+}
+
+@media (max-width: 600px) {
+  .booking-sidebar {
+    display: none;
+  }
+  .main-content {
+    padding: 0;
+  }
+  .services-page-wrapper {
+    padding: 0;
+    padding-bottom: 72px; /* Add space for the bottom bar */
+  }
+  .content-container {
+    padding: 0 16px;
+  }
+  .svc-header {
+    padding: 16px 0;
+  }
+  .svc-heading {
+    font-size: 32px;
+  }
+  .svc-nav {
+    padding-bottom: 0;
+  }
+  .svc-category-section {
+    margin-top: 30px;
+  }
+  .svc-list-container {
+    padding: 16px 0;
+  }
+  .svc-item {
+    padding: 12px;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .svc-add-btn {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    width: 32px;
+    height: 32px;
+    font-size: 20px;
+  }
+  .mobile-bottom-bar {
+    display: flex; /* Show the bottom bar on mobile */
+  }
+  /* Modal bottom-sheet style */
+  .svc-popup-overlay {
+    align-items: flex-end;
+  }
+  .svc-popup {
+    border-radius: 16px 16px 0 0;
+  }
+  .svc-popup-header {
+    padding: 16px 20px;
+  }
+  .svc-popup-header h2 {
+    font-size: 20px;
+  }
+  .svc-popup-body {
+    padding: 16px 20px;
+  }
+  .svc-popup-footer {
+    padding: 16px 20px;
+  }
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideInUp {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
