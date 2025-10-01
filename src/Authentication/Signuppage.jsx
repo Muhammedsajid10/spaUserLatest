@@ -5,11 +5,19 @@ import { useAuth } from "../Service/Context";
 import Swal from "sweetalert2";
 import PhoneInput from "react-phone-input-2";
 import "react-phone-input-2/lib/style.css";
-
 const SignInPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { register, login, resetPassword } = useAuth();
+  const auth = useAuth();
+  
+  // Get all required functions from auth context
+  const { register, login, resetPassword } = auth;
+
+  console.log('Auth context:', {
+    hasResetPassword: !!resetPassword,
+    authFunctions: Object.keys(auth)
+  });
+
   const from = location.state?.from?.pathname || null;
 
   // Tabs
@@ -126,62 +134,65 @@ const SignInPage = () => {
   };
 
   const handleForgotPassword = async (e) => {
-    e.preventDefault();
-    if (!forgotPasswordEmail.trim()) {
-      Swal.fire({
-        title: "Email Required",
-        text: "Please enter your email address.",
-        icon: "warning",
-        confirmButtonText: "OK",
-      });
-      return;
-    }
+  e.preventDefault();
+  
+  // Debug logs
+  console.log('resetPassword function:', resetPassword);
+  console.log('Attempting reset for email:', forgotPasswordEmail);
 
-    setForgotPasswordLoading(true);
-    try {
-      console.log("Forgot Password Email:", forgotPasswordEmail);
-      if (resetPassword) {
-        const result = await resetPassword({ email: forgotPasswordEmail });
-        console.log("Reset Password Result:", result);
-        if (result.success) {
-          Swal.fire({
-            title: "Reset Link",
-            text: "Please check your email for password reset instructions.",
-            icon: "success",
-            confirmButtonText: "OK",
-          });
-          setShowForgotPassword(false);
-          setForgotPasswordEmail("");
-        } else {
-          Swal.fire({
-            title: "Error",
-            text: result.message || "Failed to send reset email.",
-            icon: "error",
-            confirmButtonText: "OK",
-          });
-        }
-      } else {
-        Swal.fire({
-          title: "Reset Link Sent",
-          text: "Please check your email for password reset instructions.",
-          icon: "success",
-          confirmButtonText: "OK",
-        });
-        setShowForgotPassword(false);
-        setForgotPasswordEmail("");
-      }
-    } catch (err) {
-      console.error("Forgot Password Error:", err);
+  if (!resetPassword) {
+    console.error('resetPassword function is not available');
+    Swal.fire({
+      title: "Error",
+      text: "Reset password functionality is not available",
+      icon: "error",
+      confirmButtonText: "OK"
+    });
+    return;
+  }
+
+  if (!forgotPasswordEmail.trim()) {
+    Swal.fire({
+      title: "Email Required",
+      text: "Please enter your email address.",
+      icon: "warning",
+      confirmButtonText: "OK"
+    });
+    return;
+  }
+
+  setForgotPasswordLoading(true);
+  
+  try {
+    console.log('[SignIn] Attempting password reset for:', forgotPasswordEmail);
+    
+    const result = await resetPassword({ email: forgotPasswordEmail });
+    console.log('[SignIn] Reset password result:', result);
+
+    if (result.success) {
       Swal.fire({
-        title: "Error",
-        text: err.message || "Failed to send reset email.",
-        icon: "error",
-        confirmButtonText: "OK",
+        title: "Reset Link Sent",
+        text: result.message || "Please check your email for password reset instructions.",
+        icon: "success",
+        confirmButtonText: "OK"
       });
-    } finally {
-      setForgotPasswordLoading(false);
+      setShowForgotPassword(false);
+      setForgotPasswordEmail("");
+    } else {
+      throw new Error(result.message || "Failed to send reset email");
     }
-  };
+  } catch (error) {
+    console.error('[SignIn] Forgot password error:', error);
+    Swal.fire({
+      title: "Error",
+      text: error.message || "Failed to send reset email. Please try again.",
+      icon: "error",
+      confirmButtonText: "OK"
+    });
+  } finally {
+    setForgotPasswordLoading(false);
+  }
+};
 
   const handleForgotPasswordClick = () => {
     setForgotPasswordEmail(loginData.email || "");

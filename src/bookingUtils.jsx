@@ -350,7 +350,7 @@ export function getValidTimeSlotsForProfessional(employee, date, serviceDuration
     employeeId: employee?._id || employee?.id || employee,
     date: dayKey,
     serviceDuration,
-    lastAllowedSlot: '22:45 (10:45 PM)'
+    lastAllowedSlot: '21:45 (09:45 PM)'
   });
 
   const shifts = getEmployeeShiftHours(employee, dateLocal);
@@ -499,177 +499,100 @@ export function getAvailableProfessionalsForService(serviceId, date, employees, 
 }
 
 /**
- * Compute sequential start times with bookings/shifts considered for each professional.
- * Returns sequences where each service start is available for its assigned professional.
+ * Compute sequential start times with bookings/shifts considered.
+ * Returns sequences that fit before 10:45 PM cutoff.
  */
-// ============================================
-// UPDATED: computeSequentialServiceStartTimesWithBookings
-// ============================================
-
-export async function computeSequentialServiceStartTimesWithBookings(
-  servicesOrdered = [], 
-  professionalsMap = {}, 
-  date = new Date(), 
-  appointmentsIndex = {}
-) {
+export function computeSequentialServiceStartTimesWithBookings(services, professionalsMap, date, appointmentsIndex) {
   console.log('[bookingUtils] computeSequentialServiceStartTimesWithBookings start', {
-    services: servicesOrdered.map(s => s._id || s.id),
+    services: services.map(s => s._id),
     date: localDateKey(date),
     lastAllowedSlot: '22:45 (10:45 PM)'
   });
 
-  if (!Array.isArray(servicesOrdered) || servicesOrdered.length === 0) return [];
+  if (!Array.isArray(services) || services.length === 0) return [];
 
-  // Calculate total duration for all services
-  const totalDuration = servicesOrdered.reduce((sum, svc) => 
-    sum + (svc.duration || svc.minutes || 30), 0
-  );
-
-  const perServiceSlots = {};
-  for (const svc of servicesOrdered) {
-    const emp = professionalsMap?.[svc._id];
-    if (!emp) {
-      console.warn('[bookingUtils] missing professional for service', svc._id);
-      return [];
-    }
-    const duration = svc.duration || svc.minutes || 30;
-    const employeeId = emp._id || emp.id;
-    
-    try {
-      const slots = getValidTimeSlotsForProfessional(emp, date, duration, appointmentsIndex || {});
-      perServiceSlots[svc._id] = new Set(Array.isArray(slots) ? slots : []);
-    } catch (err) {
-      console.error('[bookingUtils] error computing slots for', svc._id, employeeId, err);
-      perServiceSlots[svc._id] = new Set();
-    }
-  }
-
-  const firstSvc = servicesOrdered[0];
-  const candidates = Array.from(perServiceSlots[firstSvc._id] || [])
-    .sort((a,b) => timeToMinutesFn(a) - timeToMinutesFn(b));
+  // Calculate total duration needed
+  const totalDuration = services.reduce((sum, svc) => sum + (svc.duration || 30), 0);
   
-  if (!candidates.length) return [];
+  // Calculate the latest possible start time
+  const lastAllowedStart = timeToMinutes("22:45") - totalDuration;
+  const lastStartTime = minutesToTime(lastAllowedStart);
 
-  const offsets = [];
-  let acc = 0;
-  for (let i = 0; i < servicesOrdered.length; i++) {
-    offsets.push(acc);
-    acc += servicesOrdered[i].duration || servicesOrdered[i].minutes || 30;
-  }
+  console.log('[bookingUtils] Duration calculation:', {
+    totalDuration,
+    lastPossibleStart: lastStartTime,
+    services: services.map(s => ({
+      name: s.name,
+      duration: s.duration
+    }))
+  });
 
-  const sequences = [];
+  let validSequences = [];
+  let totalCandidates = 0;
   let blockedByTimeLimit = 0;
-  
-  candidateLoop:
-  for (const start of candidates) {
-    if (!start) continue;
+
+  // Generate time slots in 15-minute intervals
+  for (let minutes = 9 * 60; minutes <= lastAllowedStart; minutes += 15) {
+    totalCandidates++;
+    const startTime = minutesToTime(minutes);
     
-    // CRITICAL CHECK: Verify entire sequence wouldn't exceed 10:45 PM
-    const sequenceEndTime = addMinutesToTime(start, totalDuration);
-    if (exceedsLastAllowedSlot(start, totalDuration)) {
+    // Check if sequence would exceed 10:45 PM
+    const sequenceEndMinutes = minutes + totalDuration;
+    if (sequenceEndMinutes > timeToMinutes("22:45")) {
       blockedByTimeLimit++;
-      console.debug('[bookingUtils] ⛔ Sequential slot blocked: would exceed 10:45 PM', {
-        startTime: start,
+      console.log('[TIME CONSTRAINT] Sequence rejected:', {
+        startTime,
         totalDuration: `${totalDuration} min`,
-        wouldEndAt: sequenceEndTime
+        wouldEndAt: minutesToTime(sequenceEndMinutes),
+        lastAllowed: "22:45",
       });
-      continue; // Skip this candidate
+      continue;
     }
-    
-    const seq = [];
-    for (let i = 0; i < servicesOrdered.length; i++) {
-      const svc = servicesOrdered[i];
-      const offsetMinutes = offsets[i];
-      const tStart = addMinutesToTime(start, offsetMinutes);
-      const tEnd = addMinutesToTime(tStart, svc.duration || svc.minutes || 30);
-      const slotsSet = perServiceSlots[svc._id] || new Set();
-      
-      if (!slotsSet.has(tStart)) {
-        continue candidateLoop;
+
+    // Build the sequence
+    let currentTime = startTime;
+    let sequence = [];
+    let isValid = true;
+
+    for (let i = 0; i < services.length; i++) {
+      const service = services[i];
+      const professional = professionalsMap[service._id];
+      const duration = service.duration || 30;
+
+      // Verify each service fits within allowed time
+      const serviceEndMinutes = timeToMinutes(currentTime) + duration;
+      if (serviceEndMinutes > timeToMinutes("22:45")) {
+        isValid = false;
+        break;
       }
-      
-      const emp = professionalsMap[svc._id];
-      const employeeId = emp._id || emp.id;
-      seq.push({
-        serviceId: svc._id,
-        employeeId,
-        startTime: tStart,
-        endTime: tEnd,
-        duration: svc.duration || svc.minutes || 30
+
+      sequence.push({
+        serviceId: service._id,
+        startTime: currentTime,
+        endTime: minutesToTime(serviceEndMinutes),
+        duration,
+        professional
+      });
+
+      currentTime = minutesToTime(serviceEndMinutes);
+    }
+
+    if (isValid) {
+      validSequences.push({
+        startTime,
+        sequence
       });
     }
-    sequences.push({ startTime: start, sequence: seq });
-    if (sequences.length >= 80) break;
   }
 
   console.log('[bookingUtils] Sequential sequences summary', {
-    totalCandidates: candidates.length,
-    validSequences: sequences.length,
+    totalCandidates,
+    validSequences: validSequences.length,
     blockedByTimeLimit,
     totalDuration: `${totalDuration} min`
   });
-  
-  return sequences;
-}
 
-
-/**
- * Simpler sequential computation that reuses getValidTimeSlotsForProfessional (kept for compatibility).
- */
-export async function computeSequentialServiceStartTimes(servicesOrdered = [], professionalsMap = {}, date = new Date(), appointments = {}) {
-  // Validate
-  if (!Array.isArray(servicesOrdered) || servicesOrdered.length === 0) return [];
-  const dateObj = (typeof date === 'string') ? new Date(date) : new Date(date);
-
-  const perServiceSlots = {};
-  for (const svc of servicesOrdered) {
-    const emp = professionalsMap?.[svc._id];
-    if (!emp || (!emp._id && !emp.id)) return [];
-    const duration = svc.duration || svc.minutes || 30;
-    const slots = getValidTimeSlotsForProfessional(emp, dateObj, duration, appointments);
-    perServiceSlots[svc._id] = new Set(Array.isArray(slots) ? slots : []);
-  }
-
-  const firstSvc = servicesOrdered[0];
-  const candidates = Array.from(perServiceSlots[firstSvc._id] || []);
-  if (!candidates.length) return [];
-
-  const offsets = [];
-  let acc = 0;
-  for (let i = 0; i < servicesOrdered.length; i++) {
-    offsets.push(acc);
-    acc += servicesOrdered[i].duration || servicesOrdered[i].minutes || 30;
-  }
-
-  const sequences = [];
-  candidateLoop:
-  for (const start of candidates) {
-    if (!start || typeof start !== 'string') continue;
-    const seq = [];
-    for (let i = 0; i < servicesOrdered.length; i++) {
-      const svc = servicesOrdered[i];
-      const emp = professionalsMap[svc._id];
-      const offsetMinutes = offsets[i];
-      const tStart = addMinutesToTime(start, offsetMinutes);
-      const slotsSet = perServiceSlots[svc._id] || new Set();
-      if (!slotsSet.has(tStart)) {
-        continue candidateLoop;
-      }
-      const duration = svc.duration || svc.minutes || 30;
-      const tEnd = addMinutesToTime(tStart, duration);
-      seq.push({
-        serviceId: svc._id,
-        employeeId: emp._id || emp.id,
-        startTime: tStart,
-        endTime: tEnd,
-        duration
-      });
-    }
-    sequences.push({ startTime: start, sequence: seq });
-    if (sequences.length >= 40) break;
-  }
-
-  return sequences;
+  return validSequences;
 }
 // ============================================
 // CRITICAL CONSTRAINT: Last booking slot enforcement
@@ -684,7 +607,7 @@ export async function computeSequentialServiceStartTimes(servicesOrdered = [], p
  * @returns {boolean} - True if the service would end after 10:45 PM
  */
 export function exceedsLastAllowedSlot(startTimeStr, durationMinutes = 0) {
-  const LAST_ALLOWED_TIME = "23:45"; // 10:45 PM in 24-hour format
+  const LAST_ALLOWED_TIME = "23:00"; // 10:45 PM in 24-hour format
   
   // Convert start time to minutes
   const startMinutes = timeToMinutesFn(startTimeStr);
@@ -924,7 +847,93 @@ export function filterSequentialSlotsAgainstBookingsUTC(bookings = [], shifts = 
   return out;
 }
 
-// Add this helper function
-/**
- * Check if a time exceeds the last allowed booking time (10:45 PM)
- */
+// Update the time constraint check in computeSequentialServiceStartTimesWithBookings
+// export function computeSequentialServiceStartTimesWithBookings(services, professionalsMap, date, appointmentsIndex) {
+//   console.log('[bookingUtils] computeSequentialServiceStartTimesWithBookings start', {
+//     services: services.map(s => s._id),
+//     date: localDateKey(date),
+//     lastAllowedSlot: '22:45 (10:45 PM)'
+//   });
+
+//   // Calculate total duration needed
+//   const totalDuration = services.reduce((sum, svc) => sum + (svc.duration || 30), 0);
+  
+//   // NEW: Calculate the latest possible start time
+//   const lastAllowedStart = timeToMinutes("22:45") - totalDuration;
+//   const lastStartTime = minutesToTime(lastAllowedStart);
+
+//   console.log('[bookingUtils] Duration calculation:', {
+//     totalDuration,
+//     lastPossibleStart: lastStartTime,
+//     services: services.map(s => ({
+//       name: s.name,
+//       duration: s.duration
+//     }))
+//   });
+
+//   let validSequences = [];
+//   let totalCandidates = 0;
+//   let blockedByTimeLimit = 0;
+
+//   for (let minutes = 9 * 60; minutes <= lastAllowedStart; minutes += 15) {
+//     totalCandidates++;
+//     const startTime = minutesToTime(minutes);
+    
+//     // Check if this sequence would exceed 10:45 PM
+//     const sequenceEndMinutes = minutes + totalDuration;
+//     if (sequenceEndMinutes > timeToMinutes("22:45")) {
+//       blockedByTimeLimit++;
+//       console.log('[TIME CONSTRAINT] Sequence rejected:', {
+//         startTime,
+//         totalDuration: `${totalDuration} min`,
+//         wouldEndAt: minutesToTime(sequenceEndMinutes),
+//         lastAllowed: "22:45",
+//       });
+//       continue;
+//     }
+
+//     // Build the sequence
+//     let currentTime = startTime;
+//     let sequence = [];
+//     let isValid = true;
+
+//     for (let i = 0; i < services.length; i++) {
+//       const service = services[i];
+//       const professional = professionalsMap[service._id];
+//       const duration = service.duration || 30;
+
+//       // Check if this service fits within allowed time
+//       const serviceEndMinutes = timeToMinutes(currentTime) + duration;
+//       if (serviceEndMinutes > timeToMinutes("22:45")) {
+//         isValid = false;
+//         break;
+//       }
+
+//       sequence.push({
+//         serviceId: service._id,
+//         startTime: currentTime,
+//         endTime: minutesToTime(serviceEndMinutes),
+//         duration,
+//         professional
+//       });
+
+//       currentTime = minutesToTime(serviceEndMinutes);
+//     }
+
+//     if (isValid) {
+//       validSequences.push({
+//         startTime,
+//         sequence
+//       });
+//     }
+//   }
+
+//   console.log('[bookingUtils] Sequential sequences summary', {
+//     totalCandidates,
+//     validSequences: validSequences.length,
+//     blockedByTimeLimit,
+//     totalDuration: `${totalDuration} min`
+//   });
+
+//   return validSequences;
+// }

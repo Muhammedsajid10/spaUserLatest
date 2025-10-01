@@ -930,64 +930,104 @@ const Time = (props) => {
         const services = flow.selectedServices && flow.selectedServices.length ? flow.selectedServices : [selectedService];
 
         // Multi-service flow - FIXED WORKFLOW 
-        if (services.length > 1) {
-          console.log('[Time] FIXED WORKFLOW - Multi-service flow starting');
-          const missing = services.filter(s => !flow.selectedProfessionals?.[s._id]);
-          if (missing.length) {
-            console.log('[Time] multi-service abort - missing assignments', missing.map(m=>m._id));
-            setAvailableTimeSlots([]);
-            return;
-          }
+       if (services.length > 1) {
+  console.log('[Time] Multi-service: single professional for all services');
+  
+  // Get the assigned professional (should be same for all services)
+  const firstService = services[0];
+  const assignedProfessional = flow.selectedProfessionals?.[firstService._id];
+  
+  if (!assignedProfessional) {
+    setAvailableTimeSlots([]);
+    setError('Please assign a professional first');
+    setLoadingTimeSlots(false);
+    return;
+  }
 
-          // Build professionals map and employeeIds
-          const professionalsMap = {};
-          const employeeIds = [];
-          services.forEach(svc => {
-            const emp = flow.selectedProfessionals[svc._id];
-            professionalsMap[svc._id] = emp;
-            const id = emp?._id || emp?.id;
-            if (id) employeeIds.push(id);
-          });
+  const empId = assignedProfessional._id || assignedProfessional.id;
+  
+  // Fetch bookings for this ONE professional
+  console.log('[Time] Fetching bookings for professional:', empId);
+  const { appointmentsIndex } = await fetchEmployeeBookingConflicts(selectedDate, empId);
+  
+  const dateKey = localDateKey(selectedDate);
+  const employeeBookings = appointmentsIndex[empId]?.[dateKey] || {};
+  
+  console.log('[Time] Professional bookings:', {
+    professionalId: empId,
+    bookingCount: Object.keys(employeeBookings).length,
+    bookings: Object.values(employeeBookings).map(b => 
+      `${b.startTime}-${b.endTime} (${b.serviceName})`)
+  });
 
-          console.log('[Time] FIXED WORKFLOW - Multi-service: Fetching booking conflicts after professional assignment');
-          // Now fetch booking conflicts for these specific employees
-          const { appointmentsIndex } = await fetchDateData(selectedDate);
+  // Build professionals map (same professional for all services)
+  const professionalsMap = {};
+  services.forEach(svc => {
+    professionalsMap[svc._id] = assignedProfessional;
+  });
 
-          // Ensure appointmentsIndex keys match employee ids used by professionalsMap
-          employeeIds.forEach(id => {
-            if (!appointmentsIndex[id]) {
-              const alt = Object.keys(appointmentsIndex).find(k => String(k).endsWith(String(id)) || String(id).endsWith(String(k)));
-              if (alt) {
-                appointmentsIndex[id] = appointmentsIndex[alt];
-                console.log('[Time] normalized appointments key', { want: id, using: alt });
-              } else {
-                appointmentsIndex[id] = appointmentsIndex[id] || {};
-                appointmentsIndex[id][localDateKey(selectedDate)] = appointmentsIndex[id][localDateKey(selectedDate)] || {};
-              }
-            }
-          });
+  // Generate all possible sequences
+  const sequences = await computeSequentialServiceStartTimesWithBookings(
+    services, professionalsMap, selectedDate, appointmentsIndex
+  );
+  
+  console.log('[Time] Generated sequences:', sequences.length);
 
-          // compute sequences using bookings/shifts (helper uses appointmentsIndex)
-          const sequences = await computeSequentialServiceStartTimesWithBookings(services, professionalsMap, selectedDate, appointmentsIndex);
-          console.log('[Time] sequences computed with bookings count', sequences?.length);
-          if (!sequences || sequences.length === 0) {
-            setAvailableTimeSlots([]);
-            setError('No sequential time slots available for assigned professionals on this date. Try another date or change professionals.');
-            return;
-          }
-          const slots = sequences.map((s, idx) => ({
-            id: idx,
-            time: s.startTime, // Display in 24-hour HH:mm format
-            timeValue: s.startTime, // Keep original 24-hour format for calculations
-            startTime: s.startTime,
-            endTime: s.sequence[s.sequence.length - 1].endTime,
-            available: true,
-            sequence: s.sequence
-          }));
-          setAvailableTimeSlots(slots);
-          setLoadingTimeSlots(false);
-          return;
-        }
+  // Filter sequences against bookings
+  const validSequences = sequences.filter(seq => {
+    const seqStart = timeToMinutes(seq.startTime);
+    const lastService = seq.sequence[seq.sequence.length - 1];
+    const seqEnd = timeToMinutes(lastService.endTime);
+    
+    // Check if this sequence overlaps ANY booking
+    const hasConflict = Object.values(employeeBookings).some(booking => {
+      const bookStart = timeToMinutes(toLocalHHMM(booking.startTime));
+      const bookEnd = timeToMinutes(toLocalHHMM(booking.endTime));
+      
+      // Overlap check: sequence_start < booking_end AND sequence_end > booking_start
+      const overlaps = seqStart < bookEnd && seqEnd > bookStart;
+      
+      if (overlaps) {
+        console.log('[Time] Sequence conflict:', {
+          sequence: `${seq.startTime}-${lastService.endTime}`,
+          booking: `${booking.startTime}-${booking.endTime}`,
+          service: booking.serviceName
+        });
+      }
+      
+      return overlaps;
+    });
+    
+    return !hasConflict;
+  });
+
+  console.log('[Time] Filtered sequences:', {
+    before: sequences.length,
+    after: validSequences.length,
+    removed: sequences.length - validSequences.length
+  });
+
+  if (validSequences.length === 0) {
+    setAvailableTimeSlots([]);
+    setError('No available time slots for this professional. Try another date.');
+    setLoadingTimeSlots(false);
+    return;
+  }
+
+  const slots = validSequences.map((s, idx) => ({
+    id: idx,
+    time: toLocalHHMM(s.startTime) || s.startTime,
+    timeValue: toLocalHHMM(s.startTime) || s.startTime,
+    startTime: toLocalHHMM(s.startTime) || s.startTime,
+    endTime: toLocalHHMM(s.sequence[s.sequence.length - 1].endTime),
+    available: true,
+    sequence: s.sequence
+  }));
+  
+  setAvailableTimeSlots(slots);
+  setLoadingTimeSlots(false);
+  return;
+}
 
         // Single-service flow - FIXED WORKFLOW
         const svc = services[0];

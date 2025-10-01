@@ -138,18 +138,19 @@
 
 .professional-card{
   background: var(--panel);
-  padding: var(--card-padding);
+  padding: 20px;
   border-radius: var(--radius);
   box-shadow: var(--shadow);
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  text-align:center;
-  gap:8px;
-  cursor:pointer;
-  transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 12px;
+  cursor: pointer;
+  transition: transform .12s ease, box-shadow .12s ease;
   border: 1px solid transparent;
-  min-height:120px;
+  min-height: 180px; /* Increased base height */
+  width: 70%;
 }
 .professional-card:hover{ transform: translateY(-4px); box-shadow: var(--shadow-strong); }
 .professional-card.selected{ border-color: var(--accent); background: linear-gradient(180deg, #ffffff, #fbfbfb); }
@@ -374,6 +375,7 @@
   .per-service-assignment.summary-only { padding: 0 12px; }
   .assign-grid.spa-grid { grid-template-columns: 1fr; }
 }
+
 /* General container for the professional selection page */
 .select-professional-container {
   max-width: 900px;
@@ -906,79 +908,135 @@
 
 .modal-professional-grid{
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 20px;
+  padding: 20px;
+}
+
+@media (min-width: 768px) {
+  .modal-professional-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 25px;
+  }
+
+  .modal-professional-card {
+    min-height: 180px;
+    min-width: 250px;
+  }
+}
+
+/* Professional Grid Layout - Base styles */
+.professional-grid {
+  display: grid;
+  gap: 20px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 0 15px;
+}
+
+/* Professional Card - Base styles */
+.professional-card {
+  background: var(--panel);
+  padding: 20px;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
   gap: 12px;
-  padding: 12px;
-  max-height: 540px;
-  overflow:auto;
-  background: #fff;
-}
-
-.modal-professional-card{
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  gap:8px;
-  padding:14px;
-  background:#fff;
-  border-radius:10px;
-  border:1px solid rgba(0,0,0,0.08);
-  cursor:pointer;
+  cursor: pointer;
   transition: transform .12s ease, box-shadow .12s ease;
-  min-height:110px;
-}
-.modal-professional-card:hover{ transform: translateY(-6px); box-shadow: 0 14px 30px rgba(0,0,0,0.06); }
-.modal-professional-card.mode-card{ border-style:dashed; }
-
-.modal-professional-card .letter-circle{
-  width:56px; height:56px; border-radius:50%; display:flex; align-items:center; justify-content:center;
-  background:#e6f2ff; color:#0b4bd8; border:1px solid rgba(11,75,216,0.08); font-weight:700;
+  border: 1px solid transparent;
+  min-height: 180px; /* Increased base height */
+  width: 100%;
 }
 
-.modal-prof-name{ font-weight:700; color:#000; font-size:0.95rem; text-align:center; }
-.modal-prof-sub{ font-size:0.82rem; color:#444; opacity:0.85; text-align:center; }
+/* Mobile screens (up to 767px) */
+@media (max-width: 767px) {
+  .professional-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 15px;
+  }
 
-/* ensure modal box itself stays light with thin black border */
-.assign-modal.spa-modal { background:#fff; border:1px solid rgba(0,0,0,0.10); width: 578px;}
-.assign-modal-overlay { background: rgba(0,0,0,0.45); }
-
-/* keep existing small-avatar style consistent */
-.letter-circle.small { width:44px; height:44px; border-radius:8px; }
-/* Back-to-professionals button — light UI with black border */
-.back-to-grid{
-  display:inline-flex;
-  align-items:center;
-  gap:8px;
-  padding:8px 14px;
-  border-radius:10px;
-  background:#ffffff;            /* white background */
-  color:#000000;                 /* black text */
-  border:1px solid rgba(0,0,0,0.95); /* solid black border */
-  font-weight:700;
-  cursor:pointer;
-  box-shadow: 0 6px 18px rgba(11,11,11,0.04);
-  transition: background .12s ease, transform .08s ease, box-shadow .12s ease, border-color .12s ease;
+  .professional-card {
+    min-height: 160px;
+    padding: 15px;
+  }
 }
 
-/* Hover / active / focus states */
-.back-to-grid:hover{
-  background:#fafafa;
-  transform: translateY(-2px);
-  box-shadow: 0 10px 24px rgba(11,11,11,0.06);
-}
-.back-to-grid:active{
-  transform: translateY(0);
-}
-.back-to-grid:focus{
-  outline: 3px solid rgba(0,0,0,0.06);
-  outline-offset: 2px;
+/* Tablet screens (768px - 1023px) */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .professional-grid {
+    grid-template-columns: repeat(2, minmax(250px, 1fr));
+    gap: 20px;
+    max-width: 800px;
+  }
+
+  .professional-card {
+    min-height: 180px;
+  }
 }
 
-/* Responsive: full width on narrow viewports */
-@media (max-width:720px){
-  .back-to-grid{
-    width:100%;
-    justify-content:center;
-    padding:10px 14px;
+/* Desktop screens (1024px - 1439px) */
+@media (min-width: 1024px) {
+  .professional-grid {
+    grid-template-columns: repeat(2, minmax(280px, 1fr));
+    gap: 25px;
+    max-width: 900px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .professional-card {
+    min-height: 200px;
+    min-width: 280px;
+    max-width: 400px;
+  }
+}
+
+/* Large desktop screens (1440px - 1919px) */
+@media (min-width: 1440px) {
+  .professional-grid {
+    grid-template-columns: repeat(2, minmax(300px, 1fr));
+    gap: 30px;
+    max-width: 1000px;
+  }
+
+  .professional-card {
+    min-height: 220px;
+    min-width: 300px;
+  }
+}
+
+/* Extra large screens (1920px and above) */
+@media (min-width: 1920px) {
+  .professional-grid {
+    grid-template-columns: repeat(2, minmax(320px, 1fr));
+    gap: 35px;
+    max-width: 1200px;
+  }
+
+  .professional-card {
+    min-height: 240px;
+    min-width: 320px;
+  }
+}
+
+/* Update Modal Grid to match main grid layout */
+.modal-professional-grid {
+  display: grid;
+  gap: 20px;
+  padding: 20px;
+}
+
+@media (min-width: 768px) {
+  .modal-professional-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 25px;
+  }
+
+  .modal-professional-card {
+    min-height: 180px;
+    min-width: 250px;
   }
 }
