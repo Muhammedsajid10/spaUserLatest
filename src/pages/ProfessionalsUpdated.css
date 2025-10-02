@@ -123,23 +123,20 @@
 }
 
 /* Header */
-.select-professional-container > h2{
+.select-professional-container h2{
   font-size: 2rem;
   font-weight: bold;
   margin-bottom: 20px;
-  text-align: center;
+  text-align: left;
   width: 100%;
-  padding: 0 20px;
+  padding: 0;
   box-sizing: border-box;
-  position: relative;
-  left: 50%;
-  transform: translateX(-50%);
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: flex-start;
   gap: 4px;
+  left: 0;
 }
-
 /* Desktop screens (1024px+) specific adjustments */
 @media (min-width: 1024px) {
   .select-professional-container {
@@ -156,9 +153,9 @@
     margin-bottom: 30px;
     white-space: nowrap;
     position: relative;
-    left: 50%;
-    transform: translateX(-50%);
-    margin-left: 230px;
+    /* left: 50%; */
+    /* transform: translateX(-50%); */
+    /* margin-left: 230px; */
   }
 
   .professional-grid {
@@ -311,7 +308,7 @@
     text-align: center;
     width: calc(100% - 420px);
     transform: none;
-    left: 292px;
+  
     margin-left: 0;
   }
 
@@ -598,15 +595,15 @@
   font-size: 2rem;
   font-weight: bold;
   margin-bottom: 20px;
-  text-align: center;
+  text-align: left;
   width: 100%;
-  padding: 0 20px;
+  padding: 0;
   box-sizing: border-box;
-  /* Add line break control */
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: flex-start;
   gap: 4px;
+  left: 0;
 }
 
 /* Add span wrappers for text content */
@@ -621,6 +618,7 @@
     font-size: 1.75rem;
     margin-bottom: 16px;
     gap: 2px;
+    left: 0;
   }
 }
 
