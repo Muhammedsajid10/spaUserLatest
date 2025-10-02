@@ -202,6 +202,29 @@
   }
 }
 
+/* 4K+ Ultra-wide screens (4000px and above) */
+@media (min-width: 4000px) {
+  .layout-with-booking {
+    max-width: 3500px;
+    margin: 0 auto;
+    padding: 0 6rem;
+  }
+
+  .layout-with-booking .booking-sidebar {
+    width: 600px;
+    height: calc(100vh - 180px);
+    right: max(6rem, calc((100% - 3500px) / 2 + 6rem));
+  }
+
+  .layout-with-booking .main-content {
+    padding-right: 600px;
+  }
+
+  .global-header {
+    height: 120px;
+  }
+}
+
 /* BOOKING SUMMARY STYLES */
 .booking-summary {
   display: flex;
@@ -935,7 +958,7 @@
 
 @media (min-width: 3001px) {
   .layout-with-booking {
-    max-width: 3302px;
+    max-width: 2463px;
     margin: 0 auto;
     padding: 0 5rem;
   }
@@ -948,5 +971,138 @@
 
   .layout-with-booking .main-content {
     padding-right: 500px;
+  }
+}
+
+/* 4K+ Screens (4000px - 4999px) */
+@media screen and (min-width: 4000px) and (max-width: 4999px) {
+  .layout-with-booking {
+    max-width: 2927px;
+    margin: 0 auto;
+    padding: 0 5rem;
+  }
+
+  .layout-with-booking .booking-sidebar {
+    width: 550px;
+    height: calc(100vh - 170px);
+    right: max(5rem, calc((100% - 3199px) / 2 + 5rem));
+  }
+
+  .layout-with-booking .main-content {
+    padding-right: 550px;
+  }
+}
+
+/* 5K+ Screens (5000px and above) */
+@media screen and (min-width: 5000px) {
+     .layout-with-booking {
+        max-width: 2904px;
+        margin: 0 auto;
+        padding: 0 6rem;
+    }
+
+  .layout-with-booking .booking-sidebar {
+    width: 600px;
+    height: calc(100vh - 180px);
+    right: max(6rem, calc((100% - 3246px) / 2 + 6rem));
+  }
+
+  .layout-with-booking .main-content {
+    padding-right: 600px;
+  }
+}
+
+/* 6K Screens (6000px - 6999px) */
+@media screen and (min-width: 6000px) and (max-width: 6999px) {
+  .layout-with-booking {
+    max-width: 2799px;
+    margin: 0 auto;
+    padding: 0 7rem;
+  }
+
+  .layout-with-booking .booking-sidebar {
+    width: 650px;
+    height: calc(100vh - 190px);
+    right: max(7rem, calc((100% - 3500px) / 2 + 7rem));
+  }
+
+  .layout-with-booking .main-content {
+    padding-right: 650px;
+  }
+}
+
+/* 7K Screens (7000px - 7999px) */
+@media screen and (min-width: 7000px) and (max-width: 7999px) {
+  .layout-with-booking {
+    max-width: 2776px;
+    margin: 0 auto;
+    padding: 0 8rem;
+  }
+
+  .layout-with-booking .booking-sidebar {
+    width: 700px;
+    height: calc(100vh - 200px);
+    right: max(8rem, calc((100% - 3800px) / 2 + 8rem));
+  }
+
+  .layout-with-booking .main-content {
+    padding-right: 700px;
+  }
+}
+
+/* 8K Screens (8000px - 8999px) */
+@media screen and (min-width: 8000px) and (max-width: 8999px) {
+  .layout-with-booking {
+    max-width: 2800px;
+    margin: 0 auto;
+    padding: 0 9rem;
+  }
+
+  .layout-with-booking .booking-sidebar {
+    width: 750px;
+    height: calc(100vh - 210px);
+    right: max(9rem, calc((100% - 4100px) / 2 + 9rem));
+  }
+
+  .layout-with-booking .main-content {
+    padding-right: 750px;
+  }
+}
+
+/* 9K Screens (9000px - 9999px) */
+@media screen and (min-width: 9000px) and (max-width: 9999px) {
+  .layout-with-booking {
+    max-width: 2500px;
+    margin: 0 auto;
+    padding: 0 10rem;
+  }
+
+  .layout-with-booking .booking-sidebar {
+    width: 800px;
+    height: calc(100vh - 220px);
+    right: max(10rem, calc((100% - 4400px) / 2 + 10rem));
+  }
+
+  .layout-with-booking .main-content {
+    padding-right: 800px;
+  }
+}
+
+/* 10K Screens (10000px and above) */
+@media screen and (min-width: 10000px) {
+  .layout-with-booking {
+    max-width: 4700px;
+    margin: 0 auto;
+    padding: 0 11rem;
+  }
+
+  .layout-with-booking .booking-sidebar {
+    width: 850px;
+    height: calc(100vh - 230px);
+    right: max(11rem, calc((100% - 4700px) / 2 + 11rem));
+  }
+
+  .layout-with-booking .main-content {
+    padding-right: 850px;
   }
 }

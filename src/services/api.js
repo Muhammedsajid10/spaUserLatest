@@ -721,7 +721,7 @@ export const feedbackAPI = {
   // Get user's feedback
   getUserFeedback: async (page = 1, limit = 10) => {
     console.log(`[FEEDBACK] Fetching user feedback - page: ${page}, limit: ${limit}`);
-    const response = await fetch(`${API_BASE_URL}/feedback/my-feedback?page=${page}&limit=${limit}`, {
+    const response = await fetch(`${API_BASE_URL}/feedbacks/my-feedback`, {
       headers: getAuthHeaders()
     });
     return handleResponse(response);

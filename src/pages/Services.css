@@ -890,7 +890,7 @@ body {
 
   .svc-container {
     max-width: 2400px;
-    padding: 50px 140px;
+    /* padding: 50px 140px; */
     padding-top: 280px;
     margin: 0 auto;
     padding-top: 370px;

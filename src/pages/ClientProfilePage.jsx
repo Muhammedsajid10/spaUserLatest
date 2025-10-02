@@ -666,43 +666,72 @@ const SpaProfilePage = () => {
   try {
     setIsSubmittingRating(true);
 
+    console.log('[Rating] Starting submission with:', {
+      ratingBookingId,
+      serviceRatings,
+      ratingComment
+    });
+
     const booking = bookings.find((b) => (b._id || b.id) === ratingBookingId);
+    
     if (!booking) throw new Error("Booking not found");
 
-    // Ensure all services have a rating
-    const missing = booking.services.filter(
-      (s) => !serviceRatings[s.service?._id || s.serviceId]
-    );
-    if (missing.length > 0) {
-      throw new Error("Please rate all services before submitting.");
+    // First, check if all services have ratings
+    const unratedServices = booking.services.filter(service => {
+      const serviceId = service.service?._id || service._id || service.serviceId;
+      return !serviceRatings[serviceId];
+    });
+
+    // If any service is unrated, show specific error
+    if (unratedServices.length > 0) {
+      const unratedServiceNames = unratedServices
+        .map(s => s.service?.name || 'Unknown service')
+        .join(', ');
+      throw new Error(`Please provide ratings for all services: ${unratedServiceNames}`);
     }
 
-    // Prepare feedback array
-    const feedbackServices = booking.services.map((s) => ({
-      serviceId: s.service?._id || s.serviceId,
-      employeeId: s.employee?._id || s.employeeId,
-      rating: serviceRatings[s.service?._id || s.serviceId],
-    }));
+    // Convert service ratings to required format
+    const ratingItems = booking.services.map(service => {
+      const serviceId = service.service?._id || service._id || service.serviceId;
+      const employeeId = service.employee?._id || service.employeeId;
+      const rating = serviceRatings[serviceId];
 
+      return {
+        serviceId,
+        employeeId,
+        rating
+      };
+    });
+
+    // Prepare feedback data
     const feedbackData = {
       bookingId: booking._id || booking.id,
-      bookingNumber: booking.bookingNumber || null,
-      ratings: feedbackServices,
-      comment: ratingComment,
-      client: booking?.client || profile || null,
-      createdAt: new Date().toISOString(),
-      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      items: ratingItems,
+      comment: ratingComment
     };
 
-    console.log("Submitting feedback:", feedbackData);
+    console.log('[Rating] Submitting feedback:', feedbackData);
 
-    const response = await feedbackAPI.createFeedback(feedbackData);
+    const response = await fetch('https://spabacklat.onrender.com/api/v1/feedbacks/create', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      },
+      body: JSON.stringify(feedbackData)
+    });
 
-    if (response.success) {
+    const data = await response.json();
+   console.log('[Rating] Submission response:', data);
+    if (data.success) {
+      // Refresh feedback data
       try {
         const feedbackRes = await feedbackAPI.getUserFeedback();
         setFeedback(feedbackRes?.data?.feedback || []);
-      } catch {}
+      } catch (error) {
+        console.error('[Rating] Error refreshing feedback:', error);
+      }
+
       closeRatingPopup();
       Swal.fire({
         title: "Thank you!",
@@ -712,13 +741,13 @@ const SpaProfilePage = () => {
         showConfirmButton: false,
       });
     } else {
-      throw new Error(response.message || "Failed to submit feedback");
+      throw new Error(data.message || "Failed to submit feedback");
     }
   } catch (error) {
-    console.error("Error submitting feedback:", error);
+    console.error('[Rating] Error submitting feedback:', error);
     Swal.fire({
       title: "Error!",
-      text: error.message || "Failed to submit feedback. Please try again.",
+      text: error.message,
       icon: "error",
       confirmButtonText: "OK",
     });
@@ -964,157 +993,75 @@ const SpaProfilePage = () => {
 
       case "feedback":
         console.log("Feedback data:", feedback);
-        return feedback?.length > 0 ? (
-          <div className="card">
-            <h3 className="card-title">
-              <Star className="w-5 h-5" />
-              My Feedback ({feedback.length})
-            </h3>
-            <div className="space-y-6">
-              {feedback.map((item, index) => {
-                const isEditing = (item._id || item.id) === editingFeedbackId;
-                return (
-                  <div
-                    key={item._id || item.id || `feedback-${index}`}
-                    className="feedback-item"
-                  >
-                    {isEditing ? (
-                      <div>
-                        <div className="feedback-header">
-                          <div>
-                            <h4 className="feedback-title">
-                              {item.booking?.services?.[0]?.service?.name ||
-                                item.service?.name ||
-                                item.serviceName ||
-                                `Service ${index + 1}`}
-                            </h4>
-                            <div className="feedback-professional">
-                              Professional: {item.employee?.user?.firstName} {item.employee?.user?.lastName}
-                            </div>
-                          </div>
-                          <div className="feedback-rating">
-                            <div className="star-rating">
-                              {[1, 2, 3, 4, 5].map((star) => (
-                                <Star
-                                  key={star}
-                                  className={`star ${star <= editFeedbackValue ? "filled" : ""
-                                    } cursor-pointer`}
-                                  onClick={() => setEditFeedbackValue(star)}
-                                />
-                              ))}
-                            </div>
-                            <span className="feedback-rating-text">
-                              {editFeedbackValue}/5
-                            </span>
-                          </div>
-                        </div>
-                        <textarea
-                          className="w-full border border-gray-200 rounded-lg p-3 mb-2"
-                          rows={3}
-                          value={editFeedbackComment}
-                          onChange={(e) => setEditFeedbackComment(e.target.value)}
-                          maxLength={300}
-                        />
-                        <div className="flex gap-2 mt-2">
-                          <button
-                            className="btn btn-primary btn-sm"
-                            onClick={handleSaveEditedFeedback}
-                            disabled={editFeedbackValue === 0}
-                          >
-                            Save
-                          </button>
-                          <button
-                            className="btn btn-secondary btn-sm"
-                            onClick={handleCancelEditFeedback}
-                          >
-                            Cancel
-                          </button>
+        if (feedback?.length > 0) {
+          const groupedFeedback = groupFeedbackByBooking(feedback);
+          
+          return (
+            <div className="card">
+              <h3 className="card-title">
+                <Star className="w-5 h-5" />
+                My Feedback
+              </h3>
+              <div className="space-y-6">
+                {Object.entries(groupedFeedback).map(([bookingId, booking]) => (
+                  <div key={bookingId} className="feedback-booking-group">
+                    <div className="booking-header">
+                      <div className="booking-info">
+                        <h4>Booking #{booking.bookingNumber}</h4>
+                        <div className="feedback-date">
+                          <Calendar className="w-4 h-4" />
+                          <span>{new Date(booking.date).toLocaleDateString()}</span>
                         </div>
                       </div>
-                    ) : (
-                      <>
-                        <div className="feedback-header">
-                          <div>
-                            <h4 className="feedback-title">
-                              {item.booking?.services?.[0]?.service?.name ||
-                                item.service?.name ||
-                                item.serviceName ||
-                                `Service ${index + 1}`}
-                            </h4>
-                            <div className="feedback-professional">
-                              Professional: {item.employee?.user?.firstName} {item.employee?.user?.lastName}
-                            </div>
-                            <div className="feedback-date">
-                              <Calendar className="w-4 h-4" />
-                              <span>
-                                {item.createdAt
-                                  ? new Date(item.createdAt).toLocaleDateString()
-                                  : item.date
-                                    ? new Date(item.date).toLocaleDateString()
-                                    : "N/A"}
-                              </span>
-                            </div>
+                    </div>
+
+                    <div className="services-feedback-list">
+                      {booking.services.map((service, index) => (
+                        <div key={service.serviceId} className="service-feedback-item">
+                          <div className="service-info">
+                            <h5 className="service-name">{service.serviceName}</h5>
+                            <p className="service-provider">
+                              Provider: {service.employee?.user?.firstName} {service.employee?.user?.lastName}
+                            </p>
                           </div>
-                          <div className="feedback-rating">
+
+                          <div className="service-rating">
                             <div className="star-rating">
                               {[1, 2, 3, 4, 5].map((star) => (
                                 <Star
                                   key={star}
-                                  className={`star ${star <= (item.ratings?.overall || item.rating || 0) ? "filled" : ""
-                                    }`}
+                                  className={`star ${star <= service.rating ? "filled" : ""}`}
                                 />
                               ))}
                             </div>
-                            <span className="feedback-rating-text">
-                              {item.ratings?.overall || item.rating || 0}/5
-                            </span>
+                            <span className="rating-value">{service.rating}/5</span>
                           </div>
                         </div>
-                        {(item.comment || item.comments) && (
-                          <div className="feedback-comment">
-                            <p>{item.comment || item.comments}</p>
-                          </div>
-                        )}
-                      </>
-                    )}
-                    {/* ...existing breakdown code if any... */}
-                    {item.breakdown && !isEditing && (
-                      <div className="feedback-breakdown">
-                        {Object.entries(item.breakdown).map(([key, value]) => (
-                          <div key={key} className="feedback-breakdown-item">
-                            <span className="feedback-breakdown-label">
-                              {key}
-                            </span>
-                            <div className="star-rating">
-                              {[1, 2, 3, 4, 5].map((star) => (
-                                <Star
-                                  key={star}
-                                  className={`star ${star <= value ? "filled" : ""
-                                    }`}
-                                />
-                              ))}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
+                      ))}
+                    </div>
+
+                    <div className="booking-feedback-comment">
+                      <p>{booking.services[0].comment}</p>
+                    </div>
                   </div>
-                );
-              })}
+                ))}
+              </div>
             </div>
-          </div>
-        ) : (
-          <div className="empty-state">
-            <div className="empty-state-card">
-              <Star className="empty-state-icon" />
-              <h3 className="empty-state-title">No Feedback Yet</h3>
-              <p className="empty-state-description">
-                Your feedback will appear here after you complete a booking and
-                leave a review.
-              </p>
+          );
+        } else {
+          return (
+            <div className="empty-state">
+              <div className="empty-state-card">
+                <Star className="empty-state-icon" />
+                <h3 className="empty-state-title">No Feedback Yet</h3>
+                <p className="empty-state-description">
+                  Your feedback will appear here after you complete a booking and
+                  leave a review.
+                </p>
+              </div>
             </div>
-          </div>
-        );
+          );
+        }
 
       case "profile":
         return (
@@ -1369,50 +1316,81 @@ const SpaProfilePage = () => {
         {/* Rating Popup */}
         {showRatingPopup && (
           <div className="rating-modal-overlay">
-            <div className="rating-modal" role="dialog" aria-modal="true">
-              <h3>Rate Your Services</h3>
+            <div className="rating-modal">
+              <div className="rating-modal-header">
+                <h3>Rate Your Services</h3>
+                <button className="close-btn" onClick={closeRatingPopup}>×</button>
+              </div>
 
               {(() => {
                 const booking = bookings.find((b) => (b._id || b.id) === ratingBookingId);
                 if (!booking) return <p>No booking selected.</p>;
 
+                console.log('Rating Services:', {
+                  services: booking.services,
+                  currentRatings: serviceRatings
+                });
+
                 return (
                   <>
-                    <div className="service-rating">
+                    <div className="service-rating-list">
                       {booking.services.map((service) => {
-                        const sid = service._id || service.serviceId;
-                        const current = serviceRatings[sid] || 0;
+                        const serviceId = service.service?._id || service._id || service.serviceId;
+                        const serviceName = service.service?.name || 'Service';
+                        const current = serviceRatings[serviceId] || 0;
+
                         return (
-                          <div key={sid} className="service-rating-item">
-                            <label>{service.service?.name}</label>
-                            <div className="stars">
-                              {[1, 2, 3, 4, 5].map((star) => (
-                                <span
-                                  key={star}
-                                  className={current >= star ? "active" : ""}
-                                  onClick={() => handleServiceRating(sid, star)}
-                                >
-                                  ★
-                                </span>
-                              ))}
+                          <div key={serviceId} className="service-rating-item">
+                            <div className="service-info">
+                              <h4>{serviceName}</h4>
+                              <p className="service-provider">
+                                {service.employee?.user?.firstName} {service.employee?.user?.lastName}
+                              </p>
+                            </div>
+                            <div className="rating-stars">
+                              <div className="stars">
+                                {[1, 2, 3, 4, 5].map((star) => (
+                                  <span
+                                    key={star}
+                                    className={`star ${current >= star ? "active" : ""}`}
+                                    onClick={() => handleServiceRating(serviceId, star)}
+                                  >
+                                    ★
+                                  </span>
+                                ))}
+                              </div>
+                              <span className="rating-value">{current > 0 ? `${current}/5` : 'Not rated'}</span>
                             </div>
                           </div>
                         );
                       })}
                     </div>
 
-                    <textarea
-                      placeholder="Leave a comment..."
-                      value={ratingComment}
-                      onChange={(e) => setRatingComment(e.target.value)}
-                    />
+                    <div className="rating-comment">
+                      <textarea
+                        placeholder="Share your experience with these services..."
+                        value={ratingComment}
+                        onChange={(e) => setRatingComment(e.target.value)}
+                        rows={4}
+                      />
+                    </div>
 
                     <div className="modal-actions">
-                      <button className="btn-cancel" onClick={closeRatingPopup}>
+                      <button 
+                        className="btn-cancel" 
+                        onClick={closeRatingPopup}
+                      >
                         Cancel
                       </button>
-                      <button className="btn-submit" onClick={handleRatingSubmit}>
-                        Submit
+                      <button 
+                        className="btn-submit" 
+                        onClick={handleRatingSubmit}
+                        disabled={!booking.services.every(service => {
+                          const serviceId = service.service?._id || service._id || service.serviceId;
+                          return serviceRatings[serviceId];
+                        })}
+                      >
+                        Submit Ratings
                       </button>
                     </div>
                   </>
@@ -1427,3 +1405,25 @@ const SpaProfilePage = () => {
 };
 
 export default SpaProfilePage;
+
+// Add this helper function at the top level
+const groupFeedbackByBooking = (feedback) => {
+  return feedback.reduce((acc, item) => {
+    const bookingId = item.booking?._id || item.bookingId;
+    if (!acc[bookingId]) {
+      acc[bookingId] = {
+        bookingNumber: item.booking?.bookingNumber,
+        date: item.createdAt,
+        services: []
+      };
+    }
+    acc[bookingId].services.push({
+      serviceId: item.service?._id,
+      serviceName: item.service?.name,
+      rating: item.ratings?.overall || item.rating,
+      employee: item.employee,
+      comment: item.comment
+    });
+    return acc;
+  }, {});
+};
