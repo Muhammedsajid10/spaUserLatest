@@ -902,20 +902,20 @@
 @media (min-width: 1024px) {
   .layout-with-booking .main-content {
     width: 100%;
-    padding-right: 380px; /* Match sidebar width */
+    /* padding-right: 380px;  */
     box-sizing: border-box;
   }
 }
 
 @media (min-width: 1440px) {
   .layout-with-booking .main-content {
-    padding-right: 400px;
+    /* padding-right: 400px; */
   }
 }
 
 @media (min-width: 1900px) {
   .layout-with-booking .main-content {
-    padding-right: 420px;
+    /* padding-right: 420px; */
   }
 }
 
@@ -934,7 +934,7 @@
   }
 
   .layout-with-booking .main-content {
-    padding-right: 450px;
+    /* padding-right: 450px; */
   }
 }
 
@@ -952,7 +952,7 @@
   }
 
   .layout-with-booking .main-content {
-    padding-right: 480px;
+    /* padding-right: 480px; */
   }
 }
 
@@ -970,7 +970,7 @@
   }
 
   .layout-with-booking .main-content {
-    padding-right: 500px;
+    /* padding-right: 500px; */
   }
 }
 
@@ -989,7 +989,7 @@
   }
 
   .layout-with-booking .main-content {
-    padding-right: 550px;
+    /* padding-right: 550px; */
   }
 }
 
@@ -1008,7 +1008,7 @@
   }
 
   .layout-with-booking .main-content {
-    padding-right: 600px;
+    /* padding-right: 600px; */
   }
 }
 
@@ -1027,7 +1027,7 @@
   }
 
   .layout-with-booking .main-content {
-    padding-right: 650px;
+    /* padding-right: 650px; */
   }
 }
 
@@ -1046,7 +1046,7 @@
   }
 
   .layout-with-booking .main-content {
-    padding-right: 700px;
+    /* padding-right: 700px; */
   }
 }
 
@@ -1065,7 +1065,7 @@
   }
 
   .layout-with-booking .main-content {
-    padding-right: 750px;
+    /* padding-right: 750px; */
   }
 }
 
@@ -1084,7 +1084,7 @@
   }
 
   .layout-with-booking .main-content {
-    padding-right: 800px;
+    /* padding-right: 800px; */
   }
 }
 
@@ -1103,6 +1103,6 @@
   }
 
   .layout-with-booking .main-content {
-    padding-right: 850px;
+    /* padding-right: 850px; */
   }
 }
