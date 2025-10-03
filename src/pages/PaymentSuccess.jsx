@@ -97,7 +97,7 @@ const PaymentSuccess = () => {
     try {
       console.log('Auto-sending confirmation email for booking:', bookingDetails?.bookingId || bookingDetails?.bookingNumber || bookingDetails?._id);
       const token = localStorage.getItem('token');
-      const response = await fetch('https://spabacklat.onrender.com/api/v1/payments/send-confirmation', {
+      const response = await fetch('https://api.alloraspadubai.com/api/v1/payments/send-confirmation', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -128,7 +128,7 @@ const PaymentSuccess = () => {
       console.log('Sending confirmation email for booking:', bookingDetails?.bookingId || bookingDetails?.bookingNumber || bookingDetails?._id);
       const token = localStorage.getItem('token');
       
-      const response = await fetch('https://spabacklat.onrender.com/api/v1/payments/send-confirmation', {
+      const response = await fetch('https://api.alloraspadubai.com/api/v1/payments/send-confirmation', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

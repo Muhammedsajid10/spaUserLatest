@@ -2,7 +2,7 @@
  * Test what the public professionals API returns and verify workSchedule data
  */
 
-const API_BASE_URL = 'https://spabacklat.onrender.com/api/v1';
+const API_BASE_URL = 'https://api.alloraspadubai.com/api/v1';
 
 async function testProfessionalsAPI() {
   console.log("🔍 Testing Public Professionals API for workSchedule data...\n");

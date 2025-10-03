@@ -104,7 +104,7 @@ export const AuthProvider = ({ children }) => {
     try {
       console.log('[Auth] Initiating password reset for:', email);
       
-      const response = await fetch('https://spabacklat.onrender.com/api/v1/auth/forgot-password', {
+      const response = await fetch('https://api.alloraspadubai.com/api/v1/auth/forgot-password', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',

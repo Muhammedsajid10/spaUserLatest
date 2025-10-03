@@ -22,7 +22,7 @@ const ResetPassword = () => {
     setLoading(true);
     try {
       const response = await fetch(
-        `https://spabacklat.onrender.com/api/v1/auth/reset-password/${token}`,
+        `https://api.alloraspadubai.com/api/v1/auth/reset-password/${token}`,
         {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },

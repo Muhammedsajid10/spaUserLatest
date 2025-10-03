@@ -3,7 +3,7 @@
  * This simulates the exact same API calls that the admin panel makes
  */
 
-const BASE_URL = "https://spabacklat.onrender.com/api/v1";
+const BASE_URL = "https://api.alloraspadubai.com/api/v1";
 
 // Mock token - you'll need to replace this with a real admin token
 // You can get this by logging into the admin panel and checking localStorage

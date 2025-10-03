@@ -1,8 +1,8 @@
 
   // API service for spa backend
 // Always use deployed backend
-// const API_BASE_URL = 'https://spabacklat.onrender.com/api/v1';
-const API_BASE_URL = 'https://spabacklat.onrender.com/api/v1';
+// const API_BASE_URL = 'https://api.alloraspadubai.com/api/v1';
+const API_BASE_URL = 'https://api.alloraspadubai.com/api/v1';
 const tempAdminToken='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4Y2VjMTViNzdhODMyOGYzMmJmMWMyOCIsImlhdCI6MTc1ODkwNTY5NCwiZXhwIjoxNzY2NjgxNjk0fQ.uPmg08EOqqluivDiAnVV3Tni9ORbC-ALoCugSdIkJ1Q';
 // Helper function to handle API responses
 const handleResponse = async (response) => {

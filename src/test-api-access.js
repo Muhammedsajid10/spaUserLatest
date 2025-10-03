@@ -3,7 +3,7 @@
  * This will help us understand the authentication requirements
  */
 
-const BASE_URL = "https://spabacklat.onrender.com/api/v1";
+const BASE_URL = "https://api.alloraspadubai.com/api/v1";
 
 async function testEmployeeAPIAccess() {
   console.log("🔍 Testing Employee API Access Requirements...\n");

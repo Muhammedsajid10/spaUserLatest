@@ -691,7 +691,7 @@ const SpaProfilePage = () => {
 
     console.log('[Rating] Submitting feedback:', feedbackData);
 
-    const response = await fetch('https://spabacklat.onrender.com/api/v1/feedbacks/create', {
+    const response = await fetch('https://api.alloraspadubai.com/api/v1/feedbacks/create', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
