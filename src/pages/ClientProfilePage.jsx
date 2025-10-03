@@ -26,7 +26,7 @@ import {
   feedbackAPI,
 } from "../services/api";
 import { useNavigate } from "react-router-dom";
-import { formatLocalDateTime, formatTimeRange, formatLocalDate } from '../utils/timeZoneUtils';
+import { formatLocalDateTime, formatTimeRange, formatLocalDate } from '../utils/timeZoneUtils.js';
 
 /* -------------------
    Utility UI States
@@ -164,28 +164,7 @@ const ProfileHeader = ({ profile }) => (
         )}
       </div>
       <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3">
-        {/* <button 
-          className="btn btn-secondary btn-sm"
-          onClick={() => Swal.fire({
-            title: "Edit Profile",
-            text: "Profile editing functionality would be implemented here.",
-            icon: "info"
-          })}
-        >
-          <Edit className="w-4 h-4" />
-          <span>Edit Profile</span>
-        </button>
-        <button 
-          className="btn btn-secondary btn-sm"
-          onClick={() => Swal.fire({
-            title: "Change Password",
-            text: "Password change functionality would be implemented here.",
-            icon: "info"
-          })}
-        >
-          <Key className="w-4 h-4" />
-          <span>Change Password</span>
-        </button> */}
+        
       </div>
     </div>
   </div>
