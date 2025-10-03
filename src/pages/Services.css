@@ -223,22 +223,35 @@ body {
 }
 
 .svc-add-btn {
-  background: #eee;
-  border: none;
-  border-radius: 50%;
-  width: 32px;
-  height: 32px;
+  background: #f9f9f9;              /* light professional background */
+  border: 1px solid #ddd;           /* subtle border */
+  border-radius: 12px;              /* softer rounded edges */
+  width: 100%;                      /* full width for center alignment */
+  max-width: 120px;                 /* not too large on wide screens */
+  height: 40px;                     /* taller for better tap targets */
   font-size: 20px;
+  font-weight: 600;
+  color: #333;                      /* softer dark gray */
   cursor: pointer;
-  align-self: center;
-  flex-shrink: 0;
-  transition: background 0.3s;
+  align-self: center;               /* centers in flex parent */
+  display: flex;                    /* center the + symbol */
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.05);
 }
+
 
 .svc-add-btn:hover {
-  background-color: #ccc;
+  background-color: #f0f7ff;        /* light highlight on hover */
+  border-color: #1976d2;            /* accent border */
+  color: #ffffff;                   /* accent text */
+  transform: translateY(-2px);      /* slight lift effect */
 }
-
+.svc-add-btn:active {
+  transform: translateY(0);         /* reset on click */
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
 .loading-container,
 .error-container {
   text-align: center;
@@ -908,5 +921,73 @@ body {
 
   .svc-header h2 {
     font-size: 72px;
+  }
+}
+
+/* -------------- */
+
+/* --- ADD BUTTON (Refined Professional Style) --- */
+.svc-add-btn {
+  background: #000;                 /* Solid professional black */
+  color: #fff;                      /* White text */
+  border: none;                     /* No border */
+  border-radius: 20%;               /* Perfect circle */
+  width: 40px;                      /* Default size */
+  height: 40px;
+  font-size: 20px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;                    /* Center align + sign */
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  box-shadow: 0 3px 8px rgba(0,0,0,0.15);
+  flex-shrink: 0;                   /* Prevent shrinking */
+}
+
+.svc-add-btn:hover {
+  background-color: #323232;        /* Accent hover */
+  transform: scale(1.05);           /* Subtle zoom */
+  box-shadow: 0 5px 12px rgba(0,0,0,0.2);
+}
+
+.svc-add-btn:active {
+  transform: scale(0.95);           /* Press feedback */
+  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+}
+/* Extra small (max 400px) */
+@media (max-width: 400px) {
+  .svc-add-btn {
+    width: 32px;
+    height: 32px;
+    font-size: 18px;
+  }
+}
+
+/* Mobile (401px - 600px) */
+@media (min-width: 401px) and (max-width: 600px) {
+  .svc-add-btn {
+    width: 36px;
+    height: 36px;
+    font-size: 18px;
+    align-self: flex-end;   /* stays aligned neatly */
+  }
+}
+
+/* Tablet (601px - 1023px) */
+@media (min-width: 601px) and (max-width: 1023px) {
+  .svc-add-btn {
+    width: 40px;
+    height: 40px;
+    font-size: 20px;
+  }
+}
+
+/* Large desktop (1440px+) */
+@media (min-width: 1440px) {
+  .svc-add-btn {
+    width: 44px;
+    height: 44px;
+    font-size: 22px;
   }
 }
