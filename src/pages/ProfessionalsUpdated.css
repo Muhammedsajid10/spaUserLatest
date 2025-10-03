@@ -378,8 +378,8 @@
 .select-professional-container {
   max-width: 900px;
   margin: 0 auto;
+  margin-top: 20px;
   padding: 30px; /* Default padding for larger screens */
-  text-align: center;
           padding-top: 72px;
 
   /* Adjust padding-bottom for the fixed bottom bar on small screens */
