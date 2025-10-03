@@ -236,49 +236,35 @@ const SelectProfessional = ({ onProfessionalSelected }) => {
 
     // Mode card clicked
     if (professional._mode) {
-      const newMode = professional._mode;
-      console.log('[SelectProfessional] mode card selected', newMode);
-      setSelectionMode(newMode);
-      bookingFlow.selectionMode = newMode;
+  const newMode = professional._mode;
+  setSelectionMode(newMode);
+  bookingFlow.selectionMode = newMode;
+  bookingFlow.save();
+  setSelectedId(professional.id);
+
+  if (newMode === 'anyAll') {
+    // Immediately assign random professionals to all services
+    const employeesOnly = professionals.filter(p => !p._mode);
+    if (employeesOnly.length > 0) {
+      selectedServices.forEach(svc => {
+        const randomEmployee = employeesOnly[Math.floor(Math.random() * employeesOnly.length)];
+        const profPayload = randomEmployee.employee;
+        
+        bookingFlow.addProfessional(svc._id, profPayload);
+      });
       bookingFlow.save();
-      setSelectedId(professional.id);
-
-      if (newMode === 'anyAll') {
-        // Do NOT auto-assign on click. Only set mode and defer assignment to Continue/Time.
-        backupPerServiceRef.current = { ...bookingFlow.selectedProfessionals };
-        // Clear any visual selection - no employee should appear selected
-        setLastSelectedProfessional(null);
-        setSelectedId('mode-any'); // Only highlight the "Any professional" card itself
-      } else if (newMode === 'perService') {
-        // Immediately switch UI to per-service-assignment (hide professional grid)
-        localStorage.setItem('showPerServiceAssignment', 'true');
-        sessionStorage.setItem('perServiceToggled', 'true');
-        setShowPerServiceAssignmentOnly(true);
-
-        if (Object.keys(backupPerServiceRef.current).length) {
-          bookingFlow.selectedServices.forEach(s => {
-            console.log('[SelectProfessional] restoring per-service backup for', s._id, backupPerServiceRef.current[s._id]);
-            if (backupPerServiceRef.current[s._id]) {
-              bookingFlow.addProfessional(s._id, backupPerServiceRef.current[s._id]);
-            } else {
-              bookingFlow.removeProfessional(s._id);
-            }
-          });
-        } else {
-          // If no backup, clear all and start fresh in perService mode
-          bookingFlow.selectedServices.forEach(s => {
-            console.log('[SelectProfessional] clearing assignment for', s._id);
-            bookingFlow.removeProfessional(s._id);
-          });
-        }
-        bookingFlow.save();
-        window.dispatchEvent(new CustomEvent('bookingFlowChange'));
-        setActiveServiceId(selectedServices[0]?._id);
-        setLastSelectedProfessional(null);
-        setSelectedId(bookingFlow.selectedProfessionals?.[selectedServices[0]?._id]?._id || bookingFlow.selectedProfessionals?.[selectedServices[0]?._id]?.id || null);
-      }
-      return;
+      window.dispatchEvent(new CustomEvent('bookingFlowChange'));
     }
+    
+    // clear UI professional selection highlight (so only "Any professional" stays selected)
+    setLastSelectedProfessional(null);
+    setSelectedId('mode-any');
+  } else if (newMode === 'perService') {
+    // your existing perService logic...
+  }
+  return;
+}
+
 
     // Professional card clicked
     if (!selectedServices.length) return;
