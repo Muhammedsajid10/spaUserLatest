@@ -17,7 +17,21 @@ export function localDateKey(date) {
   const dd = String(d.getDate()).padStart(2, '0');
   return `${yyyy}-${mm}-${dd}`;
 }
-
+export const clearBookingFlowData = () => {
+  try {
+    if (bookingFlow && typeof bookingFlow.clear === 'function') {
+      bookingFlow.clear();
+    }
+    localStorage.removeItem('bookingFlow');
+    localStorage.removeItem('bookingData');
+    localStorage.removeItem('selectedServices');
+    localStorage.removeItem('selectedTimeSlot');
+    localStorage.removeItem('selectedProfessionals');
+    console.log('[BOOKING FLOW] Cleared successfully');
+  } catch (err) {
+    console.warn('[BOOKING FLOW] Failed to clear:', err);
+  }
+};
 // Convert various time/date representations -> local "HH:MM"
 export function toLocalHHMM(val, timeZone) {
   if (!val) return null;

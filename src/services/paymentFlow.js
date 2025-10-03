@@ -143,6 +143,7 @@ export const confirmBookingAndPay = async ({ method = 'card', upiVpa = '', clien
       const sim = await simulateTestPayment(paymentData, method);
       return { success: true, booking: created, payment: sim };
     }
+    bookingFlow.clear();
   } catch (err) {
     console.error('confirmBookingAndPay error', err);
     throw err;

@@ -8,6 +8,8 @@ import { Elements, CardElement, useStripe, useElements } from '@stripe/react-str
 import Swal from 'sweetalert2';
 import { Spinner } from 'react-bootstrap';
 import './Payment.css';
+import { clearBookingFlowData } from '../bookingUtils';
+
 
 // Initialize Stripe with environment variable (TEST MODE)
 const stripePublishableKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || 'pk_test_4eC39HqLyjWDarjtT1zdp7dc';

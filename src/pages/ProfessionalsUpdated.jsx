@@ -3,8 +3,8 @@ import "./ProfessionalsUpdated.css"; // This CSS file for SelectProfessional
 import { FaStar } from "react-icons/fa";
 import { bookingsAPI, bookingFlow } from "../services/api";
 import { useNavigate, useLocation } from "react-router-dom";
-import Skeleton from 'react-loading-skeleton';
-import 'react-loading-skeleton/dist/skeleton.css';
+import Skeleton from "react-loading-skeleton";
+import "react-loading-skeleton/dist/skeleton.css";
 // import { fetchAvailableProfessionalsForServiceByWeek } from '../bookingUtils';
 
 const SelectProfessional = ({ onProfessionalSelected }) => {
@@ -17,26 +17,44 @@ const SelectProfessional = ({ onProfessionalSelected }) => {
   const [currentStep] = useState(2);
   const previousServicesRef = useRef([]);
   const backupPerServiceRef = useRef({});
-  const [lastSelectedProfessional, setLastSelectedProfessional] = useState(null);
+  const [lastSelectedProfessional, setLastSelectedProfessional] =
+    useState(null);
   // don't auto-select a mode; only set when user clicks a mode card
   const [selectionMode, setSelectionMode] = useState(null);
 
   // state for the assign modal
-  const [assignModal, setAssignModal] = useState({ open: false, service: null, applyToAll: false, showGrid: false });
+  const [assignModal, setAssignModal] = useState({
+    open: false,
+    service: null,
+    applyToAll: false,
+    showGrid: false,
+  });
   const navigate = useNavigate();
   const location = useLocation();
 
   // NEW: show per-service assignment only (hide professional grid)
-  const [showPerServiceAssignmentOnly, setShowPerServiceAssignmentOnly] = useState(false);
+  const [showPerServiceAssignmentOnly, setShowPerServiceAssignmentOnly] =
+    useState(false);
 
   // helper: list of actual employee cards (exclude mode cards)
-  const availableEmployeeCards = professionals.filter(p => !p._mode);
+  const availableEmployeeCards = professionals.filter((p) => !p._mode);
 
   const openAssignModal = (service, opts = {}) => {
-    console.log('[SelectProfessional] openAssignModal', service?._id, opts);
-    setAssignModal({ open: true, service, applyToAll: false, showGrid: !!opts.showGrid });
+    console.log("[SelectProfessional] openAssignModal", service?._id, opts);
+    setAssignModal({
+      open: true,
+      service,
+      applyToAll: false,
+      showGrid: !!opts.showGrid,
+    });
   };
-  const closeAssignModal = () => setAssignModal({ open: false, service: null, applyToAll: false, showGrid: false });
+  const closeAssignModal = () =>
+    setAssignModal({
+      open: false,
+      service: null,
+      applyToAll: false,
+      showGrid: false,
+    });
 
   const pickRandomEmployee = () => {
     const employees = availableEmployeeCards;
@@ -45,21 +63,25 @@ const SelectProfessional = ({ onProfessionalSelected }) => {
   };
 
   const assignProfessionalToService = (service, card, applyToAll = false) => {
-    console.log('[SelectProfessional] assignProfessionalToService', { serviceId: service._id, cardId: card?.id, applyToAll });
+    console.log("[SelectProfessional] assignProfessionalToService", {
+      serviceId: service._id,
+      cardId: card?.id,
+      applyToAll,
+    });
     let profPayload;
     if (!card) {
       // no card => treat as Any professional (random)
       const random = pickRandomEmployee();
       if (!random) {
-        alert('No available employees to assign.');
+        alert("No available employees to assign.");
         return;
       }
       profPayload = random.employee;
-    } else if (card.id === 'mode-any' || card.id === 'any') {
+    } else if (card.id === "mode-any" || card.id === "any") {
       // explicit Any professional button clicked -> random pick
       const random = pickRandomEmployee();
       if (!random) {
-        alert('No available employees to assign.');
+        alert("No available employees to assign.");
         return;
       }
       profPayload = random.employee;
@@ -68,37 +90,40 @@ const SelectProfessional = ({ onProfessionalSelected }) => {
     }
 
     if (!profPayload) {
-      console.warn('[SelectProfessional] no profPayload derived, abort');
+      console.warn("[SelectProfessional] no profPayload derived, abort");
       return;
     }
 
     if (applyToAll) {
-      bookingFlow.selectedServices.forEach(s => bookingFlow.addProfessional(s._id, profPayload));
+      bookingFlow.selectedServices.forEach((s) =>
+        bookingFlow.addProfessional(s._id, profPayload)
+      );
     } else {
       bookingFlow.addProfessional(service._id, profPayload);
     }
     bookingFlow.save();
-    window.dispatchEvent(new CustomEvent('bookingFlowChange'));
+    window.dispatchEvent(new CustomEvent("bookingFlowChange"));
     // Update UI selected id / lastSelectedProfessional
     setLastSelectedProfessional(profPayload);
     setSelectedId(profPayload._id || profPayload.id);
     closeAssignModal();
   };
-  
+
   // helper: pick and assign a random available professional for a service
   const assignRandomToService = (service) => {
-    const employeesOnly = professionals.filter(p => !p._mode);
+    const employeesOnly = professionals.filter((p) => !p._mode);
     if (!employeesOnly || employeesOnly.length === 0) {
       // nothing to assign
       closeAssignModal();
       return;
     }
-    const picked = employeesOnly[Math.floor(Math.random() * employeesOnly.length)];
+    const picked =
+      employeesOnly[Math.floor(Math.random() * employeesOnly.length)];
     // picked has shape same as professional card in list
     assignProfessionalToService(service, picked, assignModal?.applyToAll);
     closeAssignModal();
   };
-  
+
   useEffect(() => {
     const loadSelectedServices = () => {
       const savedData = bookingFlow.load();
@@ -106,12 +131,17 @@ const SelectProfessional = ({ onProfessionalSelected }) => {
       setSelectedServices(newServices);
 
       // Do not force selectionMode for single-service; keep user choice.
-      if (!activeServiceId && newServices.length && selectionMode === 'perService') {
+      if (
+        !activeServiceId &&
+        newServices.length &&
+        selectionMode === "perService"
+      ) {
         setActiveServiceId(newServices[0]._id);
       }
       // restore professional for the single service if previously saved
       if (newServices.length === 1) {
-        const singleProf = bookingFlow.selectedProfessionals?.[newServices[0]._id];
+        const singleProf =
+          bookingFlow.selectedProfessionals?.[newServices[0]._id];
         if (singleProf) {
           setLastSelectedProfessional(singleProf);
           setSelectedId(singleProf._id || singleProf.id);
@@ -126,10 +156,12 @@ const SelectProfessional = ({ onProfessionalSelected }) => {
 
     const handleBookingFlowChange = () => {
       const currentServices = bookingFlow.load().selectedServices || [];
-      const servicesChanged = JSON.stringify(currentServices) !== JSON.stringify(previousServicesRef.current);
+      const servicesChanged =
+        JSON.stringify(currentServices) !==
+        JSON.stringify(previousServicesRef.current);
 
       if (servicesChanged) {
-        console.log('Services changed, reloading professionals...');
+        console.log("Services changed, reloading professionals...");
         setSelectedServices(currentServices);
         if (!activeServiceId && currentServices.length) {
           setActiveServiceId(currentServices[0]._id);
@@ -141,7 +173,7 @@ const SelectProfessional = ({ onProfessionalSelected }) => {
       const currentFlow = bookingFlow.load();
 
       // Do not auto-select any mode on load; only reflect per-service assigned professional
-      if (currentFlow.selectionMode === 'perService' && activeServiceId) {
+      if (currentFlow.selectionMode === "perService" && activeServiceId) {
         const prof = currentFlow.selectedProfessionals?.[activeServiceId];
         setSelectedId(prof?._id || prof?.id || null);
       } else {
@@ -168,35 +200,61 @@ const SelectProfessional = ({ onProfessionalSelected }) => {
       const firstService = selectedServices[0];
       const serviceId = firstService?._id || firstService?.id;
       const saved = bookingFlow.load();
-      const targetDate = saved?.selectedDate ? new Date(saved.selectedDate) : new Date();
+      const targetDate = saved?.selectedDate
+        ? new Date(saved.selectedDate)
+        : new Date();
 
-      console.log('[SelectProfessional] fetching available professionals for service', { serviceId, targetDateIso: targetDate.toISOString().split('T')[0], selectedServicesCount: selectedServices.length });
+      console.log(
+        "[SelectProfessional] fetching available professionals for service",
+        {
+          serviceId,
+          targetDateIso: targetDate.toISOString().split("T")[0],
+          selectedServicesCount: selectedServices.length,
+        }
+      );
 
       try {
         // Use the appropriate PUBLIC booking API for user-side application
-        const available = await bookingsAPI.getAvailableProfessionals(serviceId, targetDate);
-        console.log('[SelectProfessional] getAvailableProfessionals result:', available);
+        const available = await bookingsAPI.getAvailableProfessionals(
+          serviceId,
+          targetDate
+        );
+        console.log(
+          "[SelectProfessional] getAvailableProfessionals result:",
+          available
+        );
 
         // Backend returns: { success: true, data: { professionals: [...] } }
         const professionals = available.data?.professionals || [];
-        
+
         if (professionals.length > 0) {
           // Mode cards shown first
           const modeCards = [
-            { id: 'mode-any', name: 'Any professional', subtitle: 'for maximum availability', icon: '👥', _mode: 'anyAll' },
+            {
+              id: "mode-any",
+              name: "Any professional",
+              subtitle: "for maximum availability",
+              icon: "👥",
+              _mode: "anyAll",
+            },
           ];
 
-          const transformed = professionals.map(item => {
+          const transformed = professionals.map((item) => {
             const emp = item || {};
-            console.log('Processing professional:', emp);
-            const name = emp.user ? `${emp.user.firstName || ''} ${emp.user.lastName || ''}`.trim() : (emp.name || '');
+            console.log("Processing professional:", emp);
+            const name = emp.user
+              ? `${emp.user.firstName || ""} ${emp.user.lastName || ""}`.trim()
+              : emp.name || "";
             return {
-              id: emp._id || emp.id || `emp-${Math.random().toString(36).slice(2,7)}`,
+              id:
+                emp._id ||
+                emp.id ||
+                `emp-${Math.random().toString(36).slice(2, 7)}`,
               name,
-              subtitle: emp.position || '',
-              letter: (emp.user?.firstName || emp.name || ' ')[0] || '',
+              subtitle: emp.position || "",
+              letter: (emp.user?.firstName || emp.name || " ")[0] || "",
               employee: emp,
-              availableSlots: [] // Will be populated when needed
+              availableSlots: [], // Will be populated when needed
             };
           });
           setProfessionals([...modeCards, ...transformed]);
@@ -204,12 +262,18 @@ const SelectProfessional = ({ onProfessionalSelected }) => {
         } else {
           // Show mode cards even if no professionals available
           setProfessionals([
-            { id: 'mode-any', name: 'Any professional', subtitle: 'for maximum availability', icon: '👥', _mode: 'anyAll' },
+            {
+              id: "mode-any",
+              name: "Any professional",
+              subtitle: "for maximum availability",
+              icon: "👥",
+              _mode: "anyAll",
+            },
           ]);
         }
       } catch (err) {
-        console.error('[SelectProfessional] error fetching professionals', err);
-        setError('Failed to load professionals');
+        console.error("[SelectProfessional] error fetching professionals", err);
+        setError("Failed to load professionals");
         setProfessionals([]);
       } finally {
         setLoading(false);
@@ -221,128 +285,73 @@ const SelectProfessional = ({ onProfessionalSelected }) => {
 
   // keep applyAnyAll
   const applyAnyAll = () => {
-    console.log('[SelectProfessional] applyAnyAll - backing up per-service assignments', bookingFlow.selectedProfessionals);
-    selectedServices.forEach(s => {
-      const payload = { id: 'any', name: 'Any professional' };
-      console.log('[SelectProfessional] applyAnyAll - assigning', { serviceId: s._id, payload });
+    console.log(
+      "[SelectProfessional] applyAnyAll - backing up per-service assignments",
+      bookingFlow.selectedProfessionals
+    );
+    selectedServices.forEach((s) => {
+      const payload = { id: "any", name: "Any professional" };
+      console.log("[SelectProfessional] applyAnyAll - assigning", {
+        serviceId: s._id,
+        payload,
+      });
       bookingFlow.addProfessional(s._id, payload);
     });
     bookingFlow.save();
-    window.dispatchEvent(new CustomEvent('bookingFlowChange'));
+    window.dispatchEvent(new CustomEvent("bookingFlowChange"));
   };
 
   const handleProfessionalSelect = (professional) => {
-    console.log('[SelectProfessional] professional clicked', { professional, selectionMode, activeServiceId });
+  console.log('[SelectProfessional] professional clicked', professional);
 
-    // Mode card clicked
-    if (professional._mode) {
-  const newMode = professional._mode;
-  setSelectionMode(newMode);
-  bookingFlow.selectionMode = newMode;
-  bookingFlow.save();
-  setSelectedId(professional.id);
+  if (!selectedServices.length) return;
 
-  if (newMode === 'anyAll') {
-    // Immediately assign random professionals to all services
-    const employeesOnly = professionals.filter(p => !p._mode);
-    if (employeesOnly.length > 0) {
-      selectedServices.forEach(svc => {
-        const randomEmployee = employeesOnly[Math.floor(Math.random() * employeesOnly.length)];
-        const profPayload = randomEmployee.employee;
-        
-        bookingFlow.addProfessional(svc._id, profPayload);
-      });
-      bookingFlow.save();
-      window.dispatchEvent(new CustomEvent('bookingFlowChange'));
+  let profPayload;
+
+  // 👉 Case 1: "Any professional" clicked
+if (professional._mode === "anyAll" || professional.id === "mode-any") {    const employeesOnly = professionals.filter((p) => !p._mode);
+    if (!employeesOnly.length) {
+      alert("No professionals available to assign.");
+      return;
     }
-    
-    // clear UI professional selection highlight (so only "Any professional" stays selected)
-    setLastSelectedProfessional(null);
-    setSelectedId('mode-any');
-  } else if (newMode === 'perService') {
-    // your existing perService logic...
+    // Pick ONE random employee
+    const randomEmployee =
+      employeesOnly[Math.floor(Math.random() * employeesOnly.length)];
+    profPayload = randomEmployee.employee;
+
+    console.log('[SelectProfessional] "Any professional" picked → assigned:', {
+      employeeId: profPayload._id || profPayload.id,
+      name: profPayload.user
+        ? `${profPayload.user.firstName} ${profPayload.user.lastName}`
+        : profPayload.name,
+    });
+  } 
+  // 👉 Case 2: Specific employee clicked
+  else {
+    profPayload = professional.employee;
   }
-  return;
-}
 
+  // ✅ Assign the chosen professional (random or specific) to ALL services
+  (selectedServices || []).forEach((svc) => {
+    bookingFlow.addProfessional(svc._id, profPayload);
+  });
+  bookingFlow.save();
+  window.dispatchEvent(new CustomEvent("bookingFlowChange"));
+  setLastSelectedProfessional(profPayload);
+  setSelectedId(profPayload._id || profPayload.id);
 
-    // Professional card clicked
-    if (!selectedServices.length) return;
-    let profPayload;
-    if (professional.id.startsWith('sample')) {
-      profPayload = {
-        id: professional.id,
-        _id: professional.id,
-        name: professional.name,
-        user: professional.employee.user,
-        position: professional.employee.position,
-        employeeId: professional.employee.employeeId
-      };
-    } else {
-      profPayload = professional.employee;
-    }
+  // Auto-close if callback exists
+  if (onProfessionalSelected) {
+    onProfessionalSelected();
+  }
+};
 
-    console.log('[SelectProfessional] profPayload prepared', profPayload);
-
-    // DEFAULT BEHAVIOR: ALWAYS assign the professional to ALL services with one click
-    // This implements the "one professional for all services" feature WITHOUT switching to 'Any professional' mode
-    console.log('[SelectProfessional] DEFAULT: One professional for ALL services - applying to all', {
-      professionalId: profPayload._id || profPayload.id,
-      professionalName: profPayload.user ? 
-        `${profPayload.user.firstName} ${profPayload.user.lastName}` : 
-        profPayload.name,
-      servicesToAssign: selectedServices.map(s => ({ id: s._id, name: s.name })),
-      totalServices: selectedServices.length,
-      currentSelectionMode: selectionMode
-    });
-    
-    selectedServices.forEach(service => {
-      console.log('[SelectProfessional] Assigning professional to service:', {
-        serviceId: service._id,
-        serviceName: service.name,
-        professionalId: profPayload._id || profPayload.id,
-        professionalName: profPayload.user ? 
-          `${profPayload.user.firstName} ${profPayload.user.lastName}` : 
-          profPayload.name
-      });
-      bookingFlow.addProfessional(service._id, profPayload);
-    });
-    
-    // Ensure ONLY the chosen employee appears selected: clear any mode selection
-    setSelectionMode(null);
-    bookingFlow.selectionMode = null;
-    bookingFlow.save();
-    window.dispatchEvent(new CustomEvent('bookingFlowChange'));
-    setLastSelectedProfessional(profPayload);
-    setSelectedId(profPayload._id || profPayload.id);
-    
-    console.log('[SelectProfessional] SUCCESS: Professional assigned to all services', {
-      professionalName: profPayload.user ? 
-        `${profPayload.user.firstName} ${profPayload.user.lastName}` : 
-        profPayload.name,
-      assignedToServices: selectedServices.length,
-      assignments: selectedServices.map(s => ({
-        service: s.name,
-        professional: profPayload.user ? 
-          `${profPayload.user.firstName} ${profPayload.user.lastName}` : 
-          profPayload.name
-      }))
-    });
-    
-    // Call the callback to trigger popup auto-close
-    if (onProfessionalSelected) {
-      onProfessionalSelected();
-    }
-    return;
-    
-    // Note: Removed perService mode logic - all professionals are now assigned to ALL services with one click
-  };
 
   // restore whether user previously clicked Continue (show per-service assignment only)
   useEffect(() => {
-    const stored = localStorage.getItem('showPerServiceAssignment') === 'true';
+    const stored = localStorage.getItem("showPerServiceAssignment") === "true";
     // If coming back from Time: show panels if stored but DO NOT auto-select a mode card.
-    if (location?.state?.from === 'time') {
+    if (location?.state?.from === "time") {
       setShowPerServiceAssignmentOnly(stored);
       // clear any visual mode selection so no card appears selected
       setSelectionMode(null);
@@ -361,9 +370,22 @@ const SelectProfessional = ({ onProfessionalSelected }) => {
         <div className="professional-grid">
           {Array.from({ length: numberOfSkeletons }).map((_, index) => (
             <div key={index} className="professional-card skeleton-card">
-              <Skeleton circle={true} height={60} width={60} style={{ marginBottom: '10px' }} />
-              <Skeleton width="80%" height={16} style={{ marginBottom: '8px' }} />
-              <Skeleton width="60%" height={14} style={{ marginBottom: '15px' }} />
+              <Skeleton
+                circle={true}
+                height={60}
+                width={60}
+                style={{ marginBottom: "10px" }}
+              />
+              <Skeleton
+                width="80%"
+                height={16}
+                style={{ marginBottom: "8px" }}
+              />
+              <Skeleton
+                width="60%"
+                height={14}
+                style={{ marginBottom: "15px" }}
+              />
               <Skeleton width={40} height={12} />
             </div>
           ))}
@@ -378,7 +400,12 @@ const SelectProfessional = ({ onProfessionalSelected }) => {
         <h2>Select professional</h2>
         <div className="info-container error-state">
           <p className="error-message">{error}</p>
-          <button onClick={() => window.location.reload()} className="retry-button">Try Again</button>
+          <button
+            onClick={() => window.location.reload()}
+            className="retry-button"
+          >
+            Try Again
+          </button>
         </div>
       </div>
     );
@@ -402,17 +429,26 @@ const SelectProfessional = ({ onProfessionalSelected }) => {
       {/* show either the professional grid OR the per-service summary panels (never both) */}
       {showPerServiceAssignmentOnly ? (
         /* summary-only: per-service panels (full-width, professional grid hidden) */
-        selectionMode === 'perService' && selectedServices.length > 0 && (
+        selectionMode === "perService" &&
+        selectedServices.length > 0 && (
           <div className="per-service-assignment summary-only">
-            {selectedServices.map(svc => {
+            {selectedServices.map((svc) => {
               const assigned = bookingFlow.selectedProfessionals?.[svc._id];
-              const assignedName = assigned ? ((assigned.user?.firstName ? `${assigned.user.firstName} ${assigned.user.lastName}` : assigned.name) || 'Assigned') : 'Any professional';
-              const avatarLetter = assigned ? ((assigned.user?.firstName || assigned.name || ' ')[0]) : 'A';
+              const assignedName = assigned
+                ? (assigned.user?.firstName
+                    ? `${assigned.user.firstName} ${assigned.user.lastName}`
+                    : assigned.name) || "Assigned"
+                : "Any professional";
+              const avatarLetter = assigned
+                ? (assigned.user?.firstName || assigned.name || " ")[0]
+                : "A";
               return (
                 <div key={svc._id} className="service-panel">
                   <div className="service-panel-left">
                     <div className="service-title">{svc.name}</div>
-                    <div className="service-sub">{(svc.duration || 0) + ' min'}</div>
+                    <div className="service-sub">
+                      {(svc.duration || 0) + " min"}
+                    </div>
                   </div>
                   <div className="service-panel-right">
                     <button
@@ -434,19 +470,23 @@ const SelectProfessional = ({ onProfessionalSelected }) => {
       ) : (
         /* default: show the professional grid (per-service panels not rendered below) */
         <div className="professional-grid">
-          {professionals.map(pro => {
+          {professionals.map((pro) => {
             const isModeCard = !!pro._mode;
             let isSelected = false;
 
             if (isModeCard) {
               isSelected = selectionMode === pro._mode;
-            } else if (selectionMode === 'perService' && activeServiceId) {
-              const assignedProfId = bookingFlow.selectedProfessionals?.[activeServiceId]?._id || bookingFlow.selectedProfessionals?.[activeServiceId]?.id;
+            } else if (selectionMode === "perService" && activeServiceId) {
+              const assignedProfId =
+                bookingFlow.selectedProfessionals?.[activeServiceId]?._id ||
+                bookingFlow.selectedProfessionals?.[activeServiceId]?.id;
               isSelected = pro.id === assignedProfId;
-            } else if (lastSelectedProfessional && selectionMode !== 'anyAll') {
+            } else if (lastSelectedProfessional && selectionMode !== "anyAll") {
               // if a professional was applied to all (but NOT in anyAll mode), highlight them
-              isSelected = pro.id === (lastSelectedProfessional._id || lastSelectedProfessional.id);
-            } else if (selectionMode === 'anyAll') {
+              isSelected =
+                pro.id ===
+                (lastSelectedProfessional._id || lastSelectedProfessional.id);
+            } else if (selectionMode === "anyAll") {
               // In anyAll mode, NO employee cards should appear selected
               isSelected = false;
             }
@@ -454,15 +494,19 @@ const SelectProfessional = ({ onProfessionalSelected }) => {
             return (
               <div
                 key={pro.id}
-                className={`professional-card ${isSelected ? 'selected' : ''}`}
+                className={`professional-card ${isSelected ? "selected" : ""}`}
                 onClick={() => handleProfessionalSelect(pro)}
                 role="button"
                 aria-disabled={false}
               >
                 {pro.icon && <div className="icon-circle">{pro.icon}</div>}
-                {!pro.icon && !isModeCard && pro.letter && <div className="letter-circle">{pro.letter}</div>}
+                {!pro.icon && !isModeCard && pro.letter && (
+                  <div className="letter-circle">{pro.letter}</div>
+                )}
                 <div className="name-text">{pro.name}</div>
-                {pro.subtitle && <div className="subtitle-text">{pro.subtitle}</div>}
+                {pro.subtitle && (
+                  <div className="subtitle-text">{pro.subtitle}</div>
+                )}
                 {pro.rating > 0 && !isModeCard && (
                   <div className="rating-display">
                     <FaStar className="star" />
@@ -470,8 +514,15 @@ const SelectProfessional = ({ onProfessionalSelected }) => {
                   </div>
                 )}
                 {isModeCard && (
-                  <div style={{ fontSize: '0.75rem', marginTop: 6, fontWeight: 600, color: '#666' }}>
-                    Any professional 
+                  <div
+                    style={{
+                      fontSize: "0.75rem",
+                      marginTop: 6,
+                      fontWeight: 600,
+                      color: "#666",
+                    }}
+                  >
+                    Any professional
                   </div>
                 )}
               </div>
@@ -503,18 +554,30 @@ const SelectProfessional = ({ onProfessionalSelected }) => {
             aria-modal="true"
             aria-label="Choose professional"
           >
-             {/** header etc **/}
-            <button className="modal-close" aria-label="Close" onClick={closeAssignModal}>✕</button>
- 
-             {/** professional grid inside modal **/}
-             <div className="modal-professional-grid" role="list">
+            {/** header etc **/}
+            <button
+              className="modal-close"
+              aria-label="Close"
+              onClick={closeAssignModal}
+            >
+              ✕
+            </button>
+
+            {/** professional grid inside modal **/}
+            <div className="modal-professional-grid" role="list">
               {(() => {
                 // show only employees when modal is service-specific
-                const list = assignModal?.service ? professionals.filter(p => !p._mode) : professionals;
+                const list = assignModal?.service
+                  ? professionals.filter((p) => !p._mode)
+                  : professionals;
                 if (!list || list.length === 0) {
-                  return <div style={{ padding: 12 }}>No professionals available</div>;
+                  return (
+                    <div style={{ padding: 12 }}>
+                      No professionals available
+                    </div>
+                  );
                 }
-                
+
                 // if service-specific, add an explicit "Any professional" card (picks random) as first item
                 const nodes = [];
                 if (assignModal?.service) {
@@ -528,24 +591,38 @@ const SelectProfessional = ({ onProfessionalSelected }) => {
                       role="listitem"
                       title="Any professional (pick random)"
                     >
-                      <div className="letter-circle" style={{ background: '#f7f7f7', color: '#111' }}>?</div>
+                      <div
+                        className="letter-circle"
+                        style={{ background: "#f7f7f7", color: "#111" }}
+                      >
+                        ?
+                      </div>
                       <div className="modal-prof-name">Any professional</div>
-                      <div className="modal-prof-sub">Pick a random available</div>
+                      <div className="modal-prof-sub">
+                        Pick a random available
+                      </div>
                     </button>
                   );
                 }
 
                 list.forEach((pro) => {
                   const isModeCard = !!pro._mode;
-                  const name = pro.name || (isModeCard ? 'Any professional' : 'Employee');
+                  const name =
+                    pro.name || (isModeCard ? "Any professional" : "Employee");
                   nodes.push(
                     <button
                       key={pro.id || `p-${name}`}
-                      className={`modal-professional-card ${isModeCard ? 'mode-card' : ''}`}
+                      className={`modal-professional-card ${
+                        isModeCard ? "mode-card" : ""
+                      }`}
                       onClick={() => {
                         if (assignModal?.service) {
                           // service-specific: assign employee to that service
-                          assignProfessionalToService(assignModal.service, pro, assignModal.applyToAll);
+                          assignProfessionalToService(
+                            assignModal.service,
+                            pro,
+                            assignModal.applyToAll
+                          );
                         } else {
                           // global: change selection mode or set global professional
                           handleProfessionalSelect(pro);
@@ -554,16 +631,20 @@ const SelectProfessional = ({ onProfessionalSelected }) => {
                       }}
                       role="listitem"
                     >
-                      {!isModeCard && pro.letter && <div className="letter-circle">{pro.letter}</div>}
+                      {!isModeCard && pro.letter && (
+                        <div className="letter-circle">{pro.letter}</div>
+                      )}
                       <div className="modal-prof-name">{name}</div>
-                      {pro.subtitle && <div className="modal-prof-sub">{pro.subtitle}</div>}
+                      {pro.subtitle && (
+                        <div className="modal-prof-sub">{pro.subtitle}</div>
+                      )}
                     </button>
                   );
                 });
 
                 return nodes;
               })()}
-             </div>
+            </div>
           </div>
         </div>
       )}
@@ -578,25 +659,25 @@ const SelectProfessional = ({ onProfessionalSelected }) => {
         />
       )}
 
-      {showPerServiceAssignmentOnly && selectionMode === 'perService' && (
-        <div style={{ maxWidth: 880, margin: '0 auto 14px', padding: '0 8px' }}>
+      {showPerServiceAssignmentOnly && selectionMode === "perService" && (
+        <div style={{ maxWidth: 880, margin: "0 auto 14px", padding: "0 8px" }}>
           <button
             className="back-to-grid"
             onClick={() => {
               // clear the per-service-only flags and show the professional grid again
-              localStorage.removeItem('showPerServiceAssignment');
-              sessionStorage.removeItem('perServiceToggled');
+              localStorage.removeItem("showPerServiceAssignment");
+              sessionStorage.removeItem("perServiceToggled");
               setShowPerServiceAssignmentOnly(false);
             }}
             aria-label="Back to professional grid"
             style={{
-              background: 'transparent',
-              border: 'none',
-              color: '#0b0b0b',
+              background: "transparent",
+              border: "none",
+              color: "#0b0b0b",
               fontWeight: 700,
-              cursor: 'pointer',
+              cursor: "pointer",
               marginBottom: 8,
-              borderColor: 'black'
+              borderColor: "black",
             }}
           >
             ← Back to professionals
@@ -607,9 +688,17 @@ const SelectProfessional = ({ onProfessionalSelected }) => {
   );
 };
 
-function ServiceBottomBar({ currentStep = 2, navigate, setShowSummary, selectionMode, showSummary }) {
+function ServiceBottomBar({
+  currentStep = 2,
+  navigate,
+  setShowSummary,
+  selectionMode,
+  showSummary,
+}) {
   const [selectedServices, setSelectedServices] = React.useState([]);
-  const toggledOnceRef = React.useRef(sessionStorage.getItem('perServiceToggled') === 'true');
+  const toggledOnceRef = React.useRef(
+    sessionStorage.getItem("perServiceToggled") === "true"
+  );
 
   React.useEffect(() => {
     bookingFlow.load();
@@ -622,15 +711,29 @@ function ServiceBottomBar({ currentStep = 2, navigate, setShowSummary, selection
     return () => window.removeEventListener("bookingFlowChange", handler);
   }, []);
 
-  const totalDuration = selectedServices.reduce((sum, svc) => sum + (svc.duration || 0), 0);
-  const totalRate = selectedServices.reduce((sum, svc) => sum + (svc.price || 0), 0);
+  const totalDuration = selectedServices.reduce(
+    (sum, svc) => sum + (svc.duration || 0),
+    0
+  );
+  const totalRate = selectedServices.reduce(
+    (sum, svc) => sum + (svc.price || 0),
+    0
+  );
 
   const canContinue = () => {
     const currentFlow = bookingFlow.load();
-    if (!currentFlow.selectedServices || currentFlow.selectedServices.length === 0) return false;
+    if (
+      !currentFlow.selectedServices ||
+      currentFlow.selectedServices.length === 0
+    )
+      return false;
     const mode = selectionMode; // only respect explicit user choice
-    if (mode === 'anyAll') return true; // allow proceed; random assignment later
-    const assignedCount = currentFlow.selectedServices.filter(s => currentFlow.selectedProfessionals && currentFlow.selectedProfessionals[s._id]).length;
+    if (mode === "anyAll") return true; // allow proceed; random assignment later
+    const assignedCount = currentFlow.selectedServices.filter(
+      (s) =>
+        currentFlow.selectedProfessionals &&
+        currentFlow.selectedProfessionals[s._id]
+    ).length;
     return assignedCount === currentFlow.selectedServices.length;
   };
 
@@ -640,48 +743,59 @@ function ServiceBottomBar({ currentStep = 2, navigate, setShowSummary, selection
 
     // If perService mode and panels are NOT visible yet, toggle panels on first Continue.
     // Use a session flag so this occurs only once per user session even if localStorage was set earlier.
-    if (mode === 'perService' && !summaryVisible && !toggledOnceRef.current) {
+    if (mode === "perService" && !summaryVisible && !toggledOnceRef.current) {
       // show panels (parent state + persist)
-      localStorage.setItem('showPerServiceAssignment', 'true');
-      sessionStorage.setItem('perServiceToggled', 'true');
+      localStorage.setItem("showPerServiceAssignment", "true");
+      sessionStorage.setItem("perServiceToggled", "true");
       toggledOnceRef.current = true;
-      if (typeof setShowSummary === 'function') setShowSummary(true);
+      if (typeof setShowSummary === "function") setShowSummary(true);
       // do NOT navigate yet — user needs to assign professionals per service first
       return;
     }
 
     // If Any-professional mode, pick random professionals NOW before going to Time
-    if (mode === 'anyAll') {
+    if (mode === "anyAll") {
       const currentFlow = bookingFlow.load();
-      const employeesOnly = professionals.filter(p => !p._mode);
-      
+      const employeesOnly = professionals.filter((p) => !p._mode);
+
       if (employeesOnly.length > 0) {
-        console.log('[SelectProfessional] Picking random professionals for anyAll mode before navigation');
-        
-        (currentFlow.selectedServices || []).forEach(svc => {
-          if (!currentFlow.selectedProfessionals || !currentFlow.selectedProfessionals[svc._id]) {
+        console.log(
+          "[SelectProfessional] Picking random professionals for anyAll mode before navigation"
+        );
+
+        (currentFlow.selectedServices || []).forEach((svc) => {
+          if (
+            !currentFlow.selectedProfessionals ||
+            !currentFlow.selectedProfessionals[svc._id]
+          ) {
             // Pick a random professional for this service
-            const randomEmployee = employeesOnly[Math.floor(Math.random() * employeesOnly.length)];
+            const randomEmployee =
+              employeesOnly[Math.floor(Math.random() * employeesOnly.length)];
             const profPayload = randomEmployee.employee;
-            
-            console.log('[SelectProfessional] Randomly assigned to service before Time navigation', {
-              serviceId: svc._id,
-              serviceName: svc.name,
-              professionalId: profPayload._id,
-              professionalName: profPayload.user ? 
-                `${profPayload.user.firstName} ${profPayload.user.lastName}` : 
-                profPayload.name
-            });
-            
+
+            console.log(
+              "[SelectProfessional] Randomly assigned to service before Time navigation",
+              {
+                serviceId: svc._id,
+                serviceName: svc.name,
+                professionalId: profPayload._id,
+                professionalName: profPayload.user
+                  ? `${profPayload.user.firstName} ${profPayload.user.lastName}`
+                  : profPayload.name,
+              }
+            );
+
             bookingFlow.addProfessional(svc._id, profPayload);
           }
         });
-        
+
         bookingFlow.save();
-        window.dispatchEvent(new CustomEvent('bookingFlowChange'));
+        window.dispatchEvent(new CustomEvent("bookingFlowChange"));
       }
-      
-      navigate("/time", { state: { from: 'professionals', selectionMode: mode } });
+
+      navigate("/time", {
+        state: { from: "professionals", selectionMode: mode },
+      });
       return;
     }
 
@@ -692,31 +806,45 @@ function ServiceBottomBar({ currentStep = 2, navigate, setShowSummary, selection
     }
 
     // proceed to Time page
-    navigate("/time", { state: { from: 'professionals', selectionMode: mode } });
+    navigate("/time", {
+      state: { from: "professionals", selectionMode: mode },
+    });
   };
 
-  const assignedCount = (bookingFlow.selectedServices || []).filter(s => bookingFlow.selectedProfessionals?.[s._id]).length;
+  const assignedCount = (bookingFlow.selectedServices || []).filter(
+    (s) => bookingFlow.selectedProfessionals?.[s._id]
+  ).length;
 
   return (
     <div className="unified-bottom-bar">
-    {/* Summary Section */}
-    <div className="unified-bottom-bar__summary">
-      <span className="unified-bottom-bar__primary-info">AED {totalRate}</span>
-      <span className="unified-bottom-bar__secondary-info">
-        {selectedServices.length} service{selectedServices.length !== 1 ? 's' : ''} • {totalDuration} min
-      </span>
-    </div>
+      {/* Summary Section */}
+      <div className="unified-bottom-bar__summary">
+        <span className="unified-bottom-bar__primary-info">
+          AED {totalRate}
+        </span>
+        <span className="unified-bottom-bar__secondary-info">
+          {selectedServices.length} service
+          {selectedServices.length !== 1 ? "s" : ""} • {totalDuration} min
+        </span>
+      </div>
 
-    {/* Action Button */}
-    <button
-      className="unified-bottom-bar__button"
-      onClick={handleContinue}
-      // The complex disabled logic from your component is preserved
-      disabled={!canContinue() && !(selectionMode === 'perService' && !showSummary && !toggledOnceRef.current)}
-    >
-      Continue
-    </button>
-  </div>
+      {/* Action Button */}
+      <button
+        className="unified-bottom-bar__button"
+        onClick={handleContinue}
+        // The complex disabled logic from your component is preserved
+        disabled={
+          !canContinue() &&
+          !(
+            selectionMode === "perService" &&
+            !showSummary &&
+            !toggledOnceRef.current
+          )
+        }
+      >
+        Continue
+      </button>
+    </div>
   );
 }
 
