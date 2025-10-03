@@ -97,6 +97,28 @@ function Services() {
       setLoading(false);
     }
   };
+useEffect(() => {
+  const handleBeforeUnload = () => {
+    try {
+      // clear only your booking data, not auth/session tokens
+      if (bookingFlow && typeof bookingFlow.clear === "function") {
+        bookingFlow.clear();
+      } else {
+        // fallback: clear specific key in localStorage
+        localStorage.removeItem("bookingFlow");
+      }
+    } catch (err) {
+      console.warn("Failed to clear bookingFlow on unload", err);
+    }
+  };
+
+  // Use beforeunload to ensure it's called on tab close, refresh, navigation
+  window.addEventListener("beforeunload", handleBeforeUnload);
+
+  return () => {
+    window.removeEventListener("beforeunload", handleBeforeUnload);
+  };
+}, []);
 
   // Initialize component
   useEffect(() => {
