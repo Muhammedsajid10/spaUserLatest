@@ -1910,28 +1910,34 @@ const Time = (props) => {
       </div>
 
       {/* Fixed bottom bar for mobile: summary + continue */}
-      <div className="bottom-bar time-bottom-bar">
-        <div className="bar-summary">
-          <span>{bookingFlow.getTotalDuration()} min</span>
-          <span>{(bookingFlow.selectedServices?.length || 0)} services</span>
-          <span>AED {bookingFlow.getTotalPrice()}</span>
-        </div>
-        <div className="bar-actions">
-          <button
-            className="continue-btn"
-            disabled={!selectedTime}
-            onClick={() => {
-              if (!selectedTime) {
-                Swal.fire({ title: 'Time Slot Required', text: 'Please select an available time slot.', icon: 'warning', confirmButtonText: 'OK' });
-                return;
-              }
-              navigate('/payment');
-            }}
-          >
-            Continue
-          </button>
-        </div>
-      </div>
+     {/* Fixed bottom bar: summary + continue */}
+<div className="unified-bottom-bar">
+  <div className="unified-bottom-bar__summary">
+    <span className="unified-bottom-bar__primary-info">AED {bookingFlow.getTotalPrice()}</span>
+    <span className="unified-bottom-bar__secondary-info">
+      {(bookingFlow.selectedServices?.length || 0)} service{(bookingFlow.selectedServices?.length || 0) !== 1 ? 's' : ''} • {bookingFlow.getTotalDuration()} min
+    </span>
+  </div>
+  <button
+    className="unified-bottom-bar__button"
+    disabled={!selectedTime}
+    onClick={() => {
+      if (!selectedTime) {
+        Swal.fire({
+          title: 'Time Slot Required',
+          text: 'Please select an available time slot.',
+          icon: 'warning',
+          confirmButtonText: 'OK'
+        });
+        return;
+      }
+      navigate('/payment');
+    }}
+  >
+    Continue
+  </button>
+</div>
+
     </div>
   );
 };
