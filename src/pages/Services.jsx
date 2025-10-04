@@ -634,26 +634,39 @@ function ServiceBottomBar({ currentStep = 1, navigate }) {
 
 // Service Modal Component
 function ServiceModal({ service, selectedOption, setSelectedOption, onClose, onAdd }) {
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  const toggleReadMore = () => setIsExpanded((prev) => !prev);
+
   return (
     <div className="svc-popup-overlay" onClick={onClose}>
       <div className="svc-popup" onClick={(e) => e.stopPropagation()}>
+        {/* Header */}
         <div className="svc-popup-header">
           <h2>{service.title}</h2>
           <button className="close-btn" onClick={onClose}>
             &times;
           </button>
         </div>
-        
+
+        {/* Body */}
         <div className="svc-popup-body">
           <p className="svc-popup-desc">
-            {service.desc.slice(0, 160)}...
-            <span className="read-more"> Read more</span>
+            {isExpanded ? service.desc : `${service.desc.slice(0, 160)}...`}
+            {service.desc.length > 160 && (
+              <span
+                className="read-more"
+                onClick={toggleReadMore}
+              >
+                {isExpanded ? " Read less" : " Read more"}
+              </span>
+            )}
           </p>
-          
+
           <h4 className="svc-popup-subtitle">
             Select an option <span className="required">*</span>
           </h4>
-          
+
           <div className="svc-option-list">
             <label className="svc-option-item">
               <input
@@ -671,28 +684,10 @@ function ServiceModal({ service, selectedOption, setSelectedOption, onClose, onA
                 </div>
               </div>
             </label>
-            
-            <hr />
-            
-            <label className="svc-option-item">
-              <input
-                type="radio"
-                name="svcOption"
-                value="couple"
-                checked={selectedOption === "couple"}
-                onChange={() => setSelectedOption("couple")}
-              />
-              <div>
-                <strong>Couple</strong>
-                <div className="svc-option-time">{service.time}</div>
-                <div className="svc-option-price">
-                  AED {apiUtils.formatPrice(service.effectivePrice * 2).replace(/^(AED |\$)?/, '')}
-                </div>
-              </div>
-            </label>
           </div>
         </div>
-        
+
+        {/* Footer */}
         <div className="svc-popup-footer">
           <button
             className={selectedOption ? "btn-enabled" : "btn-disabled"}
