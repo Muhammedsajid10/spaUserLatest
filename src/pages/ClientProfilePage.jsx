@@ -174,7 +174,7 @@ const ProfileHeader = ({ profile }) => (
    Booking Item Component
    ------------------- */
 
-const BookingItem = ({ booking, feedbackList, onGiveRating }) => {
+const BookingItem = ({ booking, feedbackList, onGiveRating, servicesMap }) => {
   const getStatusBadgeClass = (status) => {
     switch (status?.toLowerCase()) {
       case "confirmed":
@@ -212,91 +212,60 @@ const BookingItem = ({ booking, feedbackList, onGiveRating }) => {
         <div className="booking-services">
           <h5 className="services-title">Services:</h5>
           <div className="services-list">
-            {booking.services.map((service, index) => (
-              <div key={service.id || service._id || index} className="service-item">
-                <div className="service-grid">
-                  {/* Service Basic Info */}
-                  <div className="service-basic-info">
-                    <h4 className="service-name">
-                      {service.service?.name || `Service ${index + 1}`}
-                    </h4>
-                    {service.employee?.user && (
-                      <p className="service-professional">
-                        {service.employee.user.firstName} {service.employee.user.lastName}
-                      </p>
+            {booking.services.map((serviceItem, index) => {
+              // Normalize serviceId (booking may store service as string ID)
+              const serviceId =
+                typeof serviceItem.service === "string"
+                  ? serviceItem.service
+                  : serviceItem.service?._id || serviceItem._id || serviceItem.serviceId;
+
+              // Lookup service details from fetched services map first,
+              // then fallback to embedded object if present
+              const serviceFromMap = serviceId ? servicesMap[serviceId] : null;
+              const serviceDetails =
+                serviceFromMap || (typeof serviceItem.service === "object" ? serviceItem.service : serviceItem);
+
+              const serviceName =
+                serviceFromMap?.name ||
+                serviceDetails?.name ||
+                serviceItem.name ||
+                `Service ${index + 1}`;
+
+              return (
+                <div key={serviceId || index} className="service-item">
+                  <div className="service-grid">
+                    {/* Service Basic Info */}
+                    <div className="service-basic-info">
+                      <h4 className="service-name">{serviceName}</h4>
+                      {serviceItem.employee?.user && (
+                        <p className="service-professional">
+                          {serviceItem.employee.user.firstName} {serviceItem.employee.user.lastName}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Service Details */}
+                    <div className="service-details">
+                      <span className="duration">
+                        <Clock className="w-4 h-4" />
+                        {serviceItem.duration} min
+                      </span>
+                      <span className="price">
+                        {booking.currency || "AED"} {serviceItem.price}
+                      </span>
+                    </div>
+
+                    {/* Service Time */}
+                    {serviceItem.startTime && serviceItem.endTime && (
+                      <div className="service-time">
+                        <strong>Service Date & Time: </strong>
+                        {formatLocalDateTime(serviceItem.startTime)} - {formatLocalDateTime(serviceItem.endTime)}
+                      </div>
                     )}
                   </div>
-
-                  {/* Service Details */}
-                  <div className="service-details">
-                    <span className="duration">
-                      <Clock className="w-4 h-4" />
-                      {service.duration} min
-                    </span>
-                    <span className="price">
-                      {booking.currency || "AED"} {service.price}
-                    </span>
-                  </div>
-
-                  {/* Service Time */}
-                  {service.startTime && service.endTime && (
-                    <div className="service-time">
-                      <strong>Service Date & Time: </strong>
-                      {(() => {
-                        // Format both date and time without timezone conversion
-                        const formatDateTime = (dateStr) => {
-                          const date = new Date(dateStr);
-
-                          // Get date components
-                          const dateFormatted = date.toLocaleDateString('en-US', {
-                            year: 'numeric',
-                            month: 'short',
-                            day: 'numeric'
-                          });
-
-                          // Extract time components to avoid timezone shifts
-                          const timeStr = dateStr.split('T')[1]?.split('.')[0] || dateStr;
-                          let timeFormatted;
-
-                          if (timeStr.includes(':') && timeStr.length <= 8) {
-                            const [hours, minutes] = timeStr.split(':');
-                            const localDate = new Date();
-                            localDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
-                            timeFormatted = localDate.toLocaleTimeString('en-US', {
-                              hour: 'numeric',
-                              minute: '2-digit',
-                              hour12: true
-                            });
-                          } else {
-                            const hours = date.getUTCHours();
-                            const minutes = date.getUTCMinutes();
-                            const localDate = new Date();
-                            localDate.setHours(hours, minutes, 0, 0);
-                            timeFormatted = localDate.toLocaleTimeString('en-US', {
-                              hour: 'numeric',
-                              minute: '2-digit',
-                              hour12: true
-                            });
-                          }
-
-                          return { date: dateFormatted, time: timeFormatted };
-                        };
-
-                        const startDateTime = formatDateTime(service.startTime);
-                        const endDateTime = formatDateTime(service.endTime);
-
-                        // Check if both times are on the same date
-                        if (startDateTime.date === endDateTime.date) {
-                          return `${startDateTime.date} from ${startDateTime.time} to ${endDateTime.time}`;
-                        } else {
-                          return `${startDateTime.date} ${startDateTime.time} - ${endDateTime.date} ${endDateTime.time}`;
-                        }
-                      })()}
-                    </div>
-                  )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
@@ -488,6 +457,10 @@ const SpaProfilePage = () => {
   const [editFeedbackValue, setEditFeedbackValue] = useState(0);
   const [editFeedbackComment, setEditFeedbackComment] = useState("");
   const [serviceRatings, setServiceRatings] = useState({}); // { serviceId: number }
+
+  // NEW: services map (id -> service object)
+  const [servicesMap, setServicesMap] = useState({}); // { serviceId: service }
+
   // Enhanced responsive check with debouncing
   useEffect(() => {
     let timeoutId;
@@ -522,7 +495,7 @@ const SpaProfilePage = () => {
         setLoading(true);
         setError(null);
 
-        // Get all data in parallel
+        // Get profile/bookings/invoices/feedback in parallel
         const [profileRes, bookingsRes, invoicesRes, feedbackRes] = await Promise.allSettled([
           authAPI.getCurrentUser(),
           bookingsAPI.getUserBookings(),
@@ -551,6 +524,29 @@ const SpaProfilePage = () => {
               hasRating: hasFeedback
             };
           });
+        }
+
+        // Fetch all services to build lookup map
+        try {
+          const servicesRes = await fetch('https://api.alloraspadubai.com/api/v1/services', {
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${localStorage.getItem('token')}`
+            }
+          });
+          const servicesJson = await servicesRes.json();
+          if (servicesJson.success && Array.isArray(servicesJson.data?.services)) {
+            const map = {};
+            servicesJson.data.services.forEach(svc => {
+              if (svc && svc._id) map[svc._id] = svc;
+            });
+            setServicesMap(map);
+            console.log('Fetched services count:', Object.keys(map).length);
+          } else {
+            console.warn('Services endpoint did not return expected shape', servicesJson);
+          }
+        } catch (svcErr) {
+          console.error('Failed to fetch services list', svcErr);
         }
 
         // Set states with processed data
@@ -914,6 +910,7 @@ const SpaProfilePage = () => {
                   key={booking._id || booking.id || `booking-${index}`}
                   booking={booking}
                   onGiveRating={openRatingPopup}
+                  servicesMap={servicesMap} // <-- pass services map
                 />
               ))}
             </div>
@@ -1314,8 +1311,9 @@ const SpaProfilePage = () => {
                   <>
                     <div className="service-rating-list">
                       {booking.services.map((service) => {
-                        const serviceId = service.service?._id || service._id || service.serviceId;
-                        const serviceName = service.service?.name || 'Service';
+                        const serviceId = service.service?._id || service._id || service.serviceId || (typeof service.service === 'string' ? service.service : null);
+                        // Lookup name using servicesMap
+                        const serviceName = servicesMap[serviceId]?.name || service.service?.name || 'Service';
                         const current = serviceRatings[serviceId] || 0;
 
                         return (
@@ -1365,7 +1363,7 @@ const SpaProfilePage = () => {
                         className="btn-submit" 
                         onClick={handleRatingSubmit}
                         disabled={!booking.services.every(service => {
-                          const serviceId = service.service?._id || service._id || service.serviceId;
+                          const serviceId = service.service?._id || service._id || service.serviceId || (typeof service.service === 'string' ? service.service : null);
                           return serviceRatings[serviceId];
                         })}
                       >
