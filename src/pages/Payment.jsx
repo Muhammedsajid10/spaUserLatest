@@ -268,7 +268,7 @@ const Payment = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [processing, setProcessing] = useState(false);
-  const [selectedMethod, setSelectedMethod] = useState('card'); // 'card' | 'upi' | 'cash'
+  const [selectedMethod, setSelectedMethod] = useState('pay-at-center'); // 'card' | 'upi' | 'cash'
   const [upiVpa, setUpiVpa] = useState('');
   const [paymentIntent, setPaymentIntent] = useState(null);
   const [successResult, setSuccessResult] = useState(null);
@@ -839,9 +839,9 @@ const Payment = () => {
                   <button
                     type="button"
                     className={`payment-method-btn ${selectedMethod === 'card' ? 'selected' : ''}`}
-                    onClick={() => setSelectedMethod('card')}
+                    onClick={() => setSelectedMethod('pay-at-center')}
                   >
-                    <span className="method-text">Card</span>
+                    <span className="method-text">Pay at center</span>
                   </button>
 
                   {/* <button
@@ -852,13 +852,6 @@ const Payment = () => {
                     <span className="method-text">UPI</span>
                   </button> */}
 
-                  <button
-                    type="button"
-                    className={`payment-method-btn ${selectedMethod === 'cash' ? 'selected' : ''}`}
-                    onClick={() => setSelectedMethod('cash')}
-                  >
-                    <span className="method-text">Cash</span>
-                  </button>
                 </div>
 
                 {selectedMethod === 'card' && paymentIntent && (
@@ -914,7 +907,7 @@ const Payment = () => {
                   </div>
                 )}
 
-                {selectedMethod === 'cash' && (
+                {selectedMethod === 'pay-at-center' && (
                   <div className="cash-info">
                     <p>You can pay in cash when the professional arrives for your appointment.</p>
                   </div>
