@@ -26,8 +26,41 @@ import {
   feedbackAPI,
 } from "../services/api";
 import { useNavigate } from "react-router-dom";
-import { formatLocalDateTime, formatTimeRange, formatLocalDate } from '../Utils/timeZoneUtils.js';
+import { formatLocalDateTime, formatTimeRange, formatLocalDate, formatLocalTime } from '../Utils/timeZoneUtils.js';
 
+// For booking created time (UTC) - needs timezone conversion
+function formatBookingDateTime(timestamp) {
+  return formatLocalDateTime(timestamp);
+}
+
+// For service times (already in local timezone) - just format to AM/PM
+
+
+
+// For service times - parse as local time if backend sends local time in UTC format
+function formatServiceTime(timestamp) {
+  // Remove the 'Z' to treat as local time, then format
+  const localTimeStr = timestamp.replace('Z', '');
+  return new Date(localTimeStr).toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true
+  });
+}
+
+// For service date and time range - parse as local time
+function formatServiceDateTime(timestamp) {
+  // Remove the 'Z' to treat as local time, then format
+  const localTimeStr = timestamp.replace('Z', '');
+  return new Date(localTimeStr).toLocaleString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true
+  });
+}
 /* -------------------
    Utility UI States
    ------------------- */
@@ -164,7 +197,7 @@ const ProfileHeader = ({ profile }) => (
         )}
       </div>
       <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3">
-        
+
       </div>
     </div>
   </div>
@@ -199,7 +232,7 @@ const BookingItem = ({ booking, feedbackList, onGiveRating, servicesMap }) => {
           <div className="booking-meta">
             <span className="booking-date">
               <Calendar className="w-4 h-4" />
-              {formatLocalDateTime(booking.createdAt)}
+              {formatBookingDateTime(booking.createdAt)}
             </span>
           </div>
         </div>
@@ -231,40 +264,40 @@ const BookingItem = ({ booking, feedbackList, onGiveRating, servicesMap }) => {
                 serviceItem.name ||
                 `Service ${index + 1}`;
 
-              return (
+                return (
                 <div key={serviceId || index} className="service-item">
                   <div className="service-grid">
-                    {/* Service Basic Info */}
-                    <div className="service-basic-info">
-                      <h4 className="service-name">{serviceName}</h4>
-                      {serviceItem.employee?.user && (
-                        <p className="service-professional">
-                          {serviceItem.employee.user.firstName} {serviceItem.employee.user.lastName}
-                        </p>
-                      )}
-                    </div>
-
-                    {/* Service Details */}
-                    <div className="service-details">
-                      <span className="duration">
-                        <Clock className="w-4 h-4" />
-                        {serviceItem.duration} min
-                      </span>
-                      <span className="price">
-                        {booking.currency || "AED"} {serviceItem.price}
-                      </span>
-                    </div>
-
-                    {/* Service Time */}
-                    {serviceItem.startTime && serviceItem.endTime && (
-                      <div className="service-time">
-                        <strong>Service Date & Time: </strong>
-                        {formatLocalDateTime(serviceItem.startTime)} - {formatLocalDateTime(serviceItem.endTime)}
-                      </div>
+                  {/* Service Basic Info */}
+                  <div className="service-basic-info">
+                    <h4 className="service-name">{serviceName}</h4>
+                    {serviceItem.employee?.user && (
+                    <p className="service-professional">
+                      {serviceItem.employee.user.firstName} {serviceItem.employee.user.lastName}
+                    </p>
                     )}
                   </div>
+
+                  {/* Service Details */}
+                  <div className="service-details">
+                    <span className="duration">
+                    <Clock className="w-4 h-4" />
+                    {serviceItem.duration} min
+                    </span>
+                    <span className="price">
+                    {booking.currency || "AED"} {serviceItem.price}
+                    </span>
+                  </div>
+
+                  {/* Service Time */}
+                  {serviceItem.startTime && serviceItem.endTime && (
+                    <div className="service-time">
+                    <strong>Service Date & Time: </strong>
+{formatServiceDateTime(serviceItem.startTime)} - {formatServiceTime(serviceItem.endTime)}
+                    </div>
+                  )}
+                  </div>
                 </div>
-              );
+                );
             })}
           </div>
         </div>
@@ -325,12 +358,7 @@ const InvoiceItem = ({ invoice }) => {
     });
   };
 
-  const formatTime = (dateString) => {
-    return new Date(dateString).toLocaleTimeString("en-US", {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
+  // Using formatLocalTime from timezone utils for consistent formatting
 
   const getStatusBadgeClass = (status) => {
     switch (status?.toLowerCase()) {
@@ -402,8 +430,7 @@ const InvoiceItem = ({ invoice }) => {
                 </div>
                 {service.startTime && service.endTime && (
                   <div className="service-time">
-                    {formatTime(service.startTime)} -{" "}
-                    {formatTime(service.endTime)}
+                    {formatTimeRange(service.startTime, service.endTime)}
                   </div>
                 )}
               </div>
@@ -636,100 +663,100 @@ const SpaProfilePage = () => {
     }));
   };
   const handleRatingSubmit = async () => {
-  if (isSubmittingRating) return;
+    if (isSubmittingRating) return;
 
-  try {
-    setIsSubmittingRating(true);
+    try {
+      setIsSubmittingRating(true);
 
-    console.log('[Rating] Starting submission with:', {
-      ratingBookingId,
-      serviceRatings,
-      ratingComment
-    });
+      console.log('[Rating] Starting submission with:', {
+        ratingBookingId,
+        serviceRatings,
+        ratingComment
+      });
 
-    const booking = bookings.find((b) => (b._id || b.id) === ratingBookingId);
-    
-    if (!booking) throw new Error("Booking not found");
+      const booking = bookings.find((b) => (b._id || b.id) === ratingBookingId);
 
-    // First, check if all services have ratings
-    const unratedServices = booking.services.filter(service => {
-      const serviceId = service.service?._id || service._id || service.serviceId;
-      return !serviceRatings[serviceId];
-    });
+      if (!booking) throw new Error("Booking not found");
 
-    // If any service is unrated, show specific error
-    if (unratedServices.length > 0) {
-      const unratedServiceNames = unratedServices
-        .map(s => s.service?.name || 'Unknown service')
-        .join(', ');
-      throw new Error(`Please provide ratings for all services: ${unratedServiceNames}`);
-    }
+      // First, check if all services have ratings
+      const unratedServices = booking.services.filter(service => {
+        const serviceId = service.service?._id || service._id || service.serviceId;
+        return !serviceRatings[serviceId];
+      });
 
-    // Convert service ratings to required format
-    const ratingItems = booking.services.map(service => {
-      const serviceId = service.service?._id || service._id || service.serviceId;
-      const employeeId = service.employee?._id || service.employeeId;
-      const rating = serviceRatings[serviceId];
-
-      return {
-        serviceId,
-        employeeId,
-        rating
-      };
-    });
-
-    // Prepare feedback data
-    const feedbackData = {
-      bookingId: booking._id || booking.id,
-      items: ratingItems,
-      comment: ratingComment
-    };
-
-    console.log('[Rating] Submitting feedback:', feedbackData);
-
-    const response = await fetch('https://api.alloraspadubai.com/api/v1/feedbacks/create', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('token')}`
-      },
-      body: JSON.stringify(feedbackData)
-    });
-
-    const data = await response.json();
-   console.log('[Rating] Submission response:', data);
-    if (data.success) {
-      // Refresh feedback data
-      try {
-        const feedbackRes = await feedbackAPI.getUserFeedback();
-        setFeedback(feedbackRes?.data?.feedback || []);
-      } catch (error) {
-        console.error('[Rating] Error refreshing feedback:', error);
+      // If any service is unrated, show specific error
+      if (unratedServices.length > 0) {
+        const unratedServiceNames = unratedServices
+          .map(s => s.service?.name || 'Unknown service')
+          .join(', ');
+        throw new Error(`Please provide ratings for all services: ${unratedServiceNames}`);
       }
 
-      closeRatingPopup();
-      Swal.fire({
-        title: "Thank you!",
-        text: "Your feedback has been submitted successfully.",
-        icon: "success",
-        timer: 2000,
-        showConfirmButton: false,
+      // Convert service ratings to required format
+      const ratingItems = booking.services.map(service => {
+        const serviceId = service.service?._id || service._id || service.serviceId;
+        const employeeId = service.employee?._id || service.employeeId;
+        const rating = serviceRatings[serviceId];
+
+        return {
+          serviceId,
+          employeeId,
+          rating
+        };
       });
-    } else {
-      throw new Error(data.message || "Failed to submit feedback");
+
+      // Prepare feedback data
+      const feedbackData = {
+        bookingId: booking._id || booking.id,
+        items: ratingItems,
+        comment: ratingComment
+      };
+
+      console.log('[Rating] Submitting feedback:', feedbackData);
+
+      const response = await fetch('https://api.alloraspadubai.com/api/v1/feedbacks/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify(feedbackData)
+      });
+
+      const data = await response.json();
+      console.log('[Rating] Submission response:', data);
+      if (data.success) {
+        // Refresh feedback data
+        try {
+          const feedbackRes = await feedbackAPI.getUserFeedback();
+          setFeedback(feedbackRes?.data?.feedback || []);
+        } catch (error) {
+          console.error('[Rating] Error refreshing feedback:', error);
+        }
+
+        closeRatingPopup();
+        Swal.fire({
+          title: "Thank you!",
+          text: "Your feedback has been submitted successfully.",
+          icon: "success",
+          timer: 2000,
+          showConfirmButton: false,
+        });
+      } else {
+        throw new Error(data.message || "Failed to submit feedback");
+      }
+    } catch (error) {
+      console.error('[Rating] Error submitting feedback:', error);
+      Swal.fire({
+        title: "Error!",
+        text: error.message,
+        icon: "error",
+        confirmButtonText: "OK",
+      });
+    } finally {
+      setIsSubmittingRating(false);
     }
-  } catch (error) {
-    console.error('[Rating] Error submitting feedback:', error);
-    Swal.fire({
-      title: "Error!",
-      text: error.message,
-      icon: "error",
-      confirmButtonText: "OK",
-    });
-  } finally {
-    setIsSubmittingRating(false);
-  }
-};
+  };
 
   // Start editing feedback
   const handleEditFeedback = (item) => {
@@ -971,7 +998,7 @@ const SpaProfilePage = () => {
         console.log("Feedback data:", feedback);
         if (feedback?.length > 0) {
           const groupedFeedback = groupFeedbackByBooking(feedback);
-          
+
           return (
             <div className="card">
               <h3 className="card-title">
@@ -1353,14 +1380,14 @@ const SpaProfilePage = () => {
                     </div>
 
                     <div className="modal-actions">
-                      <button 
-                        className="btn-cancel" 
+                      <button
+                        className="btn-cancel"
                         onClick={closeRatingPopup}
                       >
                         Cancel
                       </button>
-                      <button 
-                        className="btn-submit" 
+                      <button
+                        className="btn-submit"
                         onClick={handleRatingSubmit}
                         disabled={!booking.services.every(service => {
                           const serviceId = service.service?._id || service._id || service.serviceId || (typeof service.service === 'string' ? service.service : null);
