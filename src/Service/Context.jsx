@@ -103,6 +103,7 @@ export const AuthProvider = ({ children }) => {
    const resetPassword = async ({ email }) => {
     try {
       console.log('[Auth] Initiating password reset for:', email);
+      console.log('[Auth] Request payload:', JSON.stringify({ email }));
       
       const response = await fetch('https://api.alloraspadubai.com/api/v1/auth/forgot-password', {
         method: 'POST',

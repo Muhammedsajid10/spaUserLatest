@@ -166,7 +166,7 @@ const SignInPage = () => {
   try {
     console.log('[SignIn] Attempting password reset for:', forgotPasswordEmail);
     
-    const result = await resetPassword({ email: forgotPasswordEmail });
+    const result = await resetPassword({ email: forgotPasswordEmail.trim() });
     console.log('[SignIn] Reset password result:', result);
 
     if (result.success) {

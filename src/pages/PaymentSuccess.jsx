@@ -94,27 +94,44 @@ const PaymentSuccess = () => {
   };
 
   const sendConfirmationEmailAuto = async (bookingDetails) => {
+    const id = bookingDetails?.bookingId || bookingDetails?.bookingNumber || bookingDetails?._id;
+    if (!id) {
+      console.warn('Skipping auto-confirmation email: No valid booking ID found in', bookingDetails);
+      return;
+    }
+
     try {
-      console.log('Auto-sending confirmation email for booking:', bookingDetails?.bookingId || bookingDetails?.bookingNumber || bookingDetails?._id);
+      console.log('Auto-sending confirmation email. Booking ID:', id);
       const token = localStorage.getItem('token');
+      
+      const payload = { bookingId: id };
+      console.log('Auto-email payload:', JSON.stringify(payload));
+
       const response = await fetch('https://api.alloraspadubai.com/api/v1/payments/send-confirmation', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({
-          bookingId: bookingDetails?.bookingId || bookingDetails?.bookingNumber || bookingDetails?._id
-        })
+        body: JSON.stringify(payload)
       });
 
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.message || 'Failed to send confirmation email');
+      const contentType = response.headers.get("content-type");
+      let result;
+      if (contentType && contentType.indexOf("application/json") !== -1) {
+        result = await response.json();
+      } else {
+        const text = await response.text();
+        console.error('Non-JSON response from server:', text);
+        throw new Error(`Server returned status ${response.status}: ${text.substring(0, 100)}`);
       }
 
-      console.log('Auto confirmation email sent:', result);
+      if (!response.ok) {
+        console.error('Server error response:', result);
+        throw new Error(result.message || `Server error ${response.status}`);
+      }
+
+      console.log('Auto confirmation email sent successfully:', result);
       setEmailSent(true);
       
     } catch (error) {
@@ -123,33 +140,54 @@ const PaymentSuccess = () => {
   };
 
   const sendConfirmationEmail = async () => {
+    const id = bookingDetails?.bookingId || bookingDetails?.bookingNumber || bookingDetails?._id;
+    
+    if (!id) {
+      Swal.fire({
+        title: 'Error',
+        text: 'Cannot send email: Booking ID is missing.',
+        icon: 'error'
+      });
+      return;
+    }
+
     setLoading(true);
     try {
-      console.log('Sending confirmation email for booking:', bookingDetails?.bookingId || bookingDetails?.bookingNumber || bookingDetails?._id);
+      console.log('Manually sending confirmation email. Booking ID:', id);
       const token = localStorage.getItem('token');
       
+      const payload = { bookingId: id };
+      console.log('Manual email payload:', JSON.stringify(payload));
+
       const response = await fetch('https://api.alloraspadubai.com/api/v1/payments/send-confirmation', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({
-          bookingId: bookingDetails?.bookingId || bookingDetails?.bookingNumber || bookingDetails?._id
-        })
+        body: JSON.stringify(payload)
       });
 
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.message || 'Failed to send confirmation email');
+      const contentType = response.headers.get("content-type");
+      let result;
+      if (contentType && contentType.indexOf("application/json") !== -1) {
+        result = await response.json();
+      } else {
+        const text = await response.text();
+        console.error('Non-JSON response from server:', text);
+        throw new Error(`Server returned status ${response.status}: ${text.substring(0, 100)}`);
       }
 
-      console.log('Confirmation email sent:', result);
+      if (!response.ok) {
+        console.error('Server error response:', result);
+        throw new Error(result.message || `Server error ${response.status}`);
+      }
+
+      console.log('Confirmation email sent successfully:', result);
       setEmailSent(true);
       Swal.fire({
         title: 'Email Sent!',
-        text: `Confirmation email sent successfully to ${result.data.email}!`,
+        text: `Confirmation email sent successfully to ${result.data?.email || 'your email'}!`,
         icon: 'success',
         timer: 5000,
         showConfirmButton: false

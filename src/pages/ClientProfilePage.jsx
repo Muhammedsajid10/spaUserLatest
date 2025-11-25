@@ -311,17 +311,7 @@ const BookingItem = ({ booking, feedbackList, onGiveRating, servicesMap }) => {
           </span>
         </div>
 
-        {booking.paymentStatus && (
-          <div className="payment-status">
-            <span className="payment-label">Payment:</span>
-            <span
-              className={`payment-badge ${booking.paymentStatus === "paid" ? "paid" : "pending"
-                }`}
-            >
-              {booking.paymentStatus}
-            </span>
-          </div>
-        )}
+
 
         {/* Show Give Rating button only if completed and no rating */}
         {booking.status?.toLowerCase() === "completed" && !booking.hasRating && (
@@ -1387,14 +1377,21 @@ const SpaProfilePage = () => {
                         Cancel
                       </button>
                       <button
-                        className="btn-submit"
+                        className={`btn-submit ${isSubmittingRating ? 'loading' : ''}`}
                         onClick={handleRatingSubmit}
-                        disabled={!booking.services.every(service => {
+                        disabled={isSubmittingRating || !booking.services.every(service => {
                           const serviceId = service.service?._id || service._id || service.serviceId || (typeof service.service === 'string' ? service.service : null);
                           return serviceRatings[serviceId];
                         })}
                       >
-                        Submit Ratings
+                        {isSubmittingRating ? (
+                          <>
+                            <span className="spinner-circle"></span>
+                            Submitting...
+                          </>
+                        ) : (
+                          "Submit Ratings"
+                        )}
                       </button>
                     </div>
                   </>

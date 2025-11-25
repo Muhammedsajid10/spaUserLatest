@@ -64,6 +64,7 @@ const Time = (props) => {
   const [processingTimeSlotId, setProcessingTimeSlotId] = useState(null);
   // Week navigation offset: 0 = current week window starting today, +1 = next week, etc.
   const [weekOffset, setWeekOffset] = useState(0);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   // FIX: Use a ref to track if initial load is complete
   const isInitialLoad = useRef(true);
@@ -775,8 +776,8 @@ const Time = (props) => {
     return { appointmentsIndex };
   };
 
-  const handleDateClick = async (dayOrDate) => {
-    console.log('[Time] handleDateClick start (local computation)', { dayOrDate, selectedService, selectedProfessional });
+  const handleDateClick = (dayOrDate) => {
+    console.log('[Time] handleDateClick triggered - delegating to fetchTimeSlots via refreshTrigger');
     let newDate;
     if (dayOrDate instanceof Date) {
       newDate = new Date(dayOrDate.getFullYear(), dayOrDate.getMonth(), dayOrDate.getDate());
@@ -784,117 +785,16 @@ const Time = (props) => {
       // Backward compatibility for calendar day clicks passing a number
       newDate = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), dayOrDate);
     }
+    
     setSelectedDate(newDate);
     setCalendarOpen(false);
-    setLoadingTimeSlots(true);
+    
+    // Clear slots and show loader immediately to give feedback
     setAvailableTimeSlots([]);
-
-    try {
-      const flow = bookingFlow.load();
-      const services = (flow.selectedServices && flow.selectedServices.length) ? flow.selectedServices : ([selectedService].filter(Boolean));
-
-      const { appointmentsIndex } = await fetchDateData(newDate);
-
-      // single-service -> compute using local slots for the assigned professional (or union if 'any')
-      if (!services || services.length <= 1) {
-        const svc = services && services[0] || selectedService;
-        if (!svc) throw new Error('No service selected');
-
-        const assigned = flow.selectedProfessionals?.[svc._id] || selectedProfessional;
-
-        if (!assigned || assigned.id === 'any' || assigned._id === 'any') {
-          // For "Any professional", fetch employees only when needed for union calculation
-          console.log('[Time] single-service ANY -> fetching employees for union slots');
-          let employees = [];
-          try {
-            const resp = await bookingsAPI.getAvailableProfessionals(svc._id, apiUtils.formatDate(newDate));
-            employees = resp?.data?.professionals ?? resp?.professionals ?? resp?.data ?? resp ?? [];
-            employees = employees.filter(emp => emp.isActive !== false);
-          } catch (err) {
-            console.warn('[Time] Failed to fetch professionals for Any selection:', err);
-            employees = [];
-          }
-          
-          const avail = getAvailableProfessionalsForService(svc._id, newDate, employees, appointmentsIndex, flow.selectedServices || [svc]);
-          const union = [];
-          (avail || []).forEach(r => (r.slots || []).forEach(s => union.push(s)));
-          const uniq = Array.from(new Set(union)).sort();
-          const slots = uniq.map((t,i) => {
-            const normalized = toLocalHHMM(t) || t;
-            return ({
-              id: i,
-              time: normalized,
-              timeValue: normalized,
-              startTime: normalized,
-              endTime: addMinutesToTime(normalized, svc.duration || 30),
-              available: true
-            });
-          });
-          console.log('[Time] union slots count', slots.length);
-          setAvailableTimeSlots(slots);
-          return;
-        }
-
-        // assigned is a specific employee -> compute valid slots using appointmentsIndex for that employee
-        const duration = svc.duration || 30;
-        const empId = assigned._id || assigned.id;
-        console.log('[Time] computing local slots for employee', { employeeId: empId, date: localDateKey(newDate), duration });
-        const slotsArr = getValidTimeSlotsForProfessional(assigned, new Date(newDate), duration, appointmentsIndex);
-        console.log('[Time] local slots computed count', slotsArr.length, slotsArr.slice(0,6));
-        const mapped = slotsArr.map((t, i) => {
-          const normalized = toLocalHHMM(t) || t;
-          return ({
-            id: i,
-            time: normalized,
-            timeValue: normalized,
-            startTime: normalized,
-            endTime: addMinutesToTime(normalized, duration),
-            available: true
-          });
-        });
-        setAvailableTimeSlots(mapped);
-        return;
-      }
-
-      // multi-service -> compute sequential series (back-to-back)
-      const missing = services.filter(s => !flow.selectedProfessionals?.[s._id]);
-      if (missing.length) {
-        console.log('[Time] multi-service missing assigned professionals', missing.map(m=>m._id));
-        setAvailableTimeSlots([]);
-        setError('Please assign professionals to all services first');
-        return;
-      }
-
-      const professionalsMap = {};
-      services.forEach(svc => {
-        professionalsMap[svc._id] = flow.selectedProfessionals[svc._id];
-      });
-
-      console.log('[Time] computing sequential service start times locally (with bookings)', { services: services.map(s=>s._id), date: localDateKey(newDate) });
-      const sequences = await computeSequentialServiceStartTimesWithBookings(services, professionalsMap, newDate, appointmentsIndex);
-      console.log('[Time] sequences found', sequences?.length);
-      if (!sequences || sequences.length === 0) {
-        setAvailableTimeSlots([]);
-        setError('No sequential time slots available for assigned professionals on this date.');
-        return;
-      }
-      const slots = sequences.map((s, idx) => ({
-        id: idx,
-        time: toLocalHHMM(s.startTime) || s.startTime,
-        timeValue: toLocalHHMM(s.startTime) || s.startTime,
-        startTime: toLocalHHMM(s.startTime) || s.startTime,
-        endTime: toLocalHHMM(s.sequence[s.sequence.length - 1].endTime) || s.sequence[s.sequence.length - 1].endTime,
-        available: true,
-        sequence: s.sequence
-      }));
-      setAvailableTimeSlots(slots);
-    } catch (err) {
-      console.error('[Time] handleDateClick local computation error', err);
-      setError(err.message || 'Failed to compute time slots locally');
-      setAvailableTimeSlots([]);
-    } finally {
-      setLoadingTimeSlots(false);
-    }
+    setLoadingTimeSlots(true);
+    
+    // Trigger useEffect to fetch data
+    setRefreshTrigger(prev => prev + 1);
   };
 
   useEffect(() => {
@@ -1535,7 +1435,7 @@ const Time = (props) => {
       }
     };
     fetchTimeSlots();
-  }, [selectedService?._id, selectedProfessional?._id, selectedDate.toDateString()]); // Use stable identifiers
+  }, [selectedService?._id, selectedProfessional?._id, selectedDate.toDateString(), refreshTrigger]); // Use stable identifiers
 
   const handleTimeSelect = async (timeSlot) => {
     setSelectedTime(timeSlot);

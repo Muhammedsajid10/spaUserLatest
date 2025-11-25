@@ -364,7 +364,7 @@ export function getValidTimeSlotsForProfessional(employee, date, serviceDuration
     employeeId: employee?._id || employee?.id || employee,
     date: dayKey,
     serviceDuration,
-    lastAllowedSlot: '21:45 (09:45 PM)'
+    lastAllowedSlot: '24:00 (12:00 PM)'
   });
 
   const shifts = getEmployeeShiftHours(employee, dateLocal);
@@ -450,9 +450,9 @@ export function getValidTimeSlotsForProfessional(employee, date, serviceDuration
       const aligned = roundUpTimeToInterval(cursor, intervalMinutes);
       totalGenerated++;
 
-      // CRITICAL CHECK 1: Verify slot doesn't exceed 10:45 PM (considering service duration)
+      // CRITICAL CHECK 1: Verify slot doesn't exceed 11:00 PM (considering service duration)
       if (exceedsLastAllowedSlot(aligned, serviceDuration)) {
-        console.debug('[bookingUtils] ⛔ Stopping slot generation: slot would exceed 10:45 PM limit', {
+        console.debug('[bookingUtils] ⛔ Stopping slot generation: slot would exceed 11:00 PM limit', {
           slotTime: aligned,
           serviceDuration: `${serviceDuration} min`,
           wouldEndAt: addMinutesToTime(aligned, serviceDuration)
@@ -520,7 +520,7 @@ export function computeSequentialServiceStartTimesWithBookings(services, profess
   console.log('[bookingUtils] computeSequentialServiceStartTimesWithBookings start', {
     services: services.map(s => s._id),
     date: localDateKey(date),
-    lastAllowedSlot: '22:45 (10:45 PM)'
+    lastAllowedSlot: '23:00 (11:00 PM)'
   });
 
   if (!Array.isArray(services) || services.length === 0) return [];
@@ -529,7 +529,7 @@ export function computeSequentialServiceStartTimesWithBookings(services, profess
   const totalDuration = services.reduce((sum, svc) => sum + (svc.duration || 30), 0);
   
   // Calculate the latest possible start time
-  const lastAllowedStart = timeToMinutes("22:45") - totalDuration;
+  const lastAllowedStart = timeToMinutes("23:00") - totalDuration;
   const lastStartTime = minutesToTime(lastAllowedStart);
 
   console.log('[bookingUtils] Duration calculation:', {
@@ -550,15 +550,15 @@ export function computeSequentialServiceStartTimesWithBookings(services, profess
     totalCandidates++;
     const startTime = minutesToTime(minutes);
     
-    // Check if sequence would exceed 10:45 PM
+    // Check if sequence would exceed 11:00 PM
     const sequenceEndMinutes = minutes + totalDuration;
-    if (sequenceEndMinutes > timeToMinutes("22:45")) {
+    if (sequenceEndMinutes > timeToMinutes("23:00")) {
       blockedByTimeLimit++;
       console.log('[TIME CONSTRAINT] Sequence rejected:', {
         startTime,
         totalDuration: `${totalDuration} min`,
         wouldEndAt: minutesToTime(sequenceEndMinutes),
-        lastAllowed: "22:45",
+        lastAllowed: "23:00",
       });
       continue;
     }
@@ -575,7 +575,7 @@ export function computeSequentialServiceStartTimesWithBookings(services, profess
 
       // Verify each service fits within allowed time
       const serviceEndMinutes = timeToMinutes(currentTime) + duration;
-      if (serviceEndMinutes > timeToMinutes("22:45")) {
+      if (serviceEndMinutes > timeToMinutes("23:00")) {
         isValid = false;
         break;
       }
@@ -621,7 +621,7 @@ export function computeSequentialServiceStartTimesWithBookings(services, profess
  * @returns {boolean} - True if the service would end after 10:45 PM
  */
 export function exceedsLastAllowedSlot(startTimeStr, durationMinutes = 0) {
-  const LAST_ALLOWED_TIME = "23:00"; // 10:45 PM in 24-hour format
+  const LAST_ALLOWED_TIME = "24:00"; // 11:00 PM in 24-hour format
   
   // Convert start time to minutes
   const startMinutes = timeToMinutesFn(startTimeStr);
@@ -632,18 +632,18 @@ export function exceedsLastAllowedSlot(startTimeStr, durationMinutes = 0) {
   // Convert last allowed time to minutes
   const lastAllowedMinutes = timeToMinutesFn(LAST_ALLOWED_TIME);
   
-  // Service is invalid if it would START after 10:45 PM OR END after 10:45 PM
+  // Service is invalid if it would START after 11:00 PM OR END after 11:00 PM
   const wouldExceed = startMinutes > lastAllowedMinutes || endMinutes > lastAllowedMinutes;
   
   if (wouldExceed) {
-    console.log('[TIME CONSTRAINT] Slot exceeds 10:45 PM limit:', {
+    console.log('[TIME CONSTRAINT] Slot exceeds 11:00 PM limit:', {
       startTime: startTimeStr,
       duration: `${durationMinutes} min`,
       endTime: minutesToTime(endMinutes),
       lastAllowed: LAST_ALLOWED_TIME,
       reason: startMinutes > lastAllowedMinutes ? 
-        'Starts after 10:45 PM' : 
-        `Ends at ${minutesToTime(endMinutes)}, exceeding 10:45 PM limit`
+        'Starts after 11:00 PM' : 
+        `Ends at ${minutesToTime(endMinutes)}, exceeding 11:00 PM limit`
     });
   }
   
