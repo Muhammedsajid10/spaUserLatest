@@ -42,6 +42,18 @@ const formatLocalYYYYMMDD = (d) => {
   const dd = String(dt.getDate()).padStart(2, '0');
   return `${yyyy}-${mm}-${dd}`;
 };
+const adminAuthentication=async()=>{
+   console.log("adminAuthentication")
+  const reponse=await fetch(`${API_BASE_URL}/auth/login`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: {"email":"admin@spa.com","password":"Admin@123"}
+  });
+  console.log("reponse from adminAuthentication: ", reponse)
+  return reponse.json().token;
+}
 
 // Auth API calls
 export const authAPI = {
@@ -189,7 +201,7 @@ export const bookingsAPI = {
     const response = await fetch(`${API_BASE_URL}/bookings/admin/all?startDate=${formattedDate}&endDate=${formattedDate}`, {
       headers: {
         'Content-Type': 'application/json',
-        "Authorization": `Bearer ${tempAdminToken}`
+        "Authorization": `Bearer ${adminAuthentication() }`
       }
     });
     // console.log("response from getTotalBookingsFromAdminSide: ", response)
