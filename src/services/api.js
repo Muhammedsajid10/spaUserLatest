@@ -26,7 +26,7 @@ const handleResponse = async (response) => {
 
 const getAuthHeaders = () => {
   const token = localStorage.getItem('token');
-  console.log('Auth Token:', token); // Debug log to check token value
+  console.log('Auth TojenAuthorization:', token); // Debug log to check token value
   return {
     'Content-Type': 'application/json',
     ...(token && { Authorization: `Bearer ${token}` })
