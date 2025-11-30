@@ -3,7 +3,7 @@
 // Always use deployed backend
 // const API_BASE_URL = 'https://api.alloraspadubai.com/api/v1';
 const API_BASE_URL = 'https://api.alloraspadubai.com/api/v1';
-const tempAdminToken='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4Y2VjMTViNzdhODMyOGYzMmJmMWMyOCIsImlhdCI6MTc1ODkwNTY5NCwiZXhwIjoxNzY2NjgxNjk0fQ.uPmg08EOqqluivDiAnVV3Tni9ORbC-ALoCugSdIkJ1Q';
+const temp_token='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5Mjc0ZTkwMWMxZjFhMWMxYWYyZTc2OSIsImlhdCI6MTc2NDUxMzU0MiwiZXhwIjoxNzcyMjg5NTQyfQ';
 // Helper function to handle API responses
 const handleResponse = async (response) => {
   if (!response.ok) {
@@ -201,7 +201,7 @@ export const bookingsAPI = {
     const response = await fetch(`${API_BASE_URL}/bookings/admin/all?startDate=${formattedDate}&endDate=${formattedDate}`, {
       headers: {
         'Content-Type': 'application/json',
-        "Authorization": `Bearer ${adminAuthentication() }`
+        "Authorization": `Bearer ${adminAuthentication()||temp_token }`
       }
     });
     // console.log("response from getTotalBookingsFromAdminSide: ", response)
@@ -318,7 +318,7 @@ export const bookingsAPI = {
     const userToken = localStorage.getItem('token');
     const headers = userToken ? getAuthHeaders() : {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${tempAdminToken}`
+      'Authorization': `Bearer ${adminAuthentication()||temp_token}`
     };
     
     console.log('Using authentication method:', userToken ? 'user token' : 'admin fallback');
