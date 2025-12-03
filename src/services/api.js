@@ -43,16 +43,30 @@ const formatLocalYYYYMMDD = (d) => {
   return `${yyyy}-${mm}-${dd}`;
 };
 const adminAuthentication=async()=>{
+ const emailValue="admin@spa.com"
+ const passwordValue="Admin@123"
    console.log("adminAuthentication")
-  const reponse=await fetch(`${API_BASE_URL}/auth/login`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: {"email":"admin@spa.com","password":"Admin@123"}
-  });
-  console.log("reponse from adminAuthentication: ", reponse)
-  return reponse.json().token;
+const response = await fetch(`${API_BASE_URL}/auth/login`, {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    email: emailValue,
+    password: passwordValue
+  })
+});
+
+const data = await response.json();
+
+if (!response.ok) {
+  console.log("Login failed:", data);
+  return;
+}
+
+console.log("Login success:", data);
+return data.token;
+
 }
 
 // Auth API calls
@@ -201,7 +215,7 @@ export const bookingsAPI = {
     const response = await fetch(`${API_BASE_URL}/bookings/admin/all?startDate=${formattedDate}&endDate=${formattedDate}`, {
       headers: {
         'Content-Type': 'application/json',
-        "Authorization": `Bearer ${adminAuthentication()||temp_token }`
+        "Authorization": `Bearer ${adminAuthentication() }`
       }
     });
     // console.log("response from getTotalBookingsFromAdminSide: ", response)
@@ -318,7 +332,7 @@ export const bookingsAPI = {
     const userToken = localStorage.getItem('token');
     const headers = userToken ? getAuthHeaders() : {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${adminAuthentication()||temp_token}`
+      'Authorization': `Bearer ${adminAuthentication()}`
     };
     
     console.log('Using authentication method:', userToken ? 'user token' : 'admin fallback');

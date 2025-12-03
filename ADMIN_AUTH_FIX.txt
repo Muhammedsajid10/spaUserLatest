@@ -1,0 +1,33 @@
+// Replace lines 45-56 in src/services/api.js with this corrected version:
+
+const adminAuthentication = async () => {
+  console.log("adminAuthentication")
+  try {
+    const response = await fetch(`${API_BASE_URL}/auth/login`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({"email":"admin@spa.com","password":"Admin@123"})
+    });
+    
+    if (!response.ok) {
+      console.error("Admin authentication failed:", response.status);
+      return temp_token;
+    }
+    
+    const data = await response.json();
+    console.log("Admin auth data:", data);
+    const token = data.token || data.data?.token;
+    console.log("Admin auth token:", token);
+    return token || temp_token;
+  } catch (error) {
+    console.error("Admin authentication error:", error);
+    return temp_token;
+  }
+}
+
+// ALSO, on line 52, change:
+//     body: {"email":"admin@spa.com","password":"Admin@123"}
+// TO:
+//     body: JSON.stringify({"email":"admin@spa.com","password":"Admin@123"})
