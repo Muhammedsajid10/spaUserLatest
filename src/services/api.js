@@ -201,7 +201,7 @@ export const bookingsAPI = {
     const response = await fetch(`${API_BASE_URL}/bookings/admin/all?startDate=${formattedDate}&endDate=${formattedDate}`, {
       headers: {
         'Content-Type': 'application/json',
-        "Authorization": `Bearer ${adminAuthentication()||temp_token }`
+        "Authorization": `Bearer ${temp_token }`
       }
     });
     // console.log("response from getTotalBookingsFromAdminSide: ", response)
@@ -318,10 +318,10 @@ export const bookingsAPI = {
     const userToken = localStorage.getItem('token');
     const headers = userToken ? getAuthHeaders() : {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${adminAuthentication()||temp_token}`
+      'Authorization': `Bearer ${temp_token}`
     };
     
-    console.log('Using authentication method:', userToken ? 'user token' : 'admin fallback');
+    console.log('Using authentication thatis  method:', userToken ? 'user token' : 'admin fallback');
     
     try {
       const response = await fetch(url);
