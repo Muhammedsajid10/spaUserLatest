@@ -12,26 +12,15 @@ import Button from "./pages/Button";
 // import Layout from "./Layout";
 // import Appoint from "./Clientsidepage/Appoint"
 
-import Teammembers from "./Clientsidepage/Teammembers";
-import Giftcards from "./Clientsidepage/Giftcards";
-import Membership from "./Clientsidepage/Membership";
-import ClientsList from "./Clientsidepage/Clientlist";
-import Visit from "./pages/Visit";
-import Todayandbody from "./Clientsidepage/Todayandbody";
-import Memberss from "./Clientsidepage/Memberss";
-import Dailysalesss from "./Clientsidepage/Dailysalesss";
-import Paymentclient from "./Clientsidepage/Paymentclient";
-import SalesPage from "./Clientsidepage/Salespage";
-import TopService from "./Clientsidepage/Topservices";
-import Dashboard from "./Clientsidepage/Dashboard";
-import Sheduledshifts from "./Clientsidepage/Sheduledshifts";
-import Graphs from "./Clientsidepage/Graphs";
-import Selectcalander from "./Clientsidepage/Selectcalander";
+
+
 import LoginPage from "./Clientsidepage/Loginpage";
 import Signuppage from "./Clientsidepage/Signuppage";
 import ForgotPassword from "./Clientsidepage/ForgotPassword";
 import ResetPassword from "./Clientsidepage/ResetPassword";
 import VerifyEmailPage from './pages/VerifyEmailPage';
+// import DashBoard from "./Clientsidepage/Dashboard.jsx";
+// import ClientProfilePage from "./pages/ClientProfilePage";
 
 // Import the new/updated components
 import BookingFlow from "./pages/BookingFlow";
@@ -131,7 +120,7 @@ function App() {
           {/* Dashboard route - requires authentication */}
           <Route path="/dashboard" element={
             <ProtectedRoute>
-              <Dashboard />
+              <ClientProfilePage />
             </ProtectedRoute>
           } />
 
@@ -142,26 +131,7 @@ function App() {
           <Route path="/professionals-demo" element={<SelectProfessional />} />
           <Route path="/time-demo" element={<TimeWithAPI />} />
           
-          {/* Legacy routes (commented out) */}
-           {/* <Route path="/" element={<Visit/>} /> */}
-          {/* <Route path="/" element={<Time/>} /> */}
-          {/* <Route path="/" element={<Button/>} /> */}
-          {/* <Route path="/" element={<Professional/>} /> */}
-          {/* ----------------------------------------------------- */}
-           {/* <Route path="/" element={<Appoint />} /> */}
-            {/* <Route path="/" element={<Teammembers/>} /> */}
-             {/* <Route path="/" element={<Giftcards/>} /> */}
-             {/* <Route path="/" element={<Membership />} />   */}
-              {/* <Route path="/" element={<ClientsList />} /> */}
-               {/* <Route path="/" element={<Todayandbody/>} /> */}
-               {/* <Route path="/" element={<Memberss />} />  */}
-                {/* <Route path="/" element={<Dailysalesss />} />  */}
-                {/* <Route path="/" element={<Paymentclient />} /> */}
-                 {/* <Route path="/" element={<SalesPage/>} /> */}
-                 {/* <Route path="/" element={<TopService/>} /> */}
-                  {/* <Route path="/" element={<Sheduledshifts/>} /> */}
-                   {/* <Route path="/" element={<Graphs/>} /> */}
-                   {/* <Route path="/" element={<Selectcalander/>} /> */}
+
           <Route path="/verify-email/:token" element={<VerifyEmailPage />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/orders" element={<OrdersPage />} />

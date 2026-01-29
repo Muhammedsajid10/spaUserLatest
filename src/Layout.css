@@ -302,12 +302,103 @@
 }
 
 /* Layout Structure */
+/* --- Booking Layout (refactored to responsive grid) --- */
 .layout-with-booking {
-  margin-left: 0;
-  margin-right: 550px;
-  display: flex;
+  --booking-gap: clamp(1.25rem, 2vw, 2.5rem);
+  display: grid;
+  grid-template-columns: minmax(0,1fr) 380px; /* main grows, sidebar fixed width */
+  align-items: start;
+  gap: var(--booking-gap);
+  width: 100%;
   min-height: 100vh;
-  background: #f8f9fa;
+  box-sizing: border-box;
+  padding: 0 var(--booking-gap) 2.5rem var(--booking-gap);
+  background: #ffffff;
+}
+
+/* Widen main content but keep readable line-length */
+.layout-with-booking .main-content {
+  max-width: 1080px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 2.5rem 0 3rem;
+  margin-left: 134px;
+}
+
+/* Sidebar turns sticky instead of fixed for better natural flow */
+.booking-sidebar {
+  position: sticky;
+  top: 88px; /* header (72) + spacing */
+  height: calc(100vh - 96px);
+  max-height: calc(100vh - 96px);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 380px;
+  right: auto;
+  left: auto;
+  margin: 0;
+  padding: 2rem 2rem 1.5rem;
+  border: 1px solid #ececec;
+  border-radius: 18px;
+  box-shadow: 0 4px 18px rgba(0,0,0,0.06);
+  background: #fff;
+  z-index: 20;
+}
+
+/* Scroll area inside summary remains scrollable */
+.booking-sidebar .selected-services-scroll {
+  max-height: none;
+  flex: 1 1 auto;
+  min-height: 120px;
+}
+
+/* Adjust bottom fixed section within sticky container */
+.booking-sidebar .sidebar-bottom-fixed {
+  position: static;
+  box-shadow: none;
+  padding-top: 1rem;
+  background: transparent;
+}
+
+/* Large / medium breakpoint adjustments */
+@media (max-width: 1300px) {
+  .layout-with-booking { grid-template-columns: minmax(0,1fr) 340px; }
+  .booking-sidebar { max-width: 340px; padding: 1.75rem 1.5rem 1.25rem; }
+}
+
+@media (max-width: 1040px) {
+  .layout-with-booking { grid-template-columns: minmax(0,1fr) 320px; }
+  .booking-sidebar { max-width: 320px; }
+}
+
+/* Collapse to single column – sidebar below main */
+@media (max-width: 960px) {
+  .layout-with-booking {
+    grid-template-columns: 1fr;
+    padding: 0 1.25rem 2rem;
+  }
+  .layout-with-booking .main-content { padding: 2rem 0 1.5rem; }
+  .booking-sidebar {
+    position: relative;
+    top: 0;
+    height: auto;
+    max-height: none;
+    order: 2;
+    width: 100%;
+    max-width: 100%;
+    margin-top: .5rem;
+    border-radius: 16px;
+  }
+  .booking-sidebar .selected-services-scroll { max-height: 260px; }
+}
+
+/* On small phones hide large summary (use existing bottom bar already implemented) */
+@media (max-width: 640px) {
+  .booking-sidebar { display: none; }
+  .layout-with-booking { padding: 0 .85rem 5rem; }
+  .layout-with-booking .main-content { padding-top: 1.25rem; }
 }
 
 .main-content {
@@ -325,23 +416,7 @@
   display: none;
 }
 
-.booking-sidebar {
-  position: fixed;
-  z-index: 1000;
-  right: 22px;
-  top: 19px;
-  width: 550px;
-  height: 100vh;
-  background: white;
-  color: #111;
-  /* border-left: 1px solid #e9ecef; */
-  border-right: none;
-  padding: 2.5rem;
-  overflow: hidden;
-  /* z-index: 101; */
-  display: flex;
-  flex-direction: column;
-}
+/* (Old fixed sidebar definition removed in favor of sticky implementation above) */
 
 /* --- Compact Professional Sidebar Overrides --- */
 .booking-summary.compact { padding:1.25rem 1.25rem 1rem; box-shadow:0 4px 14px rgba(0,0,0,0.08); border:1px solid #ececec; }
@@ -367,85 +442,10 @@
 .action-buttons.compact .btn-back, .action-buttons.compact .btn-continue { flex:1 1 0; padding:.55rem .6rem; font-size:.75rem; border-radius:6px; }
 .no-services.minimal { padding:.6rem .4rem; margin:.2rem 0 .4rem; font-size:.65rem; background:#fafafa; border:1px dashed #ddd; color:#777; border-radius:8px; }
 
-@media (max-width: 900px){
-  .booking-sidebar { width:420px; }
-  .services-list-minimal { max-height:34vh; }
-}
-@media (max-width: 760px){
-  .booking-sidebar { position:static; width:100%; height:auto; }
-  .booking-summary.compact { box-shadow:none; border:0; padding:1rem .75rem; }
-  .services-list-minimal { max-height:30vh; }
-}
+/* Removed obsolete 768px block; behavior handled by new breakpoints */
+/* (Orphan media-query remnants removed) */
 
-/* Hide scrollbar for webkit browsers */
-.booking-sidebar::-webkit-scrollbar {
-  display: none;
-}
-
-/* Responsive Design */
-@media (max-width: 768px) {
-  .booking-sidebar {
-    position: static;
-    width: 100%;
-    height: auto;
-    border-left: none;
-    border-top: 1px solid #e9ecef;
-    padding: 1rem;
-    display: block;
-  }
-  .layout-with-booking {
-    margin-right: 0;
-    flex-direction: column;
-  }
-  
-  .main-content {
-    padding: 1rem;
-  }
-  
-  .booking-summary {
-    height: auto;
-  }
-  
-  .selected-services-scroll {
-    max-height: 25vh;
-  }
-  
-  .sidebar-bottom-fixed {
-    position: static;
-    box-shadow: none;
-    padding-top: 0.5rem;
-  }
-  
-  .progress-steps {
-    margin: 1rem 0;
-  }
-  
-  .step-number {
-    width: 25px;
-    height: 25px;
-    font-size: 0.7rem;
-  }
-  
-  .step-label {
-    font-size: 0.6rem;
-  }
-  
-  .action-buttons {
-    flex-direction: column;
-    gap: 0.5rem;
-  }
-  
-  .btn-back,
-  .btn-continue {
-    flex: none;
-  }
-}
-
-@media (max-width: 600px) {
-  .booking-sidebar {
-    display: none !important;
-  }
-}
+/* (Sidebar hidden at 640px in new rules) */
 
 /* Multiple Services Display */
 .selected-services {
@@ -536,6 +536,7 @@
   margin: 0.5rem 0;
 }
 
+/* Scope header title styling only inside global header to avoid clashing with page section titles */
 .global-header {
   width: 100%;
   height: 72px;
@@ -574,7 +575,7 @@
   transform: scale(1.05);
 }
 
-.header-title {
+.global-header .header-title {
   font-size: 18px;
   font-weight: 600;
   color: #333;
@@ -583,36 +584,16 @@
 
 /* Responsive header styles */
 @media (max-width: 768px) {
-  .global-header {
-    padding: 0 16px;
-    height: 60px;
-  }
-  
-  .header-logo {
-    height: 32px;
-    max-width: 120px;
-  }
-  
-  .header-title {
-    font-size: 16px;
-    margin-left: 4px;
-  }
+  .global-header { padding: 0 16px; height: 60px; }
+  .global-header .header-logo { height: 32px; max-width: 120px; }
+  .global-header .header-title { font-size: 16px; margin-left: 4px; }
+  .booking-sidebar { top: 76px; height: calc(100vh - 84px); }
 }
 
 @media (max-width: 480px) {
-  .global-header {
-    padding: 0 12px;
-  }
-  
-  .header-logo {
-    height: 28px;
-    max-width: 100px;
-  }
-  
-  .header-title {
-    font-size: 14px;
-    display: none; /* Hide title on very small screens to save space */
-  }
+  .global-header { padding: 0 12px; }
+  .global-header .header-logo { height: 28px; max-width: 100px; }
+  .global-header .header-title { font-size: 14px; display: none; }
 }
 
 .action-buttons .btn-back,

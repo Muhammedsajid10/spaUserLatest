@@ -251,7 +251,7 @@ const Time = () => {
     
     return (
       <div className="time-selector">
-        <h1 className="header-title">Select time</h1>
+  <h1 className="time-page-title">Select time</h1>
   
         <div className="profile-section">
           <div className="profile-info" onClick={() => setShowPopup(!showPopup)}>

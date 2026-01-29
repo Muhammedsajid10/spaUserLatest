@@ -5,7 +5,7 @@ import { Modal, Button } from "react-bootstrap";
 import { servicesAPI, apiUtils, bookingFlow } from "../services/api";
 import { useNavigate } from "react-router-dom";
 import Swal from 'sweetalert2';
-
+import Error500Page from "../states/ErrorPage.jsx";  
 function Services() {
   const [services, setServices] = useState({});
   const [loading, setLoading] = useState(true);
@@ -187,8 +187,7 @@ function Services() {
   if (error) {
     return (
       <div className="svc-container error-container">
-        <h3>Error Loading Services</h3>
-        <p>{error}</p>
+        <Error500Page/>
         <button className="btn btn-primary" onClick={fetchServices}>
           Try Again
         </button>
