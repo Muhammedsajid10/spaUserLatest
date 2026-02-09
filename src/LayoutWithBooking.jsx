@@ -140,7 +140,7 @@ const LayoutWithBooking = ({ children }) => {
           });
         } else {
           const firstServiceId = bookingFlow.selectedServices[0]?._id;
-          const prof = bookingFlow.selectedProfessionals?.[firstServiceId];
+          const prof = bookingFlow.selectedProfessionals?.[firstServiceId]||[];
           if (prof) setSelectedProfessional(prof);
           else setSelectedProfessional(null);
         }
@@ -488,13 +488,16 @@ const LayoutWithBooking = ({ children }) => {
                 <div className="selected-services-scroll">
                   <div className="selected-services">
                     {bookingFlow.selectedServices.map(service => {
-                      const prof = bookingFlow.selectedProfessionals?.[service._id];
+                      const profs = bookingFlow.selectedProfessionals?.[service._id]||[];
                       let profName;
-                      if (prof && prof.id !== 'any') {
-                        profName = ( `${prof.user?.firstName || ''} ${prof.user?.lastName || ''}`.trim() || prof.name);
-                      } else {
-                        profName = 'any professional';
+                      if(profs.some(p=>(p.id || p._id)==='any'))
+                      {
+                        profName='any professional'
                       }
+                      else {
+                        profName = profs.map(p=>( `${p.user?.firstName || ''} ${p.user?.lastName || ''}`.trim() || p.name)).join(',')
+                        
+                      } 
                       const durationMins = service.duration || 0;
                       const displayDuration = durationMins >= 60 
                         ? `${Math.round(durationMins/60 * 10)/10} hr` 

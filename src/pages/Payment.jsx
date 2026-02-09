@@ -337,14 +337,27 @@ const Payment = () => {
       const serviceNames = bookingFlow.selectedServices.map(s => s.name).join(', ');
 
       // Build per-service professional assignments
-      const professionalAssignments = bookingFlow.selectedServices.map(s => {
+     /* const professionalAssignments = bookingFlow.selectedServices.map(s => {
         const prof = bookingFlow.selectedProfessionals[s._id];
         let profName = 'Any professional';
         if (prof && prof.id !== 'any') {
           profName = prof.user?.fullName || `${prof.user?.firstName || ''} ${prof.user?.lastName || ''}`.trim() || prof.name;
         }
         return { serviceId: s._id, serviceName: s.name, professionalName: profName };
-      });
+      });*/
+    const professionalAssignments=bookingFlow.selectedServices.map(s=>{
+      const prof=bookingFlow.selectedProfessionals[s._id]||[]
+      let profName='Any professional';
+      if(prof.some(p=>p.id==='any')){
+        profName='Any professional'
+      }
+      else if(prof.length>0)
+      {
+        profName=prof.map(p => `${p.user?.firstName || ''} ${p.user?.lastName || ''}`.trim() || p.name ) .join(',');
+      }
+       return { serviceId: s._id, serviceName: s.name, professionalName: profName };
+    })
+
       const uniqueProfessionalNames = [...new Set(professionalAssignments.map(p => p.professionalName))];
       // For legacy single professional field keep first (or Any)
       const selectedProfessional = bookingFlow.selectedProfessionals[Object.keys(bookingFlow.selectedProfessionals)[0]];
@@ -452,7 +465,7 @@ const Payment = () => {
     }
 
     const servicesPayload = finalBookingData.services.map((service, index) => {
-      const professional = bookingFlow.selectedProfessionals[service._id];
+      const professional = bookingFlow.selectedProfessionals[service._id]||[];
       
       // Debug logging for time conversion
       console.log(`[TIME DEBUG] Processing service ${index}:`, {
@@ -492,8 +505,11 @@ const Payment = () => {
 
       return {
         service: service._id,
-        employee: professional && (professional._id || professional.id) ? 
-          (professional.id === 'any' ? 'any' : (professional._id || professional.id)) : 'any',
+        
+       /* employee: professional && (professional._id || professional.id) ? 
+          (professional.id === 'any' ? 'any' : (professional._id || professional.id)) : 'any',*/
+         
+        employees: professional.length?professional.map(p =>p.id ==='any'?'any':(p._id||p.id)):['any'],
         price: service.price,
         duration: service.duration,
         // CRITICAL FIX: Store times preserving local timezone (treat as UTC to avoid conversion)

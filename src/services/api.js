@@ -526,7 +526,9 @@ export const bookingFlow = {
   selectedServices: [],
   
   // Store selected professionals (object with serviceId as key)
-  selectedProfessionals: {},
+  selectedProfessionals: {},  /*selectedProfessionals = {
+                                serviceId: [professional1, professional2] 
+                                } */ 
   
   // Store selected date
   selectedDate: null,
@@ -582,16 +584,47 @@ export const bookingFlow = {
     delete bookingFlow.selectedProfessionals[serviceId];
     bookingFlow.save();
   },
-  
-  // Add professional for a specific service
+   /*// Add professional for a specific service
   addProfessional: (serviceId, professional) => {
     bookingFlow.selectedProfessionals[serviceId] = professional;
     bookingFlow.save();
+  },*/
+
+  // Add professionals for a specific service
+  addProfessional: (serviceId, professional) => {
+   if(!bookingFlow.selectedProfessionals[serviceId])
+   {
+    bookingFlow.selectedProfessionals[serviceId]=[]
+   }
+   const exist=bookingFlow.selectedProfessionals[serviceId].some(String(prof._id||prof.id)===String(professional._id||professional.id))
+   if(!exist)
+   {
+    bookingFlow.selectedProfessionals[serviceId].push(professional)
+   }
+    bookingFlow.save()
   },
   
+  // removes a single professional
+  removeProfessional:(serviceId,professionalId)=>{
+    if(!bookingFlow.selectedProfessionals[serviceId])
+    {
+      return
+    }
+    bookingFlow.selectedProfessionals[serviceId]=
+    bookingFlow.selectedProfessionals[serviceId].filter(prof=>String(prof._id||prof.id)!==String(professionalId))
+
+    if(bookingFlow.selectedProfessionals[serviceId].length===0)
+    {
+      delete bookingFlow.selectedProfessionals[serviceId]
+    }
+    bookingFlow.save()
+  },
+
+
+
   // Get professional for a specific service
   getProfessional: (serviceId) => {
-    return bookingFlow.selectedProfessionals[serviceId];
+    return bookingFlow.selectedProfessionals?.[serviceId]||[];
   },
   
   // Get total price of all selected services

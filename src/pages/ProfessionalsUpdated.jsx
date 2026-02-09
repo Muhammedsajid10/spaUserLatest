@@ -309,7 +309,9 @@ const SelectProfessional = ({ onProfessionalSelected }) => {
   let profPayload;
 
   // 👉 Case 1: "Any professional" clicked
-if (professional._mode === "anyAll" || professional.id === "mode-any") {    const employeesOnly = professionals.filter((p) => !p._mode);
+if (professional._mode === "anyAll" || professional.id === "mode-any")
+   {   
+     const employeesOnly = professionals.filter((p) => !p._mode);
     if (!employeesOnly.length) {
       alert("No professionals available to assign.");
       return;
@@ -331,10 +333,38 @@ if (professional._mode === "anyAll" || professional.id === "mode-any") {    cons
     profPayload = professional.employee;
   }
 
-  // ✅ Assign the chosen professional (random or specific) to ALL services
+  /*// ✅ Assign the chosen professional (random or specific) to ALL services
   (selectedServices || []).forEach((svc) => {
     bookingFlow.addProfessional(svc._id, profPayload);
+  });*/
+
+
+   (selectedServices || []).forEach((svc) => {
+    const existing = bookingFlow.selectedProfessionals?.[svc._id];
+    let profList;
+    if (Array.isArray(existing)) {
+     profList = [...existing];
+    } else if (existing) {
+    profList = [existing];
+    } else {
+    profList = [];
+    }
+    const exists = profList.some(
+      p => String(p._id || p.id) === String(profPayload._id || profPayload.id)
+    );
+
+    if (exists) {
+      profList=profList.filter(
+        p => String(p._id || p.id) !== String(profPayload._id || profPayload.id)
+      );
+      console.log("Professional removed from service",svc._id);
+    } else {
+      profList.push(profPayload);
+      console.log("Professional added to service",svc._id);
+    }
+    bookingFlow.selectedProfessionals[svc._id]=profList;
   });
+
   bookingFlow.save();
   window.dispatchEvent(new CustomEvent("bookingFlowChange"));
   setLastSelectedProfessional(profPayload);
