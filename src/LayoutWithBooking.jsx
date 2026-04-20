@@ -1,15 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useLocation, Link } from 'react-router-dom';
+import { useNavigate, useLocation, Link, Outlet } from 'react-router-dom';
 import { bookingFlow, apiUtils } from './services/api';
-import './Layout.css'; // Assuming this CSS file exists
+import { confirmBookingAndPay } from './services/paymentFlow';
+import { IoMdTime } from "react-icons/io";
+import './LayoutWithBooking.css';
+import { CiCalendar } from "react-icons/ci";
 import { HeaderTitleProvider, useHeaderTitle } from './Service/HeaderTitleContext'; // Assuming this context exists
 import { useAuth } from './Service/Context'; // Assuming this context exists
 import alloraLogo from './assets/alloraLogo.jpg'; // Assuming logo asset exists
-import Swal from 'sweetalert2'; // Assuming SweetAlert2 is installed
+import Swal from 'sweetalert2'; 
 
 // ProfileIcon component - No changes
 const ProfileIcon = () => (
-  <svg className="profile-avatar" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <svg className="profile-avatar-unique" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
     <circle cx="20" cy="20" r="20" fill="#e0e0e0" />
     <ellipse cx="20" cy="16" rx="7" ry="7" fill="#bdbdbd" />
     <ellipse cx="20" cy="30" rx="12" ry="7" fill="#bdbdbd" />
@@ -32,7 +35,7 @@ const GlobalHeader = () => {
   }, [dropdownOpen]);
 
   return (
-    <div className="global-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+    <div className="global-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'fixed'}}>
       <div className="header-left" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
         <Link to="/" className="logo-link" style={{ textDecoration: 'none' }}>
           <img 
@@ -44,6 +47,7 @@ const GlobalHeader = () => {
               width: 'auto',
               maxWidth: '140px',
               transition: 'transform 0.3s ease'
+              ,borderRadius:'30px'
             }}
             onMouseEnter={(e) => e.target.style.transform = 'scale(1.05)'}
             onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
@@ -62,14 +66,14 @@ const GlobalHeader = () => {
               <img
                 src={user.avatar}
                 alt="Profile"
-                className="profile-avatar"
+                className="profile-avatar-unique"
               />
             ) : (
               <ProfileIcon />
             )}
           </div>
           <div className="dropdown-content">
-            <Link to="/client-profile" onClick={() => setDropdownOpen(false)}>Profile</Link>
+            <Link to="/client-profile" onClick={() => setDropdownOpen(false)}>Bookings</Link>
             
             <button onClick={() => { logout(); setDropdownOpen(false); }}>Logout</button>
           </div>
@@ -87,18 +91,31 @@ const LayoutWithBooking = ({ children }) => {
   const [selectedProfessional, setSelectedProfessional] = useState(null); // Managed here
   const [summaryKey, setSummaryKey] = useState(0); // To force re-render of summary
 
-  // Define the booking flow steps
+  // Define the booking flow steps (added Confirm as step 5)
   const steps = [
     { number: 1, label: 'Service', path: '/' },
     { number: 2, label: 'Professional', path: '/professionals' },
     { number: 3, label: 'Time', path: '/time' },
-    { number: 4, label: 'Payment', path: '/payment' }
+    { number: 4, label: 'Payment', path: '/payment' },
+    { number: 5, label: 'Confirm', path: '/payment/success' }
   ];
-
-  // Determine current step based on location
+  
+  // Determine current step based on location (handle /payment and /payment/confirm)
   useEffect(() => {
     const currentPath = location.pathname;
-    const stepIndex = steps.findIndex(step => step.path === currentPath);
+    let stepIndex = steps.findIndex(step => step.path === currentPath);
+    if (stepIndex === -1) {
+      // Treat both the confirm route and the final success page as step 5
+      if (currentPath.startsWith('/payment/success')) {
+        stepIndex = steps.findIndex(s => s.path === '/payment/success');
+      } else if (currentPath.startsWith('/payment')) {
+        stepIndex = steps.findIndex(s => s.path === '/payment');
+
+
+
+         
+      }
+    }
     setCurrentStep(stepIndex >= 0 ? stepIndex + 1 : 1);
   }, [location.pathname, steps]); // Add steps to dependency array for completeness
 
@@ -112,27 +129,23 @@ const LayoutWithBooking = ({ children }) => {
       // Update selectedService state
       if (bookingFlow.selectedServices && bookingFlow.selectedServices.length > 0) {
         setSelectedService(bookingFlow.selectedServices[0]);
-      } else {
-        setSelectedService(null);
-      }
-
-      // Update selectedProfessional state from bookingFlow for the *first* service
-      if (bookingFlow.selectedServices && bookingFlow.selectedServices.length > 0) {
-        const firstServiceId = bookingFlow.selectedServices[0]._id;
-        if (bookingFlow.selectedProfessionals && bookingFlow.selectedProfessionals[firstServiceId]) {
-          setSelectedProfessional(bookingFlow.selectedProfessionals[firstServiceId]);
-        } else {
-          // If no specific professional is chosen for the current service, default to "Any professional"
-          // This ensures `selectedProfessional` is never null if services are selected.
+        // If no professionals mapped yet, default to 'Any professional'
+        if (!bookingFlow.selectedProfessionals || Object.keys(bookingFlow.selectedProfessionals).length === 0) {
           setSelectedProfessional({
-            id: "any",
-            name: "Any professional",
-            subtitle: "for maximum availability",
-            icon: "👥",
+            id: 'any',
+            name: 'Any professional',
+            subtitle: 'for maximum availability',
+            icon: '👥',
             isAvailable: true,
           });
+        } else {
+          const firstServiceId = bookingFlow.selectedServices[0]?._id;
+          const prof = bookingFlow.selectedProfessionals?.[firstServiceId];
+          if (prof) setSelectedProfessional(prof);
+          else setSelectedProfessional(null);
         }
       } else {
+        setSelectedService(null);
         setSelectedProfessional(null); // No service selected, so no professional context
       }
 
@@ -172,22 +185,30 @@ const LayoutWithBooking = ({ children }) => {
         navigate('/professionals');
         break;
       case 2: // Professional selection
-        // The selectedProfessional state in Layout is already updated via useEffect
-        // based on bookingFlow. No need to explicitly set state here again.
         navigate('/time');
         break;
       case 3: // Time selection
         navigate('/payment');
         break;
-      case 4: // Payment
-        Swal.fire({
-          title: 'Payment Step',
-          text: 'Payment step - implement payment logic',
-          icon: 'info',
-          confirmButtonText: 'OK',
-          timer: 3000,
-          showConfirmButton: true
-        });
+      case 4: // Payment -> call the orchestrator to create booking and start payment
+        (async () => {
+          try {
+            // Activate the Confirm step in the sidebar immediately
+            navigate('/payment/success');
+            // You can pass clientInfo/method here if available; using defaults for now
+            const result = await confirmBookingAndPay({ method: 'card', clientInfo: null });
+            console.log('confirmBookingAndPay result:', result);
+            // On success navigate directly to the centralized success page and pass the result
+            navigate('/payment/success', { state: { booking: result.booking, payment: result.payment } });
+          } catch (err) {
+            console.error('confirmBookingAndPay failed', err);
+            Swal.fire({ title: 'Payment Failed', text: err.message || 'Unable to confirm booking', icon: 'error' });
+            navigate('/payment/cancel');
+          }
+        })();
+        break;
+      case 5: // Confirm -> proceed to payment processing or finalization
+        navigate('/payment/success');
         break;
       default:
         break;
@@ -196,11 +217,8 @@ const LayoutWithBooking = ({ children }) => {
 
   const handleBack = () => {
     switch (currentStep) {
-      case 1: 
-        navigate('/'); // Go to home if this is the first step
-        break;
-      case 2: // Professional selection
-        navigate('/');
+      case 2: 
+  navigate('/'); // Go to home if this is the first step
         break;
       case 3: // Time selection
         navigate('/professionals');
@@ -208,9 +226,39 @@ const LayoutWithBooking = ({ children }) => {
       case 4: // Payment
         navigate('/time');
         break;
+      case 5: // Confirm
+        navigate('/payment');
+        break;
+      case 6:
+        navigate('/payment/success');
       default:
         break;
     }
+  };
+
+  // Exit confirmation modal state & handlers for sidebar back on first step
+  const [showExitConfirm, setShowExitConfirm] = useState(false);
+
+  const onSidebarBackClick = () => {
+    // If we're on the first step, ask user to confirm exit (deletes bookingFlow)
+    if (currentStep === 1) {
+      setShowExitConfirm(true);
+      return;
+    }
+    // Otherwise behave like normal back
+    handleBack();
+  };
+
+  const confirmExit = () => {
+    try {
+      // bookingFlow.clear();
+      // Notify other parts of app
+      window.dispatchEvent(new CustomEvent('bookingFlowChange'));
+    } catch (err) {
+      console.warn('Failed to clear bookingFlow', err);
+    }
+    setShowExitConfirm(false);
+    navigate('/');
   };
 
   // Pure check without side effects to control disabled state
@@ -234,6 +282,8 @@ const LayoutWithBooking = ({ children }) => {
       case 3:
         return !!bookingFlow.selectedTimeSlot;
       case 4:
+        return true;
+      case 5:
         return true;
       default:
         return false;
@@ -307,6 +357,8 @@ const LayoutWithBooking = ({ children }) => {
         return true;
       case 4:
         return true;
+      case 5:
+        return true;
       default:
         return false;
     }
@@ -319,7 +371,6 @@ const LayoutWithBooking = ({ children }) => {
 
   return (
     <HeaderTitleProvider>
-      <>
         <GlobalHeader />
         <div className="layout-with-booking">
           <div className="main-content">
@@ -341,39 +392,109 @@ const LayoutWithBooking = ({ children }) => {
               It's important that the components rendered as `children` are the actual components
               like <Time /> in your <App /> or parent routing setup.
             */}
-            {React.Children.map(children, child => {
-              if (React.isValidElement(child)) {
-                // Check child component name to pass specific props
-                // Ensure the component names match your imports/exports (e.g., 'Time' or 'SelectProfessional')
-                if (child.type && child.type.name === 'Time') {
-                    return React.cloneElement(child, {
-                        selectedService: selectedService, // Pass the service from Layout's state
-                        selectedProfessional: selectedProfessional, // Pass the professional from Layout's state
-                        // onTimeSelect callback is handled by Time internally updating bookingFlow
-                    });
-                }
-                if (child.type && child.type.name === 'SelectProfessional') { // Assuming your ProfessionalsUpdated is named SelectProfessional
-                    return React.cloneElement(child, {
-                         selectedDate: bookingFlow.load().selectedDate ? new Date(bookingFlow.load().selectedDate) : new Date(),
-                         selectedServices: bookingFlow.selectedServices || [],
-                         // onProfessionalSelect is handled internally by SelectProfessional updating bookingFlow
-                    });
-                }
-              }
-              return child; // Render other children as-is (e.g., Services or Payment)
-            })}
+            {/* Render routed child via Outlet. child components can call useOutletContext() to get selectedService/selectedProfessional */}
+            <Outlet context={{ selectedService, selectedProfessional }} />
           </div>
-          <div className="booking-sidebar">
+          <div className="booking-sidebar" >
             <div className="booking-summary" key={summaryKey}>
               <h3>Booking Summary</h3>
+             
+             {/* Date and Time section with icons - only show on payment route */}
+             {bookingFlow.selectedTimeSlot && location.pathname.startsWith('/payment') && (
+               <div className="booking-datetime">
+                 <div className="datetime-item">
+                   <span className="datetime-icon"><CiCalendar /></span>
+                   <span className="datetime-text">
+                     {(() => {
+                       // Prefer explicit startTime ISO if present (TimeWithAPI stores startTime/endTime as ISO)
+                       const slot = bookingFlow.selectedTimeSlot;
+                       try {
+                         let dateObj;
+                         if (slot.startTime) {
+                           // startTime is an ISO string (we treat it as local-preserved ISO produced elsewhere)
+                           dateObj = new Date(slot.startTime);
+                         } else if (slot.date) {
+                           dateObj = (typeof slot.date === 'string') ? new Date(`${slot.date}T12:00:00`) : new Date(slot.date);
+                         } else {
+                           dateObj = new Date();
+                         }
+                         const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'long' });
+                         const day = dateObj.getDate();
+                         const month = dateObj.toLocaleDateString('en-US', { month: 'long' });
+                         return `${dayName}, ${day} ${month}`;
+                       } catch (err) {
+                         return '';
+                       }
+                     })()}
+                   </span>
+                 </div>
+
+                 <div className="datetime-item">
+                   <span className="datetime-icon"><IoMdTime /></span>
+                   <span className="datetime-text">
+                     {(() => {
+                       const slot = bookingFlow.selectedTimeSlot;
+                       console.log('[LayoutWithBooking] Time display - slot data:', slot);
+                       // If precise ISO start/end exist, use them. Otherwise fall back to stored time string + computed end.
+                       try {
+                         let start, end;
+                        if (slot.startTime) {
+                          console.log('[LayoutWithBooking] Using startTime:', slot.startTime);
+                          // Use startTime from stored slot but compute end using total service duration
+                          start = new Date(slot.startTime);
+                          end = new Date(start.getTime() + bookingFlow.getTotalDuration() * 60000);
+                        } else if (slot.time && slot.time.time) {
+                          console.log('[LayoutWithBooking] Using slot.time.time:', slot.time, 'slot.date:', slot.date);
+                           // slot.time.time is a human string like '09:00' or '2:30 PM'
+                           // create a Date using the slot.date (YYYY-MM-DD) to avoid timezone shifts
+                           const dateStr = slot.date || new Date().toISOString().split('T')[0];
+                           const timeStr = slot.time.time;
+                           // Build a local datetime string preserving the time exactly
+                           const localDateTime = `${dateStr}T${(timeStr.length === 5 && timeStr.indexOf(':') === 2) ? timeStr + ':00' : timeStr}`;
+                           console.log('[LayoutWithBooking] Constructed localDateTime:', localDateTime);
+                           start = new Date(localDateTime);
+                           if (Number.isNaN(start.getTime())) {
+                             console.log('[LayoutWithBooking] Invalid localDateTime, trying fallback');
+                             // fallback: parse as time only on arbitrary date
+                             start = new Date(`2000-01-01 ${timeStr}`);
+                           }
+                           end = new Date(start.getTime() + bookingFlow.getTotalDuration() * 60000);
+                         } else {
+                           console.log('[LayoutWithBooking] No valid time data found, using current time');
+                           // final fallback: use now + duration
+                           start = new Date();
+                           end = new Date(start.getTime() + bookingFlow.getTotalDuration() * 60000);
+                         }
+
+                         console.log('[LayoutWithBooking] Final start/end times:', start, end, 'start valid:', !Number.isNaN(start.getTime()), 'end valid:', !Number.isNaN(end.getTime()));
+
+                         const fmt = (d) => d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+                         const duration = bookingFlow.getTotalDuration();
+                         const durationText = duration >= 60 ? `${Math.floor(duration/60)} hr ${duration%60 ? duration%60 + ' min' : ''}`.trim() : `${duration} min`;
+                         const result = `${fmt(start)} - ${fmt(end)} (${durationText} duration)`;
+                         console.log('[LayoutWithBooking] Final result:', result);
+                         return result;
+                       } catch (err) {
+                         console.error('[LayoutWithBooking] Error in time display:', err);
+                         return '';
+                       }
+                     })()}
+                   </span>
+                 </div>
+               </div>
+             )}
+
               {bookingFlow.selectedServices && bookingFlow.selectedServices.length > 0 ? (
                 <div className="selected-services-scroll">
                   <div className="selected-services">
                     {bookingFlow.selectedServices.map(service => {
                       const prof = bookingFlow.selectedProfessionals?.[service._id];
-                      const profName = prof && prof.id !== 'any'
-                        ? (prof.user?.fullName || `${prof.user?.firstName || ''} ${prof.user?.lastName || ''}`.trim() || prof.name)
-                        : 'any professional';
+                      let profName;
+                      if (prof && prof.id !== 'any') {
+                        profName = ( `${prof.user?.firstName || ''} ${prof.user?.lastName || ''}`.trim() || prof.name);
+                      } else {
+                        profName = 'any professional';
+                      }
                       const durationMins = service.duration || 0;
                       const displayDuration = durationMins >= 60 
                         ? `${Math.round(durationMins/60 * 10)/10} hr` 
@@ -383,17 +504,10 @@ const LayoutWithBooking = ({ children }) => {
                           <div className="service-row-top">
                             <h4>{service.name}</h4>
                             <div className="service-price">AED {service.price}</div>
-                            <button 
-                              className="remove-service-btn"
-                              onClick={() => {
-                                bookingFlow.removeService(service._id);
-                                window.dispatchEvent(new CustomEvent('bookingFlowChange'));
-                              }}
-                              title="Remove service"
-                            >×</button>
+                            {/* Removed close button as requested */}
                           </div>
                           <div className="service-row-sub">
-                            {displayDuration} with {profName}
+                            {displayDuration} with <span style={{ color: '#1976d2', fontWeight: 600 }}>{profName}</span>
                           </div>
                         </div>
                       );
@@ -409,15 +523,11 @@ const LayoutWithBooking = ({ children }) => {
               <div className="sidebar-bottom-fixed">
                 <div className="total-summary">
                   <div className="detail-item">
-                    <span className="label">Total Duration:</span>
-                    <span className="value">{apiUtils.formatDuration(bookingFlow.getTotalDuration())}</span>
-                  </div>
-                  <div className="detail-item">
                     <span className="label">Total Price:</span>
-                    <span className="value">{apiUtils.formatPrice(bookingFlow.getTotalPrice())}</span>
+                    <span className="value">AED {apiUtils.formatPrice(bookingFlow.getTotalPrice()).replace(/^\$/, '')}</span>
                   </div>
                 </div>
-                <div className="progress-steps">
+                {/* <div className="progress-steps">
                   {steps.map((step) => (
                     <div 
                       key={step.number} 
@@ -427,30 +537,64 @@ const LayoutWithBooking = ({ children }) => {
                       <div className="step-label">{step.label}</div>
                     </div>
                   ))}
-                </div>
-                <div className="action-buttons">
-                  <button 
-                    className="btn-back" 
-                    onClick={handleBack}
-                    disabled={currentStep === 1}
-                  >
-                    Back
-                  </button>
-                  <button 
-                    className={`btn-continue ${!canProceed() ? 'disabled' : ''}`}
-                    onClick={handleContinue}
-                    disabled={false}
-                  >
-                    {currentStep === steps.length ? 'Complete Booking' : 'Continue'}
-                  </button>
-                </div>
+                </div> */}
+                {/* Hide action buttons when on final confirm/success step */}
+                {currentStep !== 5 && (
+                  <div className="action-buttons">
+                    {/* Show only Back and Confirm buttons on payment route */}
+                    {location.pathname === '/payment' ? (
+                      <>
+                        <button 
+                          className="btn-back" 
+                          onClick={onSidebarBackClick}
+                        >
+                          Back
+                        </button>
+                        <button 
+                          className="btn-continue"
+                          onClick={handleContinue}
+                        >
+                          Confirm
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button 
+                          className="btn-back" 
+                          onClick={onSidebarBackClick}
+                          // disabled={currentStep === 1}
+                        >
+                          Back
+                        </button>
+                        <button 
+                          className={`btn-continue ${!canProceed() ? 'disabled' : ''}`}
+                          onClick={handleContinue}
+                          disabled={false}
+                        >
+                          {currentStep === steps.length ? 'Complete Booking' : 'Continue'}
+                        </button>
+                      </>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           </div>
         </div>
-      </>
+      {showExitConfirm && (
+        <div className="svc-exit-overlay" role="dialog" aria-modal="true">
+          <div className="svc-exit-modal">
+            <h3>Exit booking?</h3>
+            <p>Your selected services and other details will be deleted.</p>
+            <div className="actions">
+              <button className="btn btn-secondary" onClick={() => setShowExitConfirm(false)}>Cancel</button>
+              <button className="btn btn-danger" onClick={confirmExit}>Exit</button>
+            </div>
+          </div>
+        </div>
+      )}
     </HeaderTitleProvider>
   );
-};
+}
 
 export default LayoutWithBooking;

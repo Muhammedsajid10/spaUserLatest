@@ -1,8 +1,9 @@
-// API service for spa backend
-// Always use deployed backend
-const API_BASE_URL = 'https://spabackend-0tko.onrender.com/api/v1';
-// const API_BASE_URL = ' http://localhost:3000/api/v1';
 
+  // API service for spa backend
+// Always use deployed backend
+// const API_BASE_URL = 'https://api.alloraspadubai.com/api/v1';
+const API_BASE_URL = 'https://api.alloraspadubai.com/api/v1';
+const temp_token='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5Mjc0ZTkwMWMxZjFhMWMxYWYyZTc2OSIsImlhdCI6MTc2NDUxMzU0MiwiZXhwIjoxNzcyMjg5NTQyfQ';
 // Helper function to handle API responses
 const handleResponse = async (response) => {
   if (!response.ok) {
@@ -12,14 +13,61 @@ const handleResponse = async (response) => {
   return response.json();
 };
 
+
 // Helper function to get auth headers
+// const getAuthHeaders = () => {
+//   const token = localStorage.getItem('token');
+//   return {
+//     'Content-Type': 'application/json',
+//     // ...(token && { Authorization: `Bearer ${token}` })
+//   };
+// };
+
+
 const getAuthHeaders = () => {
   const token = localStorage.getItem('token');
+  console.log('Auth Token:', token); // Debug log to check token value
   return {
     'Content-Type': 'application/json',
     ...(token && { Authorization: `Bearer ${token}` })
   };
 };
+
+// helper: format to local YYYY-MM-DD
+const formatLocalYYYYMMDD = (d) => {
+  const dt = d instanceof Date ? d : new Date(d);
+  if (isNaN(dt)) return '';
+  const yyyy = dt.getFullYear();
+  const mm = String(dt.getMonth() + 1).padStart(2, '0');
+  const dd = String(dt.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+};
+const adminAuthentication=async()=>{
+ const emailValue="admin@spa.com"
+ const passwordValue="Admin@123"
+   console.log("adminAuthentication")
+const response = await fetch(`${API_BASE_URL}/auth/login`, {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    email: emailValue,
+    password: passwordValue
+  })
+});
+
+const data = await response.json();
+
+if (!response.ok) {
+  console.log("Login failed:", data);
+  return;
+}
+
+console.log("Login success:", data);
+return data.token;
+
+}
 
 // Auth API calls
 export const authAPI = {
@@ -49,9 +97,12 @@ export const authAPI = {
 
   // Get current user
   getCurrentUser: async () => {
+    console.log('Fetching current user with token:', localStorage.getItem('token')); // Debug log
     const response = await fetch(`${API_BASE_URL}/auth/me`, {
       headers: getAuthHeaders()
     });
+    console.log("response from get currnet user: ", response)
+
     return handleResponse(response);
   },
 
@@ -159,11 +210,27 @@ export const bookingsAPI = {
     return handleResponse(response);
   },
 
+  getTotalBookingsFromAdminSide: async (formattedDate) => {
+    console.log("formattedDate in api: ", formattedDate)
+    const response = await fetch(`${API_BASE_URL}/bookings/admin/all?startDate=${formattedDate}&endDate=${formattedDate}`, {
+      headers: {
+        'Content-Type': 'application/json',
+        "Authorization": `Bearer ${adminAuthentication() }`
+      }
+    });
+    // console.log("response from getTotalBookingsFromAdminSide: ", response)
+    return handleResponse(response);
+  },
   // Get user bookings
-  getUserBookings: async () => {
-    const response = await fetch(`${API_BASE_URL}/bookings/my-bookings`, {
+  getUserBookings: async (formattedDate) => {
+    const url = formattedDate 
+      ? `${API_BASE_URL}/bookings/my-bookings?date=${formattedDate}`
+      : `${API_BASE_URL}/bookings/my-bookings`;
+    const response = await fetch(url, {
       headers: getAuthHeaders()
     });
+    console.log("response from getuser bookings: ", response)
+
     return handleResponse(response);
   },
 
@@ -202,8 +269,28 @@ export const bookingsAPI = {
 
   // Get available professionals for a service (public)
   getAvailableProfessionals: async (serviceId, date) => {
-    const params = new URLSearchParams({ service: serviceId, date });
-    const response = await fetch(`${API_BASE_URL}/bookings/professionals?${params}`);
+    const dateStr = formatLocalYYYYMMDD(date);
+    const url = `${API_BASE_URL}/bookings/professionals?service=${serviceId}&date=${dateStr}`;
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+    console.log(url)
+    console.log('[API] getAvailableProfessionals response:', response.status);
+    return handleResponse(response);
+  },
+
+  // Fetch bookings in a date range for the current user
+  getBookingsForRange: async (startDate, endDate) => {
+    const s = formatLocalYYYYMMDD(startDate);
+    const e = formatLocalYYYYMMDD(endDate);
+    const url = `${API_BASE_URL}/bookings/my-bookings?start=${encodeURIComponent(s)}&end=${encodeURIComponent(e)}`;
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: getAuthHeaders()
+    });
     return handleResponse(response);
   },
 
@@ -234,6 +321,42 @@ export const bookingsAPI = {
     }
   },
 
+  // Get employee schedule and available time slots (fallback to admin auth if user not authenticated)
+  getEmployeeSchedule: async (employeeId, date) => {
+    const params = new URLSearchParams({ employeeId, date });
+    const url = `${API_BASE_URL}/bookings/schedule/employee-schedule?${params}`;
+    console.log('Calling employee schedule API with URL:', url);
+    console.log('Parameters:', params);
+    
+    // Check if user is authenticated, if not use admin token for public booking access
+    const userToken = localStorage.getItem('token');
+    const headers = userToken ? getAuthHeaders() : {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${adminAuthentication()}`
+    };
+    
+    console.log('Using authentication method:', userToken ? 'user token' : 'admin fallback');
+    
+    try {
+      const response = await fetch(url);
+       
+      console.log('Employee schedule API response status:', response.status);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Employee schedule API error response:', errorText);
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
+      
+      const result = await handleResponse(response);
+      console.log('Employee schedule API result:', result);
+      return result;
+    } catch (error) {
+      console.error('Employee schedule API fetch error:', error);
+      throw error;
+    }
+  },
+
   // Create booking confirmation (public)
   createBookingConfirmation: async (confirmationData) => {
     const response = await fetch(`${API_BASE_URL}/bookings/confirmation`, {
@@ -248,14 +371,34 @@ export const bookingsAPI = {
 
   // Complete booking after authentication
   completeBooking: async (bookingData) => {
-    // Prepare services data for the backend
-    const services = bookingData.selectedServices.map(service => ({
-      serviceId: service._id,
-      employeeId: bookingData.selectedProfessional._id,
-      startTime: bookingData.selectedTimeSlot.startTime,
-      endTime: bookingData.selectedTimeSlot.endTime,
-      notes: ''
-    }));
+    // Prepare services data for the backend with sequential timing
+    const services = bookingData.selectedServices.map((service, index) => {
+      // Calculate sequential start and end times for multiple services
+      let startTime, endTime;
+      if (bookingData.selectedServices.length === 1) {
+        // Single service: use the selected time slot directly
+        startTime = bookingData.selectedTimeSlot.startTime;
+        endTime = bookingData.selectedTimeSlot.endTime;
+      } else {
+        // Multiple services: calculate sequential times
+        const baseStartTime = new Date(bookingData.selectedTimeSlot.startTime);
+        const serviceStartMinutes = bookingData.selectedServices.slice(0, index).reduce((total, s) => total + (s.duration || 30), 0);
+        
+        const serviceStart = new Date(baseStartTime.getTime() + (serviceStartMinutes * 60 * 1000));
+        const serviceEnd = new Date(serviceStart.getTime() + ((service.duration || 30) * 60 * 1000));
+        
+        startTime = serviceStart.toISOString();
+        endTime = serviceEnd.toISOString();
+      }
+      
+      return {
+        serviceId: service._id,
+        employeeId: bookingData.selectedProfessional._id,
+        startTime,
+        endTime,
+        notes: ''
+      };
+    });
 
     const bookingPayload = {
       services,
@@ -277,6 +420,16 @@ export const employeesAPI = {
   // Get available employees for service
   getAvailableEmployees: async (serviceId, date) => {
     const response = await fetch(`${API_BASE_URL}/employees/available/${serviceId}?date=${date}`, {
+      headers: getAuthHeaders()
+    });
+    return handleResponse(response);
+  },
+
+  // Get employees for a given week start (weekStartDate = YYYY-MM-DD)
+  getEmployeesByWeekStart: async (weekStartDate) => {
+    const q = formatLocalYYYYMMDD(weekStartDate);
+    const url = `${API_BASE_URL}/employees?weekStartDate=${encodeURIComponent(q)}`;
+    const response = await fetch(url, {
       headers: getAuthHeaders()
     });
     return handleResponse(response);
@@ -322,7 +475,12 @@ export const apiUtils = {
 
   // Format date for API
   formatDate: (date) => {
-    return date.toISOString().split('T')[0];
+    // Use local YYYY-MM-DD to match localDateKey and booking indexing (avoid UTC shift)
+    const dt = date instanceof Date ? date : new Date(date);
+    const yyyy = dt.getFullYear();
+    const mm = String(dt.getMonth() + 1).padStart(2, '0');
+    const dd = String(dt.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
   },
 
   // Format time for API
@@ -400,6 +558,11 @@ export const bookingFlow = {
     window.dispatchEvent(new CustomEvent('bookingFlowChange'));
     
     console.log('BookingFlow: Reset completed - all data cleared');
+  },
+
+  // Clear booking flow (alias for reset)
+  clear: () => {
+    bookingFlow.reset();
   },
   
   // Add service to booking
@@ -501,9 +664,12 @@ export const bookingFlow = {
 export const paymentsAPI = {
   // Get payment history
   getPaymentHistory: async () => {
+    console.log('Fetching payment history with token:', localStorage.getItem('token')); // Debug log
     const response = await fetch(`${API_BASE_URL}/payments/history`, {
       headers: getAuthHeaders()
     });
+    console.log("response from payment history: ", response)
+
     return handleResponse(response);
   },
 
@@ -543,10 +709,24 @@ export const paymentsAPI = {
 
   // Create payment
   createPayment: async (paymentData) => {
+    console.log('[PAYMENT] Creating payment with data:', paymentData);
+    
     const response = await fetch(`${API_BASE_URL}/payments/create`, {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify(paymentData)
+    });
+    return handleResponse(response);
+  },
+
+  // Confirm Stripe payment
+  confirmStripePayment: async (confirmationData) => {
+    console.log('[PAYMENT] Confirming Stripe payment with data:', confirmationData);
+    
+    const response = await fetch(`${API_BASE_URL}/payments/confirm-stripe`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(confirmationData)
     });
     return handleResponse(response);
   }
@@ -566,7 +746,8 @@ export const feedbackAPI = {
 
   // Get user's feedback
   getUserFeedback: async (page = 1, limit = 10) => {
-    const response = await fetch(`${API_BASE_URL}/feedback/my-feedback?page=${page}&limit=${limit}`, {
+    console.log(`[FEEDBACK] Fetching user feedback - page: ${page}, limit: ${limit}`);
+    const response = await fetch(`${API_BASE_URL}/feedbacks/my-feedback`, {
       headers: getAuthHeaders()
     });
     return handleResponse(response);
@@ -577,6 +758,7 @@ export const feedbackAPI = {
     const response = await fetch(`${API_BASE_URL}/feedback/booking/${bookingId}`, {
       headers: getAuthHeaders()
     });
+    console.log("response from getFeedbackByBooking: ", response)
     return handleResponse(response);
   },
 
@@ -616,4 +798,4 @@ export default {
   payments: paymentsAPI,
   feedback: feedbackAPI,
   utils: apiUtils
-}; 
+};

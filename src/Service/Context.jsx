@@ -28,14 +28,12 @@ export const AuthProvider = ({ children }) => {
 
       if (savedToken && savedUser) {
         try {
-          // Verify token with backend
           const response = await authAPI.getCurrentUser();
           if (response.success) {
             setUser(response.data.user);
             setToken(savedToken);
             setIsAuthenticated(true);
           } else {
-            // Token is invalid, clear storage
             logout();
           }
         } catch (error) {
@@ -53,95 +51,88 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     const savedToken = localStorage.getItem('token');
     if (savedToken && !token) {
-      console.log('Context: Setting token from localStorage:', savedToken);
       setToken(savedToken);
     }
   }, [token]);
 
-  // Login function
   const login = async (credentials) => {
     try {
-      console.log('Context: Starting login process...');
       const response = await authAPI.login(credentials);
-      
-      console.log('Context: Login API response:', response);
       
       if (response.success && response.token && response.data) {
         const { token } = response;
         const { user: userData } = response.data;
         
-        console.log('Context: Login successful, token:', token);
-        console.log('Context: Login successful, user data:', userData);
-        
-        // Store in localStorage
         localStorage.setItem('token', token);
         localStorage.setItem('user', JSON.stringify(userData));
         
-        // Update state
         setUser(userData);
         setToken(token);
         setIsAuthenticated(true);
         
-        console.log('Context: State updated, isAuthenticated set to true');
-        
         return { success: true, user: userData };
-      } else {
-        console.log('Context: Login failed, response:', response);
-        return { success: false, message: 'Login failed' };
       }
+      return { success: false, message: 'Login failed' };
     } catch (error) {
       console.error('Context: Login error:', error);
       return { success: false, message: error.message };
     }
   };
 
-  // Register function
   const register = async (userData) => {
     try {
       const response = await authAPI.register(userData);
-      
-      if (response.success) {
-        return { success: true, message: 'Registration successful' };
-    } else {
-        return { success: false, message: 'Registration failed' };
-      }
+      return response.success 
+        ? { success: true, message: 'Registration successful' }
+        : { success: false, message: 'Registration failed' };
     } catch (error) {
       console.error('Registration error:', error);
       return { success: false, message: error.message };
     }
   };
 
-  // Logout function
   const logout = () => {
-    // Clear localStorage
     localStorage.removeItem('token');
     localStorage.removeItem('user');
-    
-    // Update state
     setUser(null);
     setToken(null);
     setIsAuthenticated(false);
-    
-    // Call logout API (optional, for server-side cleanup)
     authAPI.logout().catch(console.error);
   };
 
-  // Update user profile
-  const updateProfile = async (profileData) => {
+   const resetPassword = async ({ email }) => {
     try {
-      const response = await authAPI.updateProfile(profileData);
+      console.log('[Auth] Initiating password reset for:', email);
+      console.log('[Auth] Request payload:', JSON.stringify({ email }));
       
-      if (response.success) {
-        const updatedUser = response.data;
-        setUser(updatedUser);
-        localStorage.setItem('user', JSON.stringify(updatedUser));
-        return { success: true };
+      const response = await fetch('https://api.alloraspadubai.com/api/v1/auth/forgot-password', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({ email })
+      });
+
+      console.log('[Auth] Reset password response status:', response.status);
+      
+      const data = await response.json();
+      console.log('[Auth] Reset password response:', data);
+
+      if (response.ok && data.success) {
+        return {
+          success: true,
+          message: data.message || 'Password reset email sent successfully'
+        };
       } else {
-        return { success: false, message: 'Profile update failed' };
+        throw new Error(data.message || 'Failed to send reset email');
       }
     } catch (error) {
-      console.error('Profile update error:', error);
-      return { success: false, message: error.message };
+      console.error('[Auth] Reset password error:', error);
+      return {
+        success: false,
+        message: error.message || 'Failed to send reset link'
+      };
     }
   };
 
@@ -173,7 +164,7 @@ export const AuthProvider = ({ children }) => {
     login,
     register,
     logout,
-    updateProfile,
+    resetPassword,
     hasRole,
     isAdmin,
     isEmployee,

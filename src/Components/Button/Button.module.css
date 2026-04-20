@@ -1,0 +1,172 @@
+/* ==========================================================================
+   Button.module.css
+   Scoped styles for the Button component.
+
+   Design tokens follow the existing app palette (dark luxury spa aesthetic).
+   All selectors are local by default (CSS Modules).
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   Base button — shared across all variants
+   -------------------------------------------------------------------------- */
+.btn {
+  display:         inline-flex;
+  align-items:     center;
+  justify-content: center;
+  gap:             0.5rem;
+
+  font-family:     inherit;
+  font-weight:     600;
+  letter-spacing:  0.02em;
+  text-decoration: none;
+  white-space:     nowrap;
+
+  border:          2px solid transparent;
+  border-radius:   10px;
+  cursor:          pointer;
+  outline:         none;
+  transition:
+    background-color 0.2s ease,
+    border-color     0.2s ease,
+    color            0.2s ease,
+    opacity          0.2s ease,
+    transform        0.15s ease,
+    box-shadow       0.2s ease;
+
+  /* Prevent text selection on double-click */
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Active press effect */
+.btn:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+/* Focus ring for keyboard navigation (accessibility) */
+.btn:focus-visible {
+  box-shadow: 0 0 0 3px rgba(183, 146, 87, 0.45);
+}
+
+/* Disabled state */
+.btn:disabled,
+.btn--loading {
+  opacity: 0.55;
+  cursor:  not-allowed;
+  pointer-events: none;
+}
+
+/* --------------------------------------------------------------------------
+   Size variants
+   -------------------------------------------------------------------------- */
+.btn--sm {
+  padding:   0.4rem 0.9rem;
+  font-size: 0.8rem;
+  border-radius: 8px;
+}
+
+.btn--md {
+  padding:   0.625rem 1.35rem;
+  font-size: 0.9rem;
+}
+
+.btn--lg {
+  padding:   0.8rem 1.75rem;
+  font-size: 1rem;
+  border-radius: 12px;
+}
+
+/* Full width */
+.btn--full {
+  width: 100%;
+}
+
+/* --------------------------------------------------------------------------
+   Color variants
+   -------------------------------------------------------------------------- */
+
+/* Primary — gold/luxury accent */
+.btn--primary {
+  background-color: #b79257;
+  border-color:     #b79257;
+  color:            #ffffff;
+}
+
+.btn--primary:hover:not(:disabled) {
+  background-color: #c9a668;
+  border-color:     #c9a668;
+  box-shadow:       0 4px 18px rgba(183, 146, 87, 0.35);
+}
+
+/* Secondary — outlined */
+.btn--secondary {
+  background-color: transparent;
+  border-color:     #b79257;
+  color:            #b79257;
+}
+
+.btn--secondary:hover:not(:disabled) {
+  background-color: rgba(183, 146, 87, 0.1);
+  box-shadow:       0 4px 14px rgba(183, 146, 87, 0.2);
+}
+
+/* Ghost — subtle, no border */
+.btn--ghost {
+  background-color: transparent;
+  border-color:     transparent;
+  color:            #b79257;
+}
+
+.btn--ghost:hover:not(:disabled) {
+  background-color: rgba(183, 146, 87, 0.08);
+}
+
+/* Danger — red destructive action */
+.btn--danger {
+  background-color: #c0392b;
+  border-color:     #c0392b;
+  color:            #ffffff;
+}
+
+.btn--danger:hover:not(:disabled) {
+  background-color: #e04030;
+  border-color:     #e04030;
+  box-shadow:       0 4px 14px rgba(192, 57, 43, 0.35);
+}
+
+/* --------------------------------------------------------------------------
+   Inner elements
+   -------------------------------------------------------------------------- */
+
+/* Icon wrapper — ensures correct sizing and alignment */
+.btn__icon {
+  display:     inline-flex;
+  align-items: center;
+  font-size:   1.1em;
+  flex-shrink: 0;
+}
+
+/* Label — allows icon + text spacing without affecting flex layout */
+.btn__label {
+  display: inline-block;
+}
+
+/* Loading spinner */
+.btn__spinner {
+  display:     inline-flex;
+  align-items: center;
+  width:       1.1em;
+  height:      1.1em;
+  flex-shrink: 0;
+  animation:   spin 0.75s linear infinite;
+}
+
+.btn__spinner svg {
+  width:  100%;
+  height: 100%;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}

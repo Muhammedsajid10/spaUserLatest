@@ -1,0 +1,309 @@
+/* ==========================================================================
+   Home.module.css
+   Scoped styles for the Home page.
+   Follows the luxury spa dark aesthetic of the existing app.
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   Page wrapper
+   -------------------------------------------------------------------------- */
+.home {
+  width:    100%;
+  overflow: hidden;
+}
+
+/* --------------------------------------------------------------------------
+   Hero section
+   -------------------------------------------------------------------------- */
+.hero {
+  position:         relative;
+  display:          flex;
+  align-items:      center;
+  justify-content:  center;
+  min-height:       520px;
+  padding:          5rem 2rem 4rem;
+  overflow:         hidden;
+  background:       linear-gradient(
+    160deg,
+    #0e0b07 0%,
+    #1a1308 40%,
+    #0e0b07 100%
+  );
+}
+
+/* Content sits above decorative orbs */
+.hero__content {
+  position:   relative;
+  z-index:    1;
+  text-align: center;
+  max-width:  680px;
+}
+
+/* Eyebrow */
+.hero__eyebrow {
+  font-size:      0.85rem;
+  font-weight:    600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color:          #b79257;
+  margin:         0 0 0.5rem;
+}
+
+/* Main headline */
+.hero__title {
+  font-size:      clamp(2.8rem, 8vw, 5rem);
+  font-weight:    800;
+  letter-spacing: -0.02em;
+  line-height:    1.05;
+  margin:         0 0 1.1rem;
+
+  /* Gold gradient text */
+  background: linear-gradient(135deg, #d4a955 0%, #e8c87a 50%, #b79257 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip:         text;
+}
+
+/* Subtitle */
+.hero__subtitle {
+  font-size:   1.05rem;
+  color:       rgba(245, 240, 232, 0.7);
+  line-height: 1.6;
+  margin:      0 0 2.2rem;
+}
+
+/* CTA button row */
+.hero__actions {
+  display:        flex;
+  gap:            1rem;
+  justify-content: center;
+  flex-wrap:      wrap;
+}
+
+/* Decorative gradient orbs */
+.hero__orb1,
+.hero__orb2 {
+  position:      absolute;
+  border-radius: 50%;
+  filter:        blur(90px);
+  opacity:       0.18;
+  pointer-events: none;
+}
+
+.hero__orb1 {
+  width:  420px;
+  height: 420px;
+  top:    -100px;
+  left:   -120px;
+  background: radial-gradient(circle, #b79257 0%, transparent 70%);
+}
+
+.hero__orb2 {
+  width:  340px;
+  height: 340px;
+  bottom: -80px;
+  right:  -100px;
+  background: radial-gradient(circle, #8b6e3e 0%, transparent 70%);
+}
+
+/* --------------------------------------------------------------------------
+   Services section
+   -------------------------------------------------------------------------- */
+.services {
+  padding:    4rem 2rem;
+  max-width:  1100px;
+  margin:     0 auto;
+}
+
+.services__header {
+  text-align:    center;
+  margin-bottom: 2.5rem;
+}
+
+.services__title {
+  font-size:      2rem;
+  font-weight:    700;
+  color:          #f5f0e8;
+  letter-spacing: -0.01em;
+  margin:         0 0 0.6rem;
+}
+
+.services__subtitle {
+  font-size: 0.95rem;
+  color:     rgba(245, 240, 232, 0.55);
+  margin:    0;
+}
+
+/* Services grid — responsive 3-column layout */
+.serviceGrid {
+  display:               grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap:                   1.5rem;
+}
+
+/* View all CTA row */
+.services__cta {
+  display:         flex;
+  justify-content: center;
+  margin-top:      2.5rem;
+}
+
+/* --------------------------------------------------------------------------
+   Service Card
+   -------------------------------------------------------------------------- */
+.serviceCard {
+  display:          flex;
+  flex-direction:   column;
+  gap:              0.6rem;
+  padding:          1.5rem;
+  background:       rgba(255, 255, 255, 0.03);
+  border:           1px solid rgba(183, 146, 87, 0.15);
+  border-radius:    14px;
+  backdrop-filter:  blur(8px);
+  transition:       border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.serviceCard:hover {
+  border-color: rgba(183, 146, 87, 0.45);
+  box-shadow:   0 8px 28px rgba(0, 0, 0, 0.3);
+  transform:    translateY(-3px);
+}
+
+/* Category badge */
+.serviceCard__badge {
+  display:          inline-block;
+  align-self:       flex-start;
+  padding:          0.25rem 0.65rem;
+  font-size:        0.72rem;
+  font-weight:      600;
+  letter-spacing:   0.08em;
+  text-transform:   uppercase;
+  color:            #b79257;
+  background-color: rgba(183, 146, 87, 0.1);
+  border:           1px solid rgba(183, 146, 87, 0.25);
+  border-radius:    20px;
+}
+
+/* Service name */
+.serviceCard__name {
+  font-size:   1.05rem;
+  font-weight: 700;
+  color:       #f5f0e8;
+  margin:      0;
+  line-height: 1.3;
+}
+
+/* Short description */
+.serviceCard__description {
+  font-size:   0.875rem;
+  color:       rgba(245, 240, 232, 0.55);
+  line-height: 1.55;
+  margin:      0;
+  flex:        1;
+}
+
+/* Meta row: duration + price */
+.serviceCard__meta {
+  display:         flex;
+  align-items:     center;
+  justify-content: space-between;
+  gap:             0.5rem;
+  margin-top:      auto;
+  padding-top:     0.5rem;
+  border-top:      1px solid rgba(183, 146, 87, 0.1);
+}
+
+.serviceCard__duration {
+  font-size: 0.82rem;
+  color:     rgba(245, 240, 232, 0.5);
+}
+
+.serviceCard__price {
+  font-size:   1rem;
+  font-weight: 700;
+  color:       #b79257;
+}
+
+/* Book now link */
+.serviceCard__cta {
+  display:         inline-flex;
+  align-items:     center;
+  font-size:       0.85rem;
+  font-weight:     600;
+  color:           #b79257;
+  text-decoration: none;
+  margin-top:      0.4rem;
+  transition:      letter-spacing 0.15s ease, opacity 0.15s ease;
+}
+
+.serviceCard__cta:hover {
+  letter-spacing: 0.03em;
+  opacity:        0.8;
+}
+
+/* --------------------------------------------------------------------------
+   Loading skeleton
+   -------------------------------------------------------------------------- */
+.skeletonGrid {
+  display:               grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap:                   1.5rem;
+}
+
+.skeleton {
+  display:       flex;
+  flex-direction: column;
+  gap:           0.75rem;
+  padding:       1.5rem;
+  border-radius: 14px;
+  background:    rgba(255, 255, 255, 0.03);
+  border:        1px solid rgba(183, 146, 87, 0.08);
+}
+
+.skeleton__line {
+  height:       14px;
+  border-radius: 6px;
+  background:   linear-gradient(
+    90deg,
+    rgba(183, 146, 87, 0.08) 25%,
+    rgba(183, 146, 87, 0.18) 50%,
+    rgba(183, 146, 87, 0.08) 75%
+  );
+  background-size: 200% 100%;
+  animation:       shimmer 1.4s infinite;
+}
+
+/* Skeleton line size variants */
+.skeleton__line--badge { width: 60px;  height: 20px; border-radius: 20px; }
+.skeleton__line--title { width: 80%;   height: 18px; }
+.skeleton__line--short { width: 50%; }
+
+@keyframes shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* --------------------------------------------------------------------------
+   Error / Empty states
+   -------------------------------------------------------------------------- */
+.errorState {
+  display:         flex;
+  flex-direction:  column;
+  align-items:     center;
+  gap:             1rem;
+  padding:         3rem 1rem;
+  text-align:      center;
+}
+
+.errorState__message {
+  font-size: 0.95rem;
+  color:     rgba(245, 240, 232, 0.55);
+  margin:    0;
+}
+
+.emptyState {
+  text-align: center;
+  padding:    3rem 1rem;
+  font-size:  0.95rem;
+  color:      rgba(245, 240, 232, 0.4);
+}

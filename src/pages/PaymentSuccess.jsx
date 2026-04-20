@@ -2,8 +2,12 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../Service/Context';
 import { bookingFlow } from '../services/api';
-import './Payment.css';
+import styles from './PaymentSuccess.module.css';
 import Swal from 'sweetalert2';
+import { SiGmail } from "react-icons/si";
+import { TiTick } from "react-icons/ti";
+import { FaCalendarAlt } from "react-icons/fa";
+import { RxDashboard } from "react-icons/rx";
 
 const PaymentSuccess = () => {
   const navigate = useNavigate();
@@ -13,115 +17,177 @@ const PaymentSuccess = () => {
   const [loading, setLoading] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
 
-  // Get data from navigation state and localStorage
-  const { paymentIntent, bookingData } = location.state || {};
-  
-  console.log('PaymentSuccess - Received data:', {
-    paymentIntent,
-    bookingData,
-    locationState: location.state
-  });
+  // Get data from navigation state and localStorage and normalize shapes
+  const navState = location.state || {};
+  const paymentObj = navState.payment || navState.paymentIntent || navState.paymentData || null;
+  const rawBooking = navState.booking || navState.bookingData || navState.bookingResult || null;
+
+  console.log('PaymentSuccess - Received navigation state:', { navState });
 
   useEffect(() => {
     if (!user) {
-      navigate('/login');
-      return;
+      console.warn('PaymentSuccess: no authenticated user in context — debug info will still render');
+    } else {
+      console.log('PaymentSuccess - User is authenticated:', user);
     }
 
-    // Get booking details from multiple sources
-    const storedBooking = JSON.parse(localStorage.getItem('currentBooking') || '{}');
-    const finalBookingDetails = bookingData || storedBooking;
-    
-    console.log('PaymentSuccess - Final booking details:', finalBookingDetails);
+    // Normalize booking shape: unwrap nested .booking or .data fields
+    let finalBookingDetails = null;
+    try {
+      if (rawBooking) {
+        finalBookingDetails = rawBooking;
+        if (finalBookingDetails.booking) finalBookingDetails = finalBookingDetails.booking;
+        if (finalBookingDetails.data) finalBookingDetails = finalBookingDetails.data;
+        if (finalBookingDetails.bookingData) finalBookingDetails = finalBookingDetails.bookingData;
+      }
+    } catch (err) {
+      console.error('Error normalizing booking payload:', err);
+    }
+
+    // fallback to localStorage keys
+    if (!finalBookingDetails) {
+      try {
+        const stored = localStorage.getItem('currentBooking') || localStorage.getItem('bookingData');
+        finalBookingDetails = stored ? JSON.parse(stored) : null;
+      } catch (err) {
+        finalBookingDetails = null;
+      }
+    }
+
+    console.log('PaymentSuccess - Final booking details (normalized):', finalBookingDetails);
     setBookingDetails(finalBookingDetails);
 
-    // Clear booking flow data since payment is successful
-    console.log('PaymentSuccess - Clearing booking flow data after successful payment');
-    bookingFlow.reset();
-    localStorage.removeItem('bookingData');
-    localStorage.removeItem('currentBooking');
-
-    // Automatically send confirmation email if we have booking details
-    if (finalBookingDetails?.bookingId || finalBookingDetails?.bookingNumber || finalBookingDetails?._id) {
-      sendConfirmationEmailAuto(finalBookingDetails);
+    if (finalBookingDetails) {
+      console.log('PaymentSuccess - booking details present; will NOT clear bookingFlow/localStorage to keep sidebar visible');
+      if (finalBookingDetails?.bookingId || finalBookingDetails?.bookingNumber || finalBookingDetails?._id) {
+        sendConfirmationEmailAuto(finalBookingDetails);
+      }
+    } else {
+      console.log('PaymentSuccess - no booking details found to send confirmation for');
     }
-    
-    console.log('Payment success - processed booking data and cleared booking flow');
-  }, [bookingData, user, navigate]);
+  }, [location.state, user, navigate]);
 
   const handleViewBookings = () => {
+    try {
+      localStorage.removeItem('bookingData');
+      localStorage.removeItem('currentBooking');
+    } catch (e) {
+      /* ignore */
+    }
+    bookingFlow.reset();
     navigate('/client-profile');
   };
 
   const handleNewBooking = () => {
-    // Clear booking data and navigate to home
-    localStorage.removeItem('currentBooking');
+    try {
+      localStorage.removeItem('currentBooking');
+      localStorage.removeItem('bookingData');
+    } catch (e) {
+      /* ignore */
+    }
     bookingFlow.reset();
     navigate('/');
   };
 
   const handleModifyBooking = () => {
-    // For now, redirect to bookings where they can manage
     navigate('/client-profile');
   };
 
   const sendConfirmationEmailAuto = async (bookingDetails) => {
+    const id = bookingDetails?.bookingId || bookingDetails?.bookingNumber || bookingDetails?._id;
+    if (!id) {
+      console.warn('Skipping auto-confirmation email: No valid booking ID found in', bookingDetails);
+      return;
+    }
+
     try {
-      console.log('Auto-sending confirmation email for booking:', bookingDetails?.bookingId || bookingDetails?.bookingNumber || bookingDetails?._id);
+      console.log('Auto-sending confirmation email. Booking ID:', id);
+      const token = localStorage.getItem('token');
       
-      const response = await fetch('https://spabackend-0tko.onrender.com/api/v1/payments/send-confirmation', {
+      const payload = { bookingId: id };
+      console.log('Auto-email payload:', JSON.stringify(payload));
+
+      const response = await fetch('https://api.alloraspadubai.com/api/v1/payments/send-confirmation', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({
-          bookingId: bookingDetails?.bookingId || bookingDetails?.bookingNumber || bookingDetails?._id
-        })
+        body: JSON.stringify(payload)
       });
 
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.message || 'Failed to send confirmation email');
+      const contentType = response.headers.get("content-type");
+      let result;
+      if (contentType && contentType.indexOf("application/json") !== -1) {
+        result = await response.json();
+      } else {
+        const text = await response.text();
+        console.error('Non-JSON response from server:', text);
+        throw new Error(`Server returned status ${response.status}: ${text.substring(0, 100)}`);
       }
 
-      console.log('Auto confirmation email sent:', result);
+      if (!response.ok) {
+        console.error('Server error response:', result);
+        throw new Error(result.message || `Server error ${response.status}`);
+      }
+
+      console.log('Auto confirmation email sent successfully:', result);
       setEmailSent(true);
       
     } catch (error) {
       console.error('Error auto-sending confirmation email:', error);
-      // Don't show alert for auto-send failures, just log
     }
   };
 
   const sendConfirmationEmail = async () => {
+    const id = bookingDetails?.bookingId || bookingDetails?.bookingNumber || bookingDetails?._id;
+    
+    if (!id) {
+      Swal.fire({
+        title: 'Error',
+        text: 'Cannot send email: Booking ID is missing.',
+        icon: 'error'
+      });
+      return;
+    }
+
     setLoading(true);
     try {
-      console.log('Sending confirmation email for booking:', bookingDetails?.bookingId || bookingDetails?.bookingNumber || bookingDetails?._id);
+      console.log('Manually sending confirmation email. Booking ID:', id);
+      const token = localStorage.getItem('token');
       
-      const response = await fetch('https://spabackend-0tko.onrender.com/api/v1/payments/send-confirmation', {
+      const payload = { bookingId: id };
+      console.log('Manual email payload:', JSON.stringify(payload));
+
+      const response = await fetch('https://api.alloraspadubai.com/api/v1/payments/send-confirmation', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({
-          bookingId: bookingDetails?.bookingId || bookingDetails?.bookingNumber || bookingDetails?._id
-        })
+        body: JSON.stringify(payload)
       });
 
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.message || 'Failed to send confirmation email');
+      const contentType = response.headers.get("content-type");
+      let result;
+      if (contentType && contentType.indexOf("application/json") !== -1) {
+        result = await response.json();
+      } else {
+        const text = await response.text();
+        console.error('Non-JSON response from server:', text);
+        throw new Error(`Server returned status ${response.status}: ${text.substring(0, 100)}`);
       }
 
-      console.log('Confirmation email sent:', result);
+      if (!response.ok) {
+        console.error('Server error response:', result);
+        throw new Error(result.message || `Server error ${response.status}`);
+      }
+
+      console.log('Confirmation email sent successfully:', result);
       setEmailSent(true);
       Swal.fire({
         title: 'Email Sent!',
-        text: `Confirmation email sent successfully to ${result.data.email}!`,
+        text: `Confirmation email sent successfully to ${result.data?.email || 'your email'}!`,
         icon: 'success',
         timer: 5000,
         showConfirmButton: false
@@ -142,130 +208,128 @@ const PaymentSuccess = () => {
   };
 
   return (
-    <div className="payment-container">
-      <div className="payment-card success-card">
-        <div className="success-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-            <polyline points="22,4 12,14.01 9,11.01"></polyline>
-          </svg>
+    <div className={styles.paymentSuccessWrapper}>
+      <div className={styles.successCard}>
+        {/* Success Header */}
+        <div className={styles.successHeader}>
+          <div className={styles.successIcon}>
+            <TiTick />
+          </div>
+          <h1 className={styles.successTitle}>Payment Successful</h1>
+          <p className={styles.successSubtitle}>
+            Your booking has been confirmed. We've sent a confirmation to your email.
+          </p>
         </div>
 
-        <div className="success-content">
-          <h1>Payment Successful!</h1>
-          <p>Your payment has been processed successfully.</p>
-          
-          <div className="payment-summary">
-            <h3>Payment Summary</h3>
-            <div className="summary-details">
-              <div className="detail-row">
-                <span>Payment ID:</span>
-                <span>{paymentIntent?.id || paymentIntent?.paymentIntent?.id || 'Processing...'}</span>
+        {/* Booking Summary */}
+        <div className={styles.bookingSummary}>
+          <h3 className={styles.summaryTitle}>Booking Summary</h3>
+          <div className={styles.summaryDetails}>
+            <div className={styles.detailRow}>
+              <span className={styles.detailLabel}>Booking ID</span>
+              <span className={styles.detailValue}>
+                {bookingDetails?.bookingId || bookingDetails?._id || 'Loading...'}
+              </span>
+            </div>
+            <div className={styles.detailRow}>
+              <span className={styles.detailLabel}>Booking Number</span>
+              <span className={styles.detailValue}>
+                {bookingDetails?.bookingNumber || 'Loading...'}
+              </span>
+            </div>
+            {bookingDetails?.date && (
+              <div className={styles.detailRow}>
+                <span className={styles.detailLabel}>Date</span>
+                <span className={styles.detailValue}>
+                  {new Date(bookingDetails.date).toLocaleDateString()}
+                </span>
               </div>
-              <div className="detail-row">
-                <span>Amount:</span>
-                <span>AED {bookingDetails?.totalAmount || paymentIntent?.amount || 'N/A'}</span>
+            )}
+            {bookingDetails?.time && (
+              <div className={styles.detailRow}>
+                <span className={styles.detailLabel}>Time</span>
+                <span className={styles.detailValue}>{bookingDetails.time}</span>
               </div>
-              <div className="detail-row">
-                <span>Booking ID:</span>
-                <span>{bookingDetails?.bookingId || bookingDetails?._id || 'N/A'}</span>
+            )}
+            {bookingDetails?.totalAmount && (
+              <div className={styles.detailRow}>
+                <span className={styles.detailLabel}>Amount Paid</span>
+                <span className={styles.detailValue}>
+                  AED {parseFloat(bookingDetails.totalAmount).toFixed(2)}
+                </span>
               </div>
-              <div className="detail-row">
-                <span>Booking Number:</span>
-                <span>{bookingDetails?.bookingNumber || 'N/A'}</span>
+            )}
+          </div>
+        </div>
+
+        {/* Next Steps */}
+        <div className={styles.nextSteps}>
+          <h3 className={styles.stepsTitle}>What's Next?</h3>
+          <div className={styles.stepsList}>
+            <div className={styles.stepItem}>
+              <div className={styles.stepIcon}>
+                {emailSent ? <TiTick /> : <SiGmail />}
               </div>
-              <div className="detail-row">
-                <span>Services:</span>
-                <span>{bookingDetails?.serviceNames || bookingDetails?.services?.map(s => s.name).join(', ') || 'N/A'}</span>
+              <div className={styles.stepContent}>
+                <p className={styles.stepText}>
+                  You will receive a confirmation email shortly
+                </p>
+                {!emailSent ? (
+                  <button 
+                    onClick={sendConfirmationEmail} 
+                    disabled={loading}
+                    className={`${styles.stepAction} ${loading ? styles.loading : ''}`}
+                  >
+                    {loading ? 'Sending...' : 'Resend Email'}
+                  </button>
+                ) : (
+                  <span className={styles.emailSent}>
+                    <TiTick /> Email sent!
+                  </span>
+                )}
               </div>
-              {bookingDetails?.professionalAssignments && bookingDetails.professionalAssignments.length > 0 && bookingDetails.uniqueProfessionalNames?.length > 1 ? (
-                <div className="detail-row">
-                  <span>Professionals:</span>
-                  <span>{bookingDetails.uniqueProfessionalNames.join(', ')}</span>
-                </div>
-              ) : (
-                <div className="detail-row">
-                  <span>Professional:</span>
-                  <span>{bookingDetails?.professionalName || 'N/A'}</span>
-                </div>
-              )}
-              <div className="detail-row">
-                <span>Date:</span>
-                <span>{bookingDetails?.date || 'N/A'}</span>
+            </div>
+            
+            <div className={styles.stepItem}>
+              <div className={styles.stepIcon}>
+                <FaCalendarAlt />
               </div>
-              <div className="detail-row">
-                <span>Time:</span>
-                <span>{bookingDetails?.time || 'N/A'}</span>
+              <div className={styles.stepContent}>
+                <p className={styles.stepText}>Your appointment is confirmed</p>
+                <button onClick={handleViewBookings} className={styles.stepAction}>
+                  View Details
+                </button>
+              </div>
+            </div>
+            
+            <div className={styles.stepItem}>
+              <div className={styles.stepIcon}>
+                <RxDashboard />
+              </div>
+              <div className={styles.stepContent}>
+                <p className={styles.stepText}>
+                  You can view your bookings in your dashboard
+                </p>
+                <button onClick={handleViewBookings} className={styles.stepAction}>
+                  Go to Dashboard
+                </button>
               </div>
             </div>
           </div>
+        </div>
 
-          <div className="success-message">
-            <h3>What's Next?</h3>
-            <div className="next-steps">
-              <div className="step-item">
-                <div className="step-icon">
-                  {emailSent ? '✅' : '📧'}
-                </div>
-                <div className="step-content">
-                  <span>You will receive a confirmation email shortly</span>
-                  {!emailSent && (
-                    <button 
-                      onClick={sendConfirmationEmail} 
-                      disabled={loading}
-                      className="resend-btn"
-                    >
-                      {loading ? 'Sending...' : 'Resend Email'}
-                    </button>
-                  )}
-                  {emailSent && <span className="status-text">Email sent! ✅</span>}
-                </div>
-              </div>
-              
-              <div className="step-item">
-                <div className="step-icon">📅</div>
-                <div className="step-content">
-                  <span>Your appointment is confirmed</span>
-                  <button onClick={handleViewBookings} className="action-link">
-                    View Details
-                  </button>
-                </div>
-              </div>
-              
-              <div className="step-item">
-                <div className="step-icon">📱</div>
-                <div className="step-content">
-                  <span>You can view your bookings in your dashboard</span>
-                  <button onClick={handleViewBookings} className="action-link">
-                    Go to Dashboard
-                  </button>
-                </div>
-              </div>
-              
-              {/* <div className="step-item">
-                <div className="step-icon">🔄</div>
-                <div className="step-content">
-                  <span>You can modify or cancel your booking up to 24 hours before</span>
-                  <button onClick={handleModifyBooking} className="action-link">
-                    Manage Booking
-                  </button>
-                </div>
-              </div> */}
-            </div>
-          </div>
-
-          <div className="action-buttons">
-            <button onClick={handleViewBookings} className="btn-primary">
-              View My Bookings
-            </button>
-            <button onClick={handleNewBooking} className="btn-secondary">
-              Book Another Service
-            </button>
-          </div>
+        {/* Action Buttons */}
+        <div className={styles.actionButtons}>
+          <button onClick={handleViewBookings} className={styles.btnPrimary}>
+            View My Bookings
+          </button>
+          <button onClick={handleNewBooking} className={styles.btnSecondary}>
+            Book Another Service
+          </button>
         </div>
       </div>
     </div>
   );
 };
 
-export default PaymentSuccess; 
+export default PaymentSuccess;
